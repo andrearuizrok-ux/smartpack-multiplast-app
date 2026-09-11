@@ -977,3 +977,185 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
 })();
+
+
+/* ===== Smart Pack · Multiplast — V11.1 COMPLIANCE + UI CONSOLIDATION ===== */
+(function(){
+  'use strict';
+  const BUILD='V11.1';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.1';
+  const $1=id=>document.getElementById(id);
+  const esc1=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const today1=()=>new Date().toISOString().slice(0,10);
+  const uid1=p=>p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+  let filter111='attention', search111='', edit111='', renew111='', history111='';
+
+  function S(){try{return state}catch(_){return window.state||null}}
+  function role111(){try{return currentRole||''}catch(_){return window.currentRole||''}}
+  function canManage111(){return ['admin','director'].includes(role111())}
+  function persist111(){try{save()}catch(_){try{localStorage.setItem('industrial_os_v2_state',JSON.stringify(S()))}catch(__){}}}
+  function ensureState111(){
+    const st=S(); if(!st)return;
+    st.complianceRecords=Array.isArray(st.complianceRecords)?st.complianceRecords:[];
+    st.complianceEmailLog=Array.isArray(st.complianceEmailLog)?st.complianceEmailLog:[];
+    st.complianceSettings=(st.complianceSettings&&typeof st.complianceSettings==='object')?st.complianceSettings:{};
+    if(!Array.isArray(st.complianceSettings.thresholds)||!st.complianceSettings.thresholds.length)st.complianceSettings.thresholds=[60,30,15,7,1,0];
+    if(typeof st.complianceSettings.reportEmails!=='string')st.complianceSettings.reportEmails='';
+    if(typeof st.complianceSettings.emailAlertsEnabled!=='boolean')st.complianceSettings.emailAlertsEnabled=true;
+    if(typeof st.complianceSettings.weeklyDigestEnabled!=='boolean')st.complianceSettings.weeklyDigestEnabled=true;
+    if(!st.complianceSettings.alertHorizonDays)st.complianceSettings.alertHorizonDays=60;
+  }
+  function parseDate111(v){if(!v)return null;const d=new Date(String(v).slice(0,10)+'T12:00:00');return isNaN(d)?null:d}
+  function days111(v){const d=parseDate111(v);if(!d)return 99999;const t=parseDate111(today1());return Math.ceil((d-t)/86400000)}
+  function date111(v){const d=parseDate111(v);return d?d.toLocaleDateString('it-IT'):'—'}
+  function status111(r){
+    if(r.active===false)return {key:'archived',label:'Archiviato',cls:'archived',days:days111(r.expiryDate)};
+    const d=days111(r.expiryDate);
+    if(d<0)return {key:'expired',label:`Scaduto da ${Math.abs(d)} gg`,cls:'expired',days:d};
+    if(d===0)return {key:'urgent',label:'Scade oggi',cls:'urgent',days:d};
+    if(d<=7)return {key:'urgent',label:`Scade tra ${d} gg`,cls:'urgent',days:d};
+    if(d<=30)return {key:'due',label:`Scade tra ${d} gg`,cls:'due',days:d};
+    if(d<=60)return {key:'watch',label:`Tra ${d} gg`,cls:'watch',days:d};
+    return {key:'ok',label:`Regolare · ${d} gg`,cls:'ok',days:d};
+  }
+  function active111(){return (S()?.complianceRecords||[]).filter(r=>r&&r.active!==false)}
+  function alerts111(){return active111().map(r=>({r,s:status111(r)})).filter(x=>x.s.days<=Number(S()?.complianceSettings?.alertHorizonDays||60)).sort((a,b)=>a.s.days-b.s.days)}
+  function recipients111(r){
+    const local=String(r?.alertEmails||'').trim();
+    const global=String(S()?.complianceSettings?.reportEmails||'').trim();
+    return (local||global).split(/[;,]/).map(x=>x.trim()).filter(Boolean);
+  }
+
+  function injectStyles111(){
+    if($1('sp111Styles'))return;
+    const st=document.createElement('style');st.id='sp111Styles';st.textContent=`
+      /* V11.1: cloud UI properly hidden unless explicitly open */
+      .poi-cloud-auth,.poi-cloud-bootstrap{display:none;position:fixed;inset:0;z-index:10050;background:rgba(12,35,47,.58);backdrop-filter:blur(4px);padding:18px;place-items:center;overflow:auto}
+      .poi-cloud-auth.open,.poi-cloud-bootstrap.open{display:grid!important}
+      .poi-cloud-auth-card,.poi-cloud-bootstrap-card{width:min(720px,calc(100vw - 28px));max-height:92vh;overflow:auto;background:#fff;border:1px solid #d6e3e7;border-radius:22px;padding:22px;box-shadow:0 24px 70px rgba(16,45,60,.24)}
+      .poi-cloud-auth-brand{display:flex;align-items:center;gap:13px;margin-bottom:15px}.poi-cloud-auth-logo{width:48px;height:48px;border-radius:14px;background:#0f769d;color:#fff;display:grid;place-items:center;font-weight:900}.poi-cloud-auth-brand h2{margin:0;font-size:22px}.poi-cloud-auth-brand p,.poi-cloud-auth-card>p{color:var(--muted);font-size:13px}.poi-cloud-auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.poi-cloud-auth-grid .poi-cloud-auth-error{grid-column:1/-1;color:#a7373f;font-size:13px}.poi-cloud-auth-foot{margin-top:13px;padding:11px 12px;background:#f5f8f9;border-radius:11px;color:var(--muted);font-size:12px}
+      .poi-cloud-menu{display:none;position:fixed;right:18px;top:76px;z-index:10020;width:min(340px,calc(100vw - 24px));background:#fff;border:1px solid #d6e3e7;border-radius:17px;padding:14px;box-shadow:0 18px 50px rgba(16,45,60,.18)}.poi-cloud-menu.open{display:grid!important;gap:8px}.poi-cloud-menu h4{margin:0;font-size:15px}.poi-cloud-menu p{margin:0 0 4px;color:var(--muted);font-size:12px}.cloud-user{display:grid;padding:10px;background:#f6f9fa;border-radius:10px}.cloud-user span{font-size:12px;color:var(--muted)}
+      .poi-cloud-chip{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:8px 11px;border:1px solid #d1e0e5;background:#fff;border-radius:999px;font-size:12px;font-weight:800;color:#355461}.poi-cloud-dot{width:8px;height:8px;border-radius:50%;background:#9aaeb6}.poi-cloud-chip[data-state="online"] .poi-cloud-dot{background:#2f9d76}.poi-cloud-chip[data-state="syncing"] .poi-cloud-dot{background:#e0a338}.poi-cloud-chip[data-state="error"] .poi-cloud-dot{background:#ca5b61}.poi-cloud-chip small{font-size:10px;color:var(--muted)}
+      #poiOnlineStrip{display:none!important}.poi-mobile-summary{display:none!important}
+      /* Compliance bell */
+      .sp111-bell{position:relative;display:none;align-items:center;justify-content:center;min-width:42px;height:42px;border:1px solid #d3e1e5;background:#fff;border-radius:13px;font-size:18px;cursor:pointer}.sp111-bell.show{display:inline-flex}.sp111-bell b{position:absolute;right:-5px;top:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#b7474f;color:#fff;font-size:10px;display:grid;place-items:center;border:2px solid #fff}
+      /* Compliance page */
+      .sp111-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}.sp111-head h1{font-size:27px;margin:3px 0 5px}.sp111-head p{margin:0;color:var(--muted);font-size:14px;max-width:800px}.sp111-head-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.sp111-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}.sp111-kpi{border:1px solid #dce7ea;background:#fff;border-radius:15px;padding:14px;box-shadow:0 4px 14px rgba(22,60,76,.035)}.sp111-kpi span{display:block;font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}.sp111-kpi b{display:block;font-size:26px;margin-top:4px}.sp111-kpi.expired b{color:#b7474f}.sp111-kpi.urgent b{color:#b06a20}.sp111-kpi.ok b{color:#277d61}
+      .sp111-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0}.sp111-tabs{display:flex;gap:7px;flex-wrap:wrap}.sp111-tabs button{border:1px solid #d7e3e7;background:#fff;border-radius:999px;padding:9px 12px;font-weight:800;font-size:12px;color:#516773}.sp111-tabs button.active{background:#173f54;color:#fff;border-color:#173f54}.sp111-search{min-width:260px;max-width:360px;flex:1}.sp111-search input{width:100%;height:42px;border:1px solid #d4e2e6;border-radius:12px;padding:0 12px;font-size:14px}
+      .sp111-list{display:grid;gap:10px}.sp111-card{display:grid;grid-template-columns:minmax(230px,1.35fr) minmax(140px,.75fr) minmax(145px,.8fr) auto;gap:12px;align-items:center;background:#fff;border:1px solid #dce6e9;border-radius:15px;padding:14px}.sp111-card.expired{border-left:5px solid #b7474f}.sp111-card.urgent{border-left:5px solid #d98b32}.sp111-card.due{border-left:5px solid #d6ad45}.sp111-card.watch{border-left:5px solid #75a2b3}.sp111-card.ok{border-left:5px solid #4c9c7d}.sp111-card.archived{opacity:.65}.sp111-main h3{font-size:16px;margin:2px 0}.sp111-main p{font-size:13px;color:var(--muted);margin:0}.sp111-meta span,.sp111-expiry span{display:block;font-size:11px;color:var(--muted)}.sp111-meta b,.sp111-expiry b{display:block;font-size:14px;margin-top:3px}.sp111-status{display:inline-flex;margin-top:5px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900}.sp111-status.expired{background:#fdecef;color:#a43e46}.sp111-status.urgent{background:#fff0df;color:#9b5b1d}.sp111-status.due{background:#fff7dc;color:#80661c}.sp111-status.watch{background:#eef5f7;color:#3e6d7c}.sp111-status.ok{background:#eaf7f1;color:#26765d}.sp111-status.archived{background:#eef1f2;color:#657981}.sp111-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.sp111-empty{padding:26px;text-align:center;border:1px dashed #cadce1;border-radius:14px;color:var(--muted);background:#fafcfc}
+      .sp111-privacy{margin:12px 0;background:#f4f8fa;border:1px solid #d7e5e9;border-radius:11px;padding:10px 12px;font-size:12px;color:#526b76}.sp111-privacy b{color:#173f54}.sp111-admin-alert{margin-bottom:14px;border:1px solid #e0d2b3;background:#fffaf0;border-radius:15px;padding:14px}.sp111-admin-alert-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.sp111-admin-alert h3{font-size:16px;margin:0}.sp111-admin-alert p{font-size:12px;color:#715b32;margin:4px 0 0}.sp111-admin-alert-items{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.sp111-admin-mini{background:#fff;border:1px solid #eadfc6;border-radius:10px;padding:9px;font-size:12px}.sp111-admin-mini b{display:block;font-size:13px}.sp111-admin-mini span{color:#735f38}.sp111-email-state{margin:10px 0;padding:10px 12px;border-radius:11px;background:#f3f8fa;border:1px solid #d5e4e8;font-size:12px;color:#506a75}
+      .sp111-history{display:grid;gap:8px}.sp111-history-row{border-left:3px solid #b97850;background:#faf7f4;border-radius:9px;padding:9px 11px}.sp111-history-row b{font-size:13px}.sp111-history-row span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+      @media(max-width:900px){.sp111-card{grid-template-columns:1fr 1fr}.sp111-actions{grid-column:1/-1;justify-content:flex-start}.sp111-kpis{grid-template-columns:1fr 1fr}.sp111-admin-alert-items{grid-template-columns:1fr}.sp111-head{display:block}.sp111-head-actions{justify-content:flex-start;margin-top:12px}}
+      @media(max-width:600px){
+        .poi-cloud-auth{padding:4px}.poi-cloud-auth-card,.poi-cloud-bootstrap-card{width:calc(100vw - 8px);max-height:97dvh;border-radius:16px;padding:16px}.poi-cloud-auth-grid{grid-template-columns:1fr}.poi-cloud-menu{right:6px;top:69px;width:calc(100vw - 12px)}
+        .poi-mobile-summary:not(:empty){display:block!important;margin:0 0 14px;padding:14px;border:1px solid #dbe7ea;background:#fff;border-radius:15px}.poi-ms-head h3{font-size:18px;margin:0}.poi-ms-head p{font-size:12px;color:var(--muted);margin:2px 0 10px}.poi-ms-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.poi-ms-card{border:1px solid #e1eaed;background:#f9fbfc;border-radius:11px;padding:10px}.poi-ms-card span{display:block;font-size:11px;color:var(--muted)}.poi-ms-card b{display:block;font-size:19px;margin-top:3px}.poi-ms-card small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+        .sp111-bell{min-width:40px;height:40px}.sp111-head h1{font-size:23px}.sp111-head p{font-size:14px}.sp111-head-actions{display:grid;grid-template-columns:1fr;width:100%}.sp111-head-actions .btn{width:100%}.sp111-kpis{grid-template-columns:1fr 1fr}.sp111-toolbar{display:block}.sp111-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.sp111-tabs button{flex:0 0 auto;font-size:13px}.sp111-search{min-width:0;max-width:none;margin-top:9px}.sp111-card{grid-template-columns:1fr;padding:13px}.sp111-actions{grid-column:auto;display:grid;grid-template-columns:1fr}.sp111-actions .btn{width:100%}.sp111-main h3{font-size:18px}.sp111-main p,.sp111-meta b,.sp111-expiry b{font-size:14px}.sp111-meta span,.sp111-expiry span{font-size:12px}.sp111-kpi b{font-size:24px}
+      }
+    `;document.head.appendChild(st);
+  }
+
+  function mark111(){
+    try{document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+BUILD;document.body.dataset.build=MARKER}catch(_){ }
+    document.querySelectorAll('.version-badge').forEach(x=>x.textContent=BUILD);
+    ['sp109Build','sp110Build','sp11Build','sp111Build'].forEach(id=>$1(id)?.remove());
+    const foot=document.querySelector('.sidebar-foot');if(foot){const b=document.createElement('div');b.id='sp111Build';b.style.cssText='margin-top:8px;font-size:11px;font-weight:900;opacity:.95';b.textContent=BUILD+' · Compliance';foot.appendChild(b)}
+  }
+
+  function ensureView111(){
+    if($1('complianceView'))return;
+    const admin=$1('adminView');if(!admin)return;
+    const v=document.createElement('section');v.className='view';v.id='complianceView';admin.insertAdjacentElement('afterend',v);
+  }
+  function addNav111(){
+    try{
+      if(typeof NAV!=='undefined'){
+        const item=['compliance','settings','Scadenze & Compliance'];
+        for(const role of ['director','admin']){
+          NAV[role]=NAV[role]||[];
+          if(!NAV[role].some(x=>x[0]==='compliance')){
+            const pos=Math.max(0,NAV[role].findIndex(x=>x[0]==='trace'));
+            if(pos>=0)NAV[role].splice(pos,0,item);else NAV[role].push(item);
+          }
+        }
+      }
+      if(typeof META!=='undefined')META.compliance=['Scadenze & Compliance','Visite, formazione, certificazioni e verifiche sotto controllo'];
+      if(typeof renderNav==='function')renderNav();
+    }catch(err){console.warn('[V11.1] nav',err)}
+  }
+  function patchRender111(){
+    try{
+      const old=renderCurrent;if(typeof old==='function'&&!old.__sp111){
+        const w=function(){if(typeof currentView!=='undefined'&&currentView==='compliance')return renderCompliance111();return old.apply(this,arguments)};w.__sp111=true;renderCurrent=w;window.renderCurrent=w;
+      }
+    }catch(err){console.warn('[V11.1] render patch',err)}
+  }
+
+  function bell111(){
+    const top=document.querySelector('.topbar');if(!top)return;let b=$1('sp111Bell');
+    if(!b){b=document.createElement('button');b.id='sp111Bell';b.type='button';b.className='sp111-bell';b.title='Scadenze e compliance';b.innerHTML='🔔<b>0</b>';const profile=document.querySelector('.profile');(profile||top.lastElementChild)?.insertAdjacentElement('beforebegin',b);b.onclick=()=>{try{navTo('compliance')}catch(_){}}}
+    const n=alerts111().filter(x=>x.s.days<=30).length;b.querySelector('b').textContent=String(n);b.querySelector('b').style.display=n?'grid':'none';b.classList.toggle('show',canManage111());
+  }
+
+  function ensureDialogs111(){
+    if(!$1('sp111RecordDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="sp111RecordDialog"><form id="sp111RecordForm"><div class="modal-head"><div><span class="eyebrow">Compliance</span><h3 id="sp111RecordTitle">Nuova scadenza</h3><p>Registra solo le informazioni operative necessarie.</p></div><button type="button" class="close" data-close="sp111RecordDialog">×</button></div><div class="modal-body"><div class="sp111-privacy"><b>Privacy:</b> per visite mediche e idoneità non inserire diagnosi o dettagli clinici. Sono sufficienti tipologia, data e prossima scadenza.</div><div class="form-grid"><label class="field">Azienda<select name="company" required><option>Smart Pack</option><option>Multiplast</option><option>Gruppo</option></select></label><label class="field">Tipo soggetto<select name="subjectType" required><option>Lavoratore</option><option>Azienda</option><option>Impianto</option><option>Attrezzatura</option><option>Veicolo</option><option>Documento</option></select></label><label class="field full">Persona / elemento<input name="subjectName" list="sp111People" required placeholder="Es. Mario Rossi / Compressore 1 / ISO 9001"><datalist id="sp111People"></datalist></label><label class="field">Categoria<select name="category" required><option>Visita medica</option><option>Giudizio di idoneità</option><option>Formazione sicurezza</option><option>Aggiornamento formazione</option><option>Patentino / abilitazione</option><option>Certificazione aziendale</option><option>Manutenzione / verifica</option><option>Assicurazione</option><option>Autorizzazione</option><option>Documento mezzo</option><option>Altro</option></select></label><label class="field">Titolo<input name="title" required placeholder="Es. Visita medica periodica"></label><label class="field">Data rilascio / effettuazione<input name="issueDate" type="date"></label><label class="field">Data scadenza<input name="expiryDate" type="date" required></label><label class="field">Responsabile<input name="responsible" placeholder="Es. Amministrazione"></label><label class="field">Email alert specifiche<input name="alertEmails" type="text" placeholder="email1@..., email2@..."></label><label class="field full">Riferimento documento / link<input name="documentRef" placeholder="Protocollo, cartella, link Drive..."></label><label class="field full">Note<textarea name="notes" rows="3" placeholder="Solo informazioni operative"></textarea></label></div></div><div class="modal-actions"><button type="button" class="btn" data-close="sp111RecordDialog">Annulla</button><button class="btn primary" type="submit">Salva scadenza</button></div></form></dialog>`);
+    if(!$1('sp111RenewDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="sp111RenewDialog"><form id="sp111RenewForm"><div class="modal-head"><div><span class="eyebrow">Rinnovo</span><h3>Registra rinnovo</h3><p id="sp111RenewInfo"></p></div><button type="button" class="close" data-close="sp111RenewDialog">×</button></div><div class="modal-body"><div class="form-grid"><label class="field">Nuova data rilascio / visita<input name="issueDate" type="date"></label><label class="field">Nuova scadenza<input name="expiryDate" type="date" required></label><label class="field full">Nuovo riferimento documento<input name="documentRef" placeholder="Opzionale"></label><label class="field full">Note rinnovo<textarea name="notes" rows="3"></textarea></label></div></div><div class="modal-actions"><button type="button" class="btn" data-close="sp111RenewDialog">Annulla</button><button class="btn primary" type="submit">Conferma rinnovo</button></div></form></dialog>`);
+    if(!$1('sp111SettingsDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="sp111SettingsDialog"><form id="sp111SettingsForm"><div class="modal-head"><div><span class="eyebrow">Alert</span><h3>Impostazioni scadenze</h3><p>Le notifiche interne sono immediate. Gli alert email automatici usano i destinatari configurati qui.</p></div><button type="button" class="close" data-close="sp111SettingsDialog">×</button></div><div class="modal-body"><div class="form-grid"><label class="field full">Destinatari report / alert email<input name="reportEmails" type="text" placeholder="amministrazione@azienda.it, roberto@azienda.it"></label><label class="field full">Soglie alert (giorni, separate da virgola)<input name="thresholds" type="text" value="60,30,15,7,1,0"></label><label class="field">Orizzonte dashboard (giorni)<input name="alertHorizonDays" type="number" min="7" max="365" value="60"></label><label class="field">Alert email automatici<select name="emailAlertsEnabled"><option value="true">Attivi</option><option value="false">Disattivati</option></select></label><label class="field">Report settimanale<select name="weeklyDigestEnabled"><option value="true">Attivo</option><option value="false">Disattivato</option></select></label></div><div class="sp111-email-state">Il programma salva queste preferenze nel cloud. Il controllo automatico email viene eseguito dal monitor scadenze collegato all'account Gmail autorizzato.</div></div><div class="modal-actions"><button type="button" class="btn" data-close="sp111SettingsDialog">Annulla</button><button class="btn primary" type="submit">Salva impostazioni</button></div></form></dialog>`);
+    if(!$1('sp111HistoryDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="sp111HistoryDialog"><div class="modal-head"><div><span class="eyebrow">Storico</span><h3 id="sp111HistoryTitle">Storico rinnovi</h3><p id="sp111HistorySub"></p></div><button type="button" class="close" data-close="sp111HistoryDialog">×</button></div><div class="modal-body"><div id="sp111HistoryBody" class="sp111-history"></div></div><div class="modal-actions"><button type="button" class="btn" data-close="sp111HistoryDialog">Chiudi</button></div></dialog>`);
+    const people=$1('sp111People');if(people)people.innerHTML=(S()?.operators||[]).map(x=>`<option value="${esc1(x)}">`).join('');
+    const rf=$1('sp111RecordForm');if(rf&&!rf.__sp111){rf.__sp111=true;rf.onsubmit=saveRecord111}
+    const rr=$1('sp111RenewForm');if(rr&&!rr.__sp111){rr.__sp111=true;rr.onsubmit=saveRenew111}
+    const sf=$1('sp111SettingsForm');if(sf&&!sf.__sp111){sf.__sp111=true;sf.onsubmit=saveSettings111}
+  }
+
+  function openRecord111(id=''){
+    ensureDialogs111();edit111=String(id||'');const f=$1('sp111RecordForm');f.reset();const r=(S()?.complianceRecords||[]).find(x=>x.id===edit111);
+    $1('sp111RecordTitle').textContent=r?'Modifica scadenza':'Nuova scadenza';
+    if(r){for(const k of ['company','subjectType','subjectName','category','title','issueDate','expiryDate','responsible','alertEmails','documentRef','notes'])if(f.elements[k])f.elements[k].value=r[k]||''}else{f.elements.company.value='Smart Pack';f.elements.subjectType.value='Lavoratore';f.elements.category.value='Visita medica';f.elements.responsible.value='Amministrazione'}
+    try{$1('sp111RecordDialog').showModal()}catch(_){ }
+  }
+  function saveRecord111(e){e.preventDefault();ensureState111();const f=new FormData(e.currentTarget),st=S();let r=st.complianceRecords.find(x=>x.id===edit111);const data={company:String(f.get('company')||''),subjectType:String(f.get('subjectType')||''),subjectName:String(f.get('subjectName')||'').trim(),category:String(f.get('category')||''),title:String(f.get('title')||'').trim(),issueDate:String(f.get('issueDate')||''),expiryDate:String(f.get('expiryDate')||''),responsible:String(f.get('responsible')||'').trim(),alertEmails:String(f.get('alertEmails')||'').trim(),documentRef:String(f.get('documentRef')||'').trim(),notes:String(f.get('notes')||'').trim()};if(!data.subjectName||!data.title||!data.expiryDate)return;
+    if(r){Object.assign(r,data,{updatedAt:new Date().toISOString()})}else{r={id:uid1('cmp'),...data,active:true,createdAt:new Date().toISOString(),history:[]};st.complianceRecords.unshift(r)}
+    try{addAudit('Scadenza compliance salvata',r.subjectName,`${r.category} · scadenza ${r.expiryDate}`)}catch(_){ }
+    persist111();$1('sp111RecordDialog').close();renderCompliance111();bell111();decorateAdmin111();
+  }
+  function openRenew111(id){ensureDialogs111();renew111=String(id);const r=(S()?.complianceRecords||[]).find(x=>x.id===renew111);if(!r)return;const f=$1('sp111RenewForm');f.reset();f.elements.issueDate.value=today1();$1('sp111RenewInfo').textContent=`${r.subjectName} · ${r.title} · scadenza attuale ${date111(r.expiryDate)}`;try{$1('sp111RenewDialog').showModal()}catch(_){}}
+  function saveRenew111(e){e.preventDefault();const r=(S()?.complianceRecords||[]).find(x=>x.id===renew111);if(!r)return;const f=new FormData(e.currentTarget),next=String(f.get('expiryDate')||'');if(!next)return;r.history=Array.isArray(r.history)?r.history:[];r.history.unshift({at:new Date().toISOString(),issueDate:r.issueDate||'',expiryDate:r.expiryDate||'',documentRef:r.documentRef||'',notes:String(f.get('notes')||''),renewedBy:role111()});r.issueDate=String(f.get('issueDate')||r.issueDate||'');r.expiryDate=next;if(String(f.get('documentRef')||'').trim())r.documentRef=String(f.get('documentRef')).trim();r.lastRenewedAt=new Date().toISOString();r.updatedAt=r.lastRenewedAt;try{addAudit('Scadenza compliance rinnovata',r.subjectName,`${r.category} · nuova scadenza ${r.expiryDate}`)}catch(_){ }persist111();$1('sp111RenewDialog').close();renderCompliance111();bell111();decorateAdmin111()}
+  function archive111(id){const r=(S()?.complianceRecords||[]).find(x=>x.id===String(id));if(!r)return;if(!confirm(`Archiviare “${r.title}” per ${r.subjectName}?`))return;r.active=false;r.archivedAt=new Date().toISOString();persist111();renderCompliance111();bell111();decorateAdmin111()}
+  function historyOpen111(id){ensureDialogs111();history111=String(id);const r=(S()?.complianceRecords||[]).find(x=>x.id===history111);if(!r)return;$1('sp111HistoryTitle').textContent=`Storico · ${r.subjectName}`;$1('sp111HistorySub').textContent=`${r.category} · ${r.title}`;const h=Array.isArray(r.history)?r.history:[];$1('sp111HistoryBody').innerHTML=h.length?h.map(x=>`<div class="sp111-history-row"><b>Scadenza precedente: ${date111(x.expiryDate)}</b><span>Rinnovo registrato ${new Date(x.at).toLocaleString('it-IT')}${x.notes?' · '+esc1(x.notes):''}</span>${x.documentRef?`<span>Rif. documento: ${esc1(x.documentRef)}</span>`:''}</div>`).join(''):'<div class="sp111-empty">Nessun rinnovo precedente registrato.</div>';try{$1('sp111HistoryDialog').showModal()}catch(_){}}
+
+  function openSettings111(){ensureDialogs111();const f=$1('sp111SettingsForm'),x=S()?.complianceSettings||{};f.elements.reportEmails.value=x.reportEmails||'';f.elements.thresholds.value=(x.thresholds||[60,30,15,7,1,0]).join(',');f.elements.alertHorizonDays.value=x.alertHorizonDays||60;f.elements.emailAlertsEnabled.value=String(x.emailAlertsEnabled!==false);f.elements.weeklyDigestEnabled.value=String(x.weeklyDigestEnabled!==false);try{$1('sp111SettingsDialog').showModal()}catch(_){}}
+  function saveSettings111(e){e.preventDefault();const f=new FormData(e.currentTarget),x=S().complianceSettings;x.reportEmails=String(f.get('reportEmails')||'').trim();x.thresholds=String(f.get('thresholds')||'60,30,15,7,1,0').split(',').map(v=>Number(v.trim())).filter(Number.isFinite).sort((a,b)=>b-a);x.alertHorizonDays=Math.max(7,Math.min(365,Number(f.get('alertHorizonDays')||60)));x.emailAlertsEnabled=String(f.get('emailAlertsEnabled'))==='true';x.weeklyDigestEnabled=String(f.get('weeklyDigestEnabled'))==='true';x.updatedAt=new Date().toISOString();persist111();$1('sp111SettingsDialog').close();renderCompliance111();bell111()}
+
+  function mailReport111(){
+    const to=String(S()?.complianceSettings?.reportEmails||'').split(/[;,]/).map(x=>x.trim()).filter(Boolean);if(!to.length){alert('Configura prima almeno un destinatario email in “Impostazioni alert”.');return}
+    const list=alerts111();if(!list.length){alert('Non ci sono scadenze nell’orizzonte di alert.');return}
+    const lines=list.map(x=>`${x.s.days<0?'SCADUTO':x.s.days===0?'OGGI':x.s.days+' gg'} | ${x.r.company} | ${x.r.subjectName} | ${x.r.category} | ${x.r.title} | ${date111(x.r.expiryDate)} | Resp. ${x.r.responsible||'—'}`);
+    const body=`Report Scadenze & Compliance\n\n${lines.join('\n')}\n\nNota privacy: il report contiene solo informazioni operative di scadenza, non dati clinici.`;
+    location.href=`mailto:${encodeURIComponent(to.join(','))}?subject=${encodeURIComponent('Scadenze & Compliance · '+today1())}&body=${encodeURIComponent(body)}`;
+  }
+
+  function recordCard111(r){const s=status111(r);return `<article class="sp111-card ${s.cls}"><div class="sp111-main"><span class="v106-overline">${esc1(r.company||'Gruppo')} · ${esc1(r.category||'')}</span><h3>${esc1(r.subjectName||'')}</h3><p>${esc1(r.title||'')}</p></div><div class="sp111-meta"><span>Responsabile</span><b>${esc1(r.responsible||'—')}</b><span style="margin-top:6px">Tipo</span><b>${esc1(r.subjectType||'—')}</b></div><div class="sp111-expiry"><span>Scadenza</span><b>${date111(r.expiryDate)}</b><i class="sp111-status ${s.cls}">${esc1(s.label)}</i></div><div class="sp111-actions"><button class="btn small primary" onclick="sp111Renew('${esc1(r.id)}')">Rinnova</button><button class="btn small" onclick="sp111Edit('${esc1(r.id)}')">Modifica</button><button class="btn small" onclick="sp111History('${esc1(r.id)}')">Storico</button><button class="btn small" onclick="sp111Archive('${esc1(r.id)}')">Archivia</button></div></article>`}
+
+  function renderCompliance111(){
+    ensureState111();ensureView111();ensureDialogs111();mark111();bell111();const view=$1('complianceView');if(!view||!canManage111())return;
+    const all=S().complianceRecords||[],act=all.filter(r=>r.active!==false),expired=act.filter(r=>status111(r).key==='expired'),urgent=act.filter(r=>{const d=status111(r).days;return d>=0&&d<=7}),due30=act.filter(r=>{const d=status111(r).days;return d>7&&d<=30}),ok=act.filter(r=>status111(r).days>30);
+    let rows=filter111==='archived'?all.filter(r=>r.active===false):act.slice();if(filter111==='attention')rows=act.filter(r=>status111(r).days<=30);else if(filter111==='medical')rows=act.filter(r=>/visita|idoneità/i.test(r.category||''));else if(filter111==='training')rows=act.filter(r=>/formazione|patentino|abilitazione/i.test(r.category||''));else if(filter111==='company')rows=act.filter(r=>!['Lavoratore'].includes(r.subjectType));
+    if(search111){const q=search111.toLowerCase();rows=rows.filter(r=>[r.company,r.subjectName,r.category,r.title,r.responsible,r.documentRef].join(' ').toLowerCase().includes(q))}rows.sort((a,b)=>status111(a).days-status111(b).days||String(a.subjectName).localeCompare(String(b.subjectName)));
+    const settings=S().complianceSettings||{};view.innerHTML=`<div class="sp111-head"><div><span class="v106-overline">AMMINISTRAZIONE · PREVENZIONE</span><h1>Scadenze & Compliance</h1><p>Visite mediche, formazione, certificazioni, verifiche e documenti in un solo posto. Gli alert restano visibili finché la scadenza non viene rinnovata.</p></div><div class="sp111-head-actions"><button class="btn" onclick="sp111MailReport()">Prepara email report</button><button class="btn" onclick="sp111Settings()">Impostazioni alert</button><button class="btn primary" onclick="sp111New()">+ Nuova scadenza</button></div></div><div class="sp111-privacy"><b>Visite mediche:</b> registra soltanto effettuazione/idoneità e data della prossima scadenza. Non archiviare diagnosi o dettagli sanitari.</div><div class="sp111-email-state"><b>Alert interni:</b> attivi · <b>Email automatiche:</b> ${settings.emailAlertsEnabled!==false?'attive quando sono configurati i destinatari':'disattivate'} · Destinatari: ${esc1(settings.reportEmails||'non configurati')}</div><div class="sp111-kpis"><div class="sp111-kpi expired"><span>Scadute</span><b>${expired.length}</b></div><div class="sp111-kpi urgent"><span>Entro 7 giorni</span><b>${urgent.length}</b></div><div class="sp111-kpi"><span>8–30 giorni</span><b>${due30.length}</b></div><div class="sp111-kpi ok"><span>Regolari oltre 30 gg</span><b>${ok.length}</b></div></div><div class="sp111-toolbar"><div class="sp111-tabs">${[['attention','Da gestire'],['all','Tutte'],['medical','Visite / idoneità'],['training','Formazione'],['company','Azienda / impianti'],['archived','Archiviate']].map(([k,l])=>`<button class="${filter111===k?'active':''}" onclick="sp111Filter('${k}')">${l}</button>`).join('')}</div><label class="sp111-search"><input value="${esc1(search111)}" placeholder="Cerca persona, categoria, responsabile..." oninput="sp111Search(this.value)"></label></div><div class="sp111-list">${rows.map(recordCard111).join('')||'<div class="sp111-empty"><b>Nessuna scadenza in questa sezione.</b><br>Aggiungi il primo controllo con “Nuova scadenza”.</div>'}</div>`;
+  }
+
+  function decorateAdmin111(){
+    if(!canManage111())return;const view=$1('adminView');if(!view||$1('sp111AdminAlert'))return;const list=alerts111().filter(x=>x.s.days<=30);if(!list.length)return;const box=document.createElement('section');box.id='sp111AdminAlert';box.className='sp111-admin-alert';box.innerHTML=`<div class="sp111-admin-alert-head"><div><h3>Scadenze da gestire</h3><p>${list.filter(x=>x.s.days<0).length} scadute · ${list.filter(x=>x.s.days>=0&&x.s.days<=7).length} entro 7 giorni · ${list.length} totali entro 30 giorni</p></div><button class="btn" onclick="navTo('compliance')">Apri scadenze</button></div><div class="sp111-admin-alert-items">${list.slice(0,3).map(x=>`<div class="sp111-admin-mini"><b>${esc1(x.r.subjectName)}</b><span>${esc1(x.r.category)} · ${date111(x.r.expiryDate)} · ${esc1(x.s.label)}</span></div>`).join('')}</div>`;view.prepend(box);
+  }
+  function observeAdmin111(){const view=$1('adminView');if(!view||view.dataset.sp111Obs)return;view.dataset.sp111Obs='1';new MutationObserver(()=>setTimeout(decorateAdmin111,0)).observe(view,{childList:true,subtree:false});setTimeout(decorateAdmin111,100)}
+
+  function boot111(){
+    ensureState111();injectStyles111();ensureView111();ensureDialogs111();addNav111();patchRender111();mark111();bell111();observeAdmin111();
+    // The online strip is redundant because the topbar chip already shows sync status.
+    $1('poiOnlineStrip')?.remove();
+    [300,1000,2500,5000].forEach(ms=>setTimeout(()=>{mark111();bell111();addNav111();if(typeof currentView!=='undefined'&&currentView==='compliance')renderCompliance111();if(typeof currentView!=='undefined'&&currentView==='admin')decorateAdmin111();$1('poiOnlineStrip')?.remove();},ms));
+  }
+
+  window.sp111New=()=>openRecord111('');window.sp111Edit=openRecord111;window.sp111Renew=openRenew111;window.sp111Archive=archive111;window.sp111History=historyOpen111;window.sp111Settings=openSettings111;window.sp111MailReport=mailReport111;window.sp111Filter=k=>{filter111=k;renderCompliance111()};window.sp111Search=q=>{search111=q;renderCompliance111()};window.renderCompliance111=renderCompliance111;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot111,{once:true});else boot111();
+})();

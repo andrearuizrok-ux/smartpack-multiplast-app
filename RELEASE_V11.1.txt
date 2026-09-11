@@ -1,0 +1,20 @@
+SMART PACK · MULTIPLAST — V11.1
+
+UI
+- Corretto il login cloud che compariva in fondo alla pagina.
+- Nascosta la barra ridondante 'Dati condivisi aggiornati in tempo reale'.
+- Riepilogo 'Smart Pack oggi' visibile e formattato solo su telefono.
+- Rimossi i badge delle vecchie versioni dalla sidebar; resta solo V11.1.
+
+SCADENZE & COMPLIANCE
+- Modulo per Amministrazione e Direzione.
+- Gestione visite mediche/idoneita, formazione, patentini, certificazioni, manutenzioni, assicurazioni, autorizzazioni e documenti.
+- Stati automatici: scaduto, urgente, 30/60 giorni, regolare.
+- Campanello notifiche e alert direttamente nella pagina Amministrazione.
+- Rinnovo con storico, senza cancellare la scadenza precedente.
+- Privacy: nessun campo per diagnosi o dettagli clinici.
+- Configurazione destinatari email e report manuale.
+
+CLOUD
+- I segmenti complianceRecords, complianceSettings e complianceEmailLog sono sincronizzati su Supabase.
+- Amministrazione e Direzione possono aggiornarli.
