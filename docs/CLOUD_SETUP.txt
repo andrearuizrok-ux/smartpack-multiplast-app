@@ -1,0 +1,35 @@
+PIATTAFORMA OPERATIVA INTEGRATA – GRUPPO SMART PACK – MULTIPLAST
+V10.4 CLOUD FINAL
+
+Questa build è già collegata al progetto Supabase dedicato SmartPack-Multiplast-Operations.
+Il progetto Toofar è separato e non viene utilizzato.
+
+PRIMO ACCESSO
+1. Pubblicare questo ZIP come progetto Cloudflare Pages.
+2. Aprire il sito e scegliere “Crea nuovo account”.
+3. Il PRIMO account registrato diventa amministratore iniziale della piattaforma e riceve tutti i profili di lavoro.
+4. Al primo login, se l’archivio cloud è vuoto, usare “Pubblica i dati locali sul cloud” per inizializzare i dati della demo.
+
+UTENTI SUCCESSIVI
+1. Ogni utente crea il proprio account con e-mail e password.
+2. Seleziona il profilo richiesto.
+3. La richiesta resta in attesa.
+4. L’amministratore iniziale apre Cloud > Gestione utenti e approva la richiesta assegnando il ruolo corretto.
+
+RUOLI
+- Gestione Smart Pack
+- Responsabile Produzione Multiplast
+- Produzione Smart Pack
+- Produzione Multiplast
+- Amministrazione
+
+SINCRONIZZAZIONE
+I dati autorizzati sono condivisi tramite Supabase e aggiornati in tempo reale tra PC, tablet e telefono.
+In assenza di connessione, l’interfaccia continua a usare i dati locali e tenta la sincronizzazione al ritorno online.
+
+SICUREZZA
+- Supabase Auth per e-mail/password
+- Row Level Security sulle tabelle applicative
+- autorizzazioni per ruolo e segmento dati
+- progetto database dedicato al gruppo
+- realtime attivo sui dati operativi

@@ -1,0 +1,25 @@
+{
+  "name": "Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast",
+  "short_name": "SmartPack · Multiplast",
+  "description": "Piattaforma operativa condivisa per Smart Pack e Multiplast",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eaf4f8",
+  "theme_color": "#17394a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

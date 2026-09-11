@@ -1,0 +1,13 @@
+SMART PACK · MULTIPLAST — V11.0 FINAL CLEAN
+
+Pacchetto repository ricostruito con struttura unica e pulita.
+- Nessuna cartella duplicata di versioni precedenti.
+- Un solo workflow GitHub Actions.
+- Un solo file patch/runtime: smartpack-v11.js.
+- Index ripulito dagli inserimenti accidentali di <script> negli export.
+- Caricamento cloud atomico e UI locale non bloccante ereditati dalla base V10.10 corretta.
+- Deduplica productionRuns e storico avanzamenti preservati.
+- Flusso produzione: pausa/in attesa/chiusura parziale, foglio carico, amministrazione e DDT preservati.
+- Layout/mobile e leggibilità preservati.
+- Service worker V11 con HTML/JS network-first per evitare versioni web obsolete.
+- Android: versionCode 110, versionName 11.0.
