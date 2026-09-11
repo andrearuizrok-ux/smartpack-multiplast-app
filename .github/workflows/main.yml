@@ -33,30 +33,31 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: Verify V11.0 clean package
+      - name: Verify V11.1 compliance package
         run: |
           test -f app/src/main/assets/index.html
           test -f app/src/main/assets/smartpack-v11.js
           test -f app/src/main/assets/service-worker.js
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/java/com/smartpackmultiplast/operations/MainActivity.java
-          grep -q 'PIATTAFORMA-GRUPPO-V11.0' app/src/main/assets/index.html
-          grep -q 'PIATTAFORMA-GRUPPO-V11.0' app/src/main/assets/smartpack-v11.js
+          test -f RELEASE_V11.1.txt
+          grep -q 'PIATTAFORMA-GRUPPO-V11.1' app/src/main/assets/index.html
+          grep -q 'PIATTAFORMA-GRUPPO-V11.1' app/src/main/assets/smartpack-v11.js
           grep -q 'smartpack-v11.js' app/src/main/assets/index.html
-          grep -q 'versionCode = 110' app/build.gradle.kts
-          grep -q 'versionName = "11.0"' app/build.gradle.kts
+          grep -q 'versionCode = 111' app/build.gradle.kts
+          grep -q 'versionName = "11.1"' app/build.gradle.kts
 
       - name: Build Android APK
         run: gradle :app:assembleDebug
 
       - name: Rename APK
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk              app/build/outputs/apk/debug/SmartPack-Multiplast-V11.0.apk
+          cp app/build/outputs/apk/debug/app-debug.apk              app/build/outputs/apk/debug/SmartPack-Multiplast-V11.1.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmartPack-Multiplast-V11.0-APK
-          path: app/build/outputs/apk/debug/SmartPack-Multiplast-V11.0.apk
+          name: SmartPack-Multiplast-V11.1-APK
+          path: app/build/outputs/apk/debug/SmartPack-Multiplast-V11.1.apk
           if-no-files-found: error
 
