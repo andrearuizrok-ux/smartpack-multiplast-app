@@ -11,9 +11,11 @@
   const GROUP='smartpack-multiplast';
   const COMPANY_KEY='poi_v113_company';
   const EMPLOYEE_KEY='poi_v113_employee';
+  const OFFICE_ROLE_KEY='poi_v115_office_role';
   const activationMode=new URL(location.href).searchParams.get('attiva')==='account';
 
   let selectedCompany=sessionStorage.getItem(COMPANY_KEY)||'';
+  let officeUnlockedFlag=false;
   let manageCompany='smartpack';
   let recoveryCompany='smartpack';
   let directory=[];
@@ -61,7 +63,9 @@
       .poi113-admin-grid{display:grid;grid-template-columns:340px 1fr;gap:14px}.poi113-panel{background:#fff;border:1px solid #dbe7eb;border-radius:16px;padding:14px}.poi113-panel h3{margin:0 0 4px;font-size:14px}.poi113-panel>p{margin:0 0 12px;color:#647b86;font-size:9px;line-height:1.45}
       .poi113-employee,.poi113-request{display:grid;grid-template-columns:1fr auto;gap:10px;padding:11px 0;border-bottom:1px solid #edf2f4}.poi113-employee:last-child,.poi113-request:last-child{border-bottom:0}.poi113-employee b,.poi113-request b{font-size:10px}.poi113-employee small,.poi113-request small{display:block;color:#6c7f88;font-size:8px;line-height:1.5;margin-top:3px}.poi113-row-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.poi113-empty{padding:20px;text-align:center;color:#71858e;font-size:10px}.poi113-note{border:1px solid #d2e5ed;background:#f4fafc;border-radius:13px;padding:10px 12px;font-size:9px;color:#48636f;line-height:1.5}.poi113-request select{min-width:190px;max-width:250px;padding:7px;border:1px solid #d6e4e9;border-radius:9px;background:#fff;font-size:9px}.poi113-status{display:inline-flex;padding:4px 8px;border-radius:999px;background:#fff3df;color:#94611c;font-size:8px;font-weight:900}.poi113-status.done{background:#e9f6f1;color:#116b59}
       #poiCloudUserBox{display:none!important}#poiCloudSwitchProfile{display:none!important}
-      @media(max-width:760px){.poi113-company-grid,.poi113-admin-grid,.poi113-form-grid{grid-template-columns:1fr}.poi113-form-grid .full{grid-column:auto}.poi113-card{padding:16px}.poi113-overlay{padding:10px}.poi113-employee,.poi113-request{grid-template-columns:1fr}.poi113-row-actions{justify-content:flex-start}.poi113-request select{min-width:100%;max-width:100%}}
+      #accessGate{display:none!important}
+      .poi115-production-grid,.poi115-office-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.poi115-production-card,.poi115-office-card{background:#fff;border:1px solid #d6e4e9;border-radius:18px;padding:20px;text-align:left;cursor:pointer;transition:.18s;min-height:150px;display:flex;flex-direction:column}.poi115-production-card:hover,.poi115-office-card:hover{transform:translateY(-2px);border-color:#86b5c8;box-shadow:0 12px 28px rgba(24,70,88,.1)}.poi115-production-card b,.poi115-office-card b{display:block;font-size:18px}.poi115-production-card span,.poi115-office-card span{display:block;color:#627984;font-size:11px;line-height:1.5;margin-top:7px}.poi115-production-card em,.poi115-office-card em{font-style:normal;font-size:10px;font-weight:900;color:#1f5e78;margin-top:auto;padding-top:14px}.poi115-office-link{margin-top:14px;padding:14px;border:1px solid #d8e5e9;border-radius:14px;background:#f5f9fa;display:flex;gap:10px;align-items:center;justify-content:space-between}.poi115-office-link div b{font-size:12px}.poi115-office-link div span{display:block;font-size:9px;color:#657b85;margin-top:3px}.poi115-office-link .btn{white-space:nowrap}.poi115-security-note{margin-top:12px;border:1px solid #d5e7df;background:#f3faf7;border-radius:12px;padding:10px 12px;font-size:9px;line-height:1.45;color:#43645a}.poi115-office-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.poi115-office-card{min-height:165px}.poi115-office-card .role{width:42px;height:42px;border-radius:12px;background:#eaf4f7;color:#1f5e78;display:grid;place-items:center;font-weight:950;margin-bottom:14px}.poi115-lock-note{margin-top:12px;color:#6a7d86;font-size:9px;line-height:1.45}.poi115-employee-company{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:#eef5f7}.poi115-employee-company b{font-size:12px}.poi115-employee-company span{font-size:9px;color:#657983}.poi115-employee-company .badge{width:36px;height:36px;border-radius:10px;background:#1f5e78;color:#fff;display:grid;place-items:center;font-weight:900}
+      @media(max-width:760px){.poi113-company-grid,.poi113-admin-grid,.poi113-form-grid,.poi115-production-grid,.poi115-office-grid{grid-template-columns:1fr}.poi113-form-grid .full{grid-column:auto}.poi113-card{padding:16px}.poi113-overlay{padding:10px}.poi113-employee,.poi113-request{grid-template-columns:1fr}.poi113-row-actions{justify-content:flex-start}.poi113-request select{min-width:100%;max-width:100%}}
     `;
     document.head.appendChild(style);
   }
@@ -131,7 +135,7 @@
       </section></div>`);
 
     $('#poi113CompanyLogout').onclick=corporateLogout;
-    $('#poi113AccessBack').onclick=showCompanyMenu;
+    $('#poi113AccessBack').onclick=showProductionHome;
     $('#poi113NomyraLogout').onclick=corporateLogout;
     $('#poi113RecoveryAdminClose').onclick=()=>{$('#poi113RecoveryAdmin').classList.remove('open');isPlatform()?openNomyra():showCompanyMenu()};
     $('#poi113RecoveryRequestClose').onclick=()=>$('#poi113RecoveryRequest').classList.remove('open');
@@ -147,7 +151,77 @@
   }
 
   function closeOverlays(){ $$('.poi113-overlay').forEach(x=>x.classList.remove('open')); }
-  function corporateLogout(){ closeOverlays();sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);employee=null;selectedCompany='';$('#poiCloudLogout')?.click(); }
+  function corporateLogout(){
+    closeOverlays();
+    sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);sessionStorage.removeItem(OFFICE_ROLE_KEY);officeUnlockedFlag=false;
+    employee=null;selectedCompany='';
+    $('#poiCloudLogout')?.click();
+  }
+
+  const officeUnlocked=()=>officeUnlockedFlag===true;
+  const expectedProductionRole=company=>company==='multiplast'?'mpworker':'worker';
+
+  function hideLegacyProfileGate(){
+    const legacy=$('#accessGate');if(legacy)legacy.style.setProperty('display','none','important');
+    const oldLogout=$('#logoutProfile');
+    if(oldLogout){oldLogout.dataset.poi115='1';oldLogout.onclick=profileExit;}
+  }
+
+  function profileExit(event){
+    event?.preventDefault?.();event?.stopPropagation?.();
+    if(employee){employeeLogout();return false}
+    if(isPlatform()){corporateLogout();return false}
+    officeUnlockedFlag=false;sessionStorage.removeItem(OFFICE_ROLE_KEY);sessionStorage.removeItem('industrialos_role_session');
+    showProductionHome();return false;
+  }
+
+  function showProductionHome(){
+    ensureUI();if(!profile())return;
+    closeOverlays();hideLegacyProfileGate();
+    officeUnlockedFlag=false;employee=null;pendingEntry=null;sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(OFFICE_ROLE_KEY);
+    const body=$('#poi113CompanyBody');
+    $('.poi113-head h2',$('#poi113CompanyGate')).textContent='Postazione produzione';
+    $('.poi113-head p',$('#poi113CompanyGate')).textContent='Gli operatori entrano esclusivamente con USER e PIN personale. Scegli l’azienda in cui devi lavorare.';
+    $('.poi113-logo',$('#poi113CompanyGate')).textContent='PROD';
+    $('#poi113CompanyLogout').style.display='none';$('#poi113CompanyLogout').textContent='Disconnetti';
+    body.innerHTML=`<div class="poi115-production-grid">
+      <button class="poi115-production-card" type="button" onclick="POIV113.openProductionLogin('smartpack')"><b>Produzione Smart Pack</b><span>Fogli produzione, avanzamento lavorazioni e attività del reparto Smart Pack.</span><em>USER + PIN →</em></button>
+      <button class="poi115-production-card" type="button" onclick="POIV113.openProductionLogin('multiplast')"><b>Produzione Multiplast</b><span>Turni, presse, contatori, scarti e istruzioni operative Multiplast.</span><em>USER + PIN →</em></button>
+    </div><div class="poi115-office-link"><div><b>Accesso uffici / amministrazione</b><span>Gestione Smart Pack, Responsabile produzione Multiplast e Amministrazione richiedono la password aziendale.</span></div><button class="btn" type="button" onclick="POIV113.openOfficeLogin()">Accesso uffici</button></div><div class="poi115-security-note">Ogni operatore viene identificato dal proprio USER. Il PIN determina quale reparto può aprire e le operazioni restano associate all’utente.</div>`;
+    $('#poi113CompanyGate').classList.add('open');decorateCloudMenu();
+  }
+
+  function showOfficeMenu(){
+    ensureUI();if(!profile())return;if(isPlatform()){openNomyra();return}
+    if(!officeUnlocked()){openOfficeLogin();return}
+    closeOverlays();hideLegacyProfileGate();
+    const body=$('#poi113CompanyBody');
+    $('.poi113-head h2',$('#poi113CompanyGate')).textContent='Accesso uffici';
+    $('.poi113-head p',$('#poi113CompanyGate')).textContent='Scegli l’area autorizzata. Le postazioni Produzione restano separate e richiedono USER + PIN.';
+    $('.poi113-logo',$('#poi113CompanyGate')).textContent='UFF';
+    $('#poi113CompanyLogout').style.display='inline-flex';$('#poi113CompanyLogout').textContent='Blocca';$('#poi113CompanyLogout').onclick=()=>{officeUnlockedFlag=false;sessionStorage.removeItem(OFFICE_ROLE_KEY);showProductionHome()};
+    body.innerHTML=`<div class="poi115-office-grid">
+      <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('director')"><span class="role">SP</span><b>Gestione Smart Pack</b><span>Ordini, clienti, Gmail, IML, pianificazione, registro, magazzino e controllo produzione.</span><em>Entra →</em></button>
+      <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('manager')"><span class="role">MP</span><b>Responsabile produzione Multiplast</b><span>Piano presse, priorità, consegne, miscele, materiali e controllo produttivo.</span><em>Entra →</em></button>
+      <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('admin')"><span class="role">AM</span><b>Amministrazione</b><span>Consegne, DDT, chiusure ordine, documenti e tracciabilità amministrativa.</span><em>Entra →</em></button>
+    </div><div class="poi115-lock-note">Per tornare alla postazione operatori premi <b>Blocca</b>. Per rientrare negli uffici sarà richiesta nuovamente la password aziendale.</div>`;
+    $('#poi113CompanyGate').classList.add('open');decorateCloudMenu();
+  }
+
+  async function openOfficeLogin(){
+    ensureUI();closeOverlays();hideLegacyProfileGate();
+    $('#poi113AccessLogo').textContent='UFF';$('#poi113AccessTitle').textContent='Accesso uffici / amministrazione';
+    $('#poi113AccessBody').innerHTML=`<form id="poi115OfficeLoginForm"><div class="poi113-form-grid"><label class="field full">E-mail aziendale<input name="email" type="email" required autocomplete="username"></label><label class="field full">Password<input name="password" type="password" required autocomplete="current-password"></label><div class="poi113-error full" id="poi115OfficeLoginError"></div><button class="btn primary full" type="submit">Sblocca accesso uffici</button></div></form>`;
+    $('#poi113AccessBack').textContent='Indietro';$('#poi113AccessBack').onclick=showProductionHome;
+    try{const {data}=await client().auth.getUser();if(data?.user?.email)$('#poi115OfficeLoginForm [name="email"]').value=data.user.email}catch(_){}
+    $('#poi115OfficeLoginForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,err=$('#poi115OfficeLoginError'),btn=f.querySelector('button[type="submit"]');err.classList.remove('show');btn.disabled=true;btn.textContent='Verifica…';const email=String(f.elements.email.value||'').trim().toLowerCase(),password=String(f.elements.password.value||'');const {error}=await client().auth.signInWithPassword({email,password});btn.disabled=false;btn.textContent='Sblocca accesso uffici';if(error){err.textContent='E-mail o password non corretti.';err.classList.add('show');return}officeUnlockedFlag=true;sessionStorage.removeItem(EMPLOYEE_KEY);employee=null;setTimeout(()=>showOfficeMenu(),120)};
+    $('#poi113AccessGate').classList.add('open');setTimeout(()=>$('#poi115OfficeLoginForm [name="password"]')?.focus(),80);
+  }
+
+  function enterOfficeRole(role){
+    if(!officeUnlocked()||!['director','manager','admin'].includes(role)){openOfficeLogin();return}
+    const company=role==='manager'?'multiplast':'smartpack';selectedCompany=company;sessionStorage.setItem(COMPANY_KEY,company);sessionStorage.setItem(OFFICE_ROLE_KEY,role);closeOverlays();enterRole(role,false);hideLegacyProfileGate();
+  }
 
   function decorateAuth(){
     const auth=$('#poiCloudAuth');
@@ -184,6 +258,11 @@
     const sb=client();if(!sb||sb.__poi113RecoveryBound)return;sb.__poi113RecoveryBound=true;
     sb.auth.onAuthStateChange(event=>{
       if(event==='SIGNED_IN'&&activationMode){setTimeout(()=>location.replace(location.origin+location.pathname),500);return}
+      if(event==='SIGNED_IN'&&!activationMode){
+        const authVisible=$('#poiCloudAuth')&&getComputedStyle($('#poiCloudAuth')).display!=='none';
+        if(authVisible){officeUnlockedFlag=true;setTimeout(()=>{if(profile())showOfficeMenu();else setTimeout(showCompanyMenu,450)},180)}
+        return;
+      }
       if(event!=='PASSWORD_RECOVERY')return;
       setTimeout(async()=>{
         const first=prompt('Nuova password dell’account base (almeno 8 caratteri):');if(first===null)return;
@@ -200,13 +279,15 @@
     const switchProfile=$('#poiCloudSwitchProfile');if(switchProfile)switchProfile.style.display='none';
     const users=$('#poiCloudUsers');
     if(users&&profile()){
-      users.style.display=canViewRecoveries()?'inline-flex':'none';
+      const canShowUsers=isPlatform()||(!employee&&officeUnlocked()&&isTenant());
+      users.style.display=canShowUsers?'inline-flex':'none';
       users.textContent=isPlatform()?'Area riservata NOMYRA':'Recupero accessi dipendenti';
       users.onclick=()=>isPlatform()?openNomyra():openRecoveryAdmin();
     }
     if(!employee){
+      const officeRole=sessionStorage.getItem(OFFICE_ROLE_KEY)||'';
       const name=$('#userName');if(name)name.textContent=isPlatform()?'NOMYRA':'Account aziendale';
-      const role=$('#userRole');if(role)role.textContent=isPlatform()?'Amministrazione piattaforma':'Accesso base cliente';
+      const role=$('#userRole');if(role)role.textContent=isPlatform()?'Amministrazione piattaforma':(officeUnlocked()&&officeRole?roleName(officeRole):'Postazione produzione / accesso uffici');
     }
     const employeeLogout=$('#poi113EmployeeLogout');
     if(!employeeLogout&&$('#poiCloudMenu')){
@@ -221,6 +302,7 @@
     if($('#poi113EmployeeLogout'))$('#poi113EmployeeLogout').style.display=employee?'inline-flex':'none';
     if($('#poi113EmployeeChangePin'))$('#poi113EmployeeChangePin').style.display=employee?'inline-flex':'none';
     const logout=$('#poiCloudLogout');
+    if(logout)logout.style.display=isPlatform()?'inline-flex':'none';
     if(logout&&!logout.dataset.poi113){
       logout.dataset.poi113='1';
       logout.addEventListener('click',()=>{closeOverlays();sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);employee=null;selectedCompany=''},true);
@@ -228,41 +310,26 @@
   }
 
   function showCompanyMenu(){
-    ensureUI();
+    ensureUI();hideLegacyProfileGate();
     if(!profile())return;
-    closeOverlays();
-    $('#accessGate')?.style.setProperty('display','none','important');
-    decorateCloudMenu();
-    if(employee&&selectedCompany&&companies().includes(selectedCompany)){
-      enterRole(employee.role_code,true);return;
-    }
+    if(employee&&selectedCompany&&companies().includes(selectedCompany)){enterRole(employee.role_code,true);return}
     if(isPlatform()){openNomyra();return}
-    const cards=companies().map(c=>`<button class="poi113-company" type="button" onclick="POIV113.selectCompany('${c}')"><b>${companyName(c)}</b><span>${c==='smartpack'?'Ordini, produzione, IML, magazzino e amministrazione.':'Presse, miscele, turni, consegne e amministrazione.'}</span></button>`).join('');
-    $('#poi113CompanyBody').innerHTML=`<div class="poi113-company-grid">${cards}</div>${isTenant()?'<div class="poi113-actions stretch"><button class="btn" type="button" onclick="POIV113.openRecoveryAdmin()">Richieste recupero USER e PIN</button></div>':''}`;
-    $('#poi113CompanyGate').classList.add('open');
+    if(officeUnlocked()){showOfficeMenu();return}
+    showProductionHome();
   }
 
-  function selectCompany(company){
-    if(!companies().includes(company))return;
-    selectedCompany=company;sessionStorage.setItem(COMPANY_KEY,company);closeOverlays();
-    // V11.5: l'account cliente entra direttamente nell'area autorizzata.
-    // USER/PIN dipendente non è più richiesto per l'account base Smart Pack.
-    if(isTenant()){enterRole(company==='smartpack'?'director':'manager',false);return}
+  function openProductionLogin(company){
+    if(!['smartpack','multiplast'].includes(company)||!companies().includes(company))return;
+    selectedCompany=company;sessionStorage.setItem(COMPANY_KEY,company);closeOverlays();hideLegacyProfileGate();
     const smart=company==='smartpack';
     $('#poi113AccessLogo').textContent=smart?'SP':'MP';
-    $('#poi113AccessTitle').textContent=companyName(company)+' · Accesso dipendente';
-    $('#poi113AccessBody').innerHTML=`
-      <form id="poi113LoginForm"><div class="poi113-form-grid">
-        <label class="field full">USER<input name="username" autocomplete="username" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" placeholder="es. mario.rossi"></label>
-        <label class="field full">PIN personale di 6 cifre<input name="pin" autocomplete="current-password" inputmode="numeric" type="password" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="••••••"></label>
-        <div class="poi113-error full" id="poi113LoginError"></div>
-        <button class="btn primary full" type="submit">Entra</button>
-        <button class="btn full" type="button" onclick="POIV113.openRecoveryRequest()">Ho dimenticato USER o PIN</button>
-      </div></form>`;
-    $('#poi113LoginForm').onsubmit=employeeLogin;
-    $('#poi113AccessGate').classList.add('open');
-    setTimeout(()=>$('#poi113LoginForm [name="username"]')?.focus(),80);
+    $('#poi113AccessTitle').textContent=(smart?'Produzione Smart Pack':'Produzione Multiplast')+' · USER + PIN';
+    const p=$('#poi113AccessGate .poi113-head p');if(p)p.textContent='Inserisci le credenziali personali dell’operatore. Gli accessi ufficio non sono disponibili da questa postazione.';
+    $('#poi113AccessBody').innerHTML=`<div class="poi115-employee-company"><span class="badge">${smart?'SP':'MP'}</span><div><b>${smart?'Produzione Smart Pack':'Produzione Multiplast'}</b><span>Accesso personale e tracciato</span></div></div><form id="poi113LoginForm"><div class="poi113-form-grid"><label class="field full">USER<input name="username" autocomplete="username" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" placeholder="es. mario.rossi"></label><label class="field full">PIN personale di 6 cifre<input name="pin" autocomplete="current-password" inputmode="numeric" type="password" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="••••••"></label><div class="poi113-error full" id="poi113LoginError"></div><button class="btn primary full" type="submit">Entra in produzione</button><button class="btn full" type="button" onclick="POIV113.openRecoveryRequest()">Ho dimenticato USER o PIN</button></div></form>`;
+    $('#poi113LoginForm').onsubmit=employeeLogin;$('#poi113AccessBack').textContent='Indietro';$('#poi113AccessBack').onclick=showProductionHome;$('#poi113AccessGate').classList.add('open');setTimeout(()=>$('#poi113LoginForm [name="username"]')?.focus(),80);
   }
+
+  function selectCompany(company){openProductionLogin(company)}
 
   async function employeeLogin(event){
     event.preventDefault();
@@ -276,6 +343,10 @@
     if(error||!row?.success){
       errorBox.textContent=row?.error_code==='locked'?'Accesso bloccato per 15 minuti dopo troppi tentativi errati.':'USER o PIN non corretti.';
       errorBox.classList.add('show');return;
+    }
+    const expected=expectedProductionRole(selectedCompany);
+    if(row.role_code!==expected||row.company_code!==selectedCompany){
+      errorBox.textContent='Questo USER non è autorizzato alla postazione '+companyName(selectedCompany)+'.';errorBox.classList.add('show');return;
     }
     const next={employee_id:row.employee_id,username:row.username,display_name:row.display_name,role_code:row.role_code,company_code:row.company_code};
     $('#poi113AccessGate').classList.remove('open');
@@ -301,7 +372,7 @@
   }
 
   function employeeLogout(){
-    employee=null;pendingEntry=null;sessionStorage.removeItem(EMPLOYEE_KEY);decorateCloudMenu();showCompanyMenu();
+    employee=null;pendingEntry=null;sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem('industrialos_role_session');decorateCloudMenu();showProductionHome();
   }
 
   function openPinChange(forced,currentPin=''){
@@ -320,7 +391,7 @@
 
   function cancelPinChange(){
     $('#poi113PinChange').classList.remove('open');
-    if(pinChangeMode.forced){pendingEntry=null;selectCompany(selectedCompany)}
+    if(pinChangeMode.forced){pendingEntry=null;openProductionLogin(selectedCompany)}
   }
 
   async function changePin(event){
@@ -376,8 +447,8 @@
   function setupClientAccountPanel(){
     if(!isPlatform())return;
     const overlay=$('#poi113Nomyra');if(!overlay)return;
-    const legacyGrid=overlay.querySelector('.poi113-admin-grid');if(legacyGrid)legacyGrid.style.display='none';
-    const recover=$('#poi113OpenRecoveries');if(recover)recover.style.display='none';
+    const legacyGrid=overlay.querySelector('.poi113-admin-grid');if(legacyGrid)legacyGrid.style.display='grid';
+    const recover=$('#poi113OpenRecoveries');if(recover)recover.style.display='inline-flex';
     if($('#poi114ClientPanel'))return;
     const tabs=$('#poi113AdminTabs');if(tabs)tabs.insertAdjacentHTML('afterend',`
       <div class="poi113-panel" id="poi114ClientPanel" style="margin-bottom:14px">
@@ -448,7 +519,7 @@
   }
 
   function roleOptions(company){
-    return company==='smartpack'?[['worker','Produzione Smart Pack'],['admin','Amministrazione'],['director','Gestione Smart Pack']]:[['mpworker','Produzione Multiplast'],['manager','Responsabile produzione'],['admin','Amministrazione']];
+    return company==='smartpack'?[['worker','Produzione Smart Pack']]:[['mpworker','Produzione Multiplast']];
   }
 
   function openNomyra(company){
@@ -477,7 +548,7 @@
     event.preventDefault();if(!isPlatform())return;
     const form=event.currentTarget,values=new FormData(form),errorBox=$('#poi113CreateError'),button=form.querySelector('button[type="submit"]');
     errorBox.classList.remove('show');button.disabled=true;button.textContent='Creazione…';
-    const args={p_company:manageCompany,p_username:String(values.get('username')||'').trim().toLowerCase(),p_display_name:String(values.get('display_name')||'').trim(),p_role_code:String(values.get('role_code')||''),p_pin:String(values.get('pin')||''),p_group:GROUP};
+    const args={p_company:manageCompany,p_username:String(values.get('username')||'').trim().toLowerCase(),p_display_name:String(values.get('display_name')||'').trim(),p_role_code:expectedProductionRole(manageCompany),p_pin:String(values.get('pin')||''),p_group:GROUP};
     const {error}=await client().rpc('poi_employee_create',args);
     button.disabled=false;button.textContent='Crea USER e primo PIN';
     if(error){errorBox.textContent=/duplicate|unique/i.test(error.message||'')?'Questo USER esiste già.':'Creazione non riuscita. Verifica USER, ruolo e PIN di 6 cifre.';errorBox.classList.add('show');return}
@@ -555,21 +626,30 @@
   }
 
   function updateBuildLabels(){
+    hideLegacyProfileGate();
     document.body.dataset.build=MARKER;
     document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+BUILD;
     $$('.version-badge').forEach(x=>x.textContent=BUILD);
     ['sp109Build','sp110Build','sp11Build','sp111Build','sp113Build'].forEach(id=>$('#'+id)?.remove());
     const foot=$('.sidebar-foot');
-    if(foot){const badge=document.createElement('div');badge.id='sp113Build';badge.style.cssText='margin-top:8px;font-size:11px;font-weight:900;opacity:.95';badge.textContent=BUILD+' · Accessi semplificati';foot.appendChild(badge)}
+    if(foot){const badge=document.createElement('div');badge.id='sp113Build';badge.style.cssText='margin-top:8px;font-size:11px;font-weight:900;opacity:.95';badge.textContent=BUILD+' · Accessi protetti USER/PIN';foot.appendChild(badge)}
   }
 
   function boot(){
-    updateBuildLabels();ensureUI();
-    [250,700,1500,3000,7200].forEach(delay=>setTimeout(()=>{ensureUI();decorateAuth();decorateCloudMenu();updateBuildLabels()},delay));
+    updateBuildLabels();ensureUI();hideLegacyProfileGate();bindPasswordRecovery();
+    [250,700,1500,3000,7200].forEach(delay=>setTimeout(()=>{ensureUI();decorateAuth();decorateCloudMenu();updateBuildLabels();hideLegacyProfileGate()},delay));
+    setTimeout(()=>{
+      if(!profile()||$('.poi113-overlay.open'))return;
+      if(employee){showCompanyMenu();return}
+      if(isPlatform()){showCompanyMenu();return}
+      if(!officeUnlocked()){sessionStorage.removeItem('industrialos_role_session');sessionStorage.removeItem(OFFICE_ROLE_KEY);showProductionHome();return}
+      showOfficeMenu();
+    },950);
   }
 
   const publicApi={
-    showCompanyMenu,selectCompany,openNomyra,openRecoveryAdmin,setManageCompany,setRecoveryCompany,
+    showCompanyMenu,selectCompany,showProductionHome,openProductionLogin,openOfficeLogin,showOfficeMenu,enterOfficeRole,
+    openNomyra,openRecoveryAdmin,setManageCompany,setRecoveryCompany,
     openRecoveryRequest,resetPin,toggleEmployee,resolveRecovery,dismissRecovery,openPinChange
   };
   window.POIV113=publicApi;

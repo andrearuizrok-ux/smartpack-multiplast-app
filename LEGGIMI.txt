@@ -1,25 +1,23 @@
-V11.5 - NUOVA STRUTTURA ACCESSI
+V11.5 - ACCESSI OPERATORI USER + PIN
 
-Primo livello:
-- Smart Pack
-- Multiplast
-- Amministrazione
+Flusso produzione:
+- Produzione Smart Pack -> USER + PIN -> solo ruolo worker
+- Produzione Multiplast -> USER + PIN -> solo ruolo mpworker
+- Esci dalla postazione -> torna alla scelta Produzione Smart Pack / Produzione Multiplast
+- Il vecchio selettore V9.6 dei 5 profili viene nascosto.
 
-Dentro Smart Pack:
-- Gestione Smart Pack -> ruolo tecnico director
-- Produzione Smart Pack -> ruolo tecnico worker
+Flusso uffici:
+- Accesso uffici / amministrazione richiede nuovamente email + password aziendale.
+- Dopo lo sblocco compaiono solo Gestione Smart Pack, Responsabile produzione Multiplast, Amministrazione.
+- Esci/Blocca da un ruolo ufficio torna alla postazione produzione e richiede di nuovo la password per riaprire gli uffici.
 
-Dentro Multiplast:
-- Responsabile produzione Multiplast -> ruolo tecnico manager
-- Produzione Multiplast -> ruolo tecnico mpworker
+NOMYRA:
+- riattivata la gestione USER Produzione.
+- Smart Pack può creare soltanto Produzione Smart Pack.
+- Multiplast può creare soltanto Produzione Multiplast.
 
-Amministrazione:
-- ruolo tecnico admin
-- accesso trasversale alle funzioni amministrative del gruppo
-- mantiene la possibilità di passare tra Smart Pack e Multiplast
+Nota:
+- su ogni dispositivo la sessione aziendale Supabase deve essere stata configurata almeno una volta; dopo, gli operatori lavorano con USER + PIN.
+- al momento nel database non risultano ancora USER operatore creati.
 
-I permessi backend non sono stati cambiati: è stata riorganizzata la navigazione e la nomenclatura.
-Il menu base cliente non entra più automaticamente in Gestione Smart Pack / Responsabile Produzione:
-mostra prima la scelta del ruolo operativo.
-
-Cache service worker: static-11.
+Cache: static-12.
