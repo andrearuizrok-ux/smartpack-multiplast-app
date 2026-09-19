@@ -97,11 +97,11 @@
     try{
       const data=await gmailCall('sync');
       ensureState();
-      const existing=new Set((state.emailOrderDraftsV115||[]).map(x=>x.gmailMessageId||x.id));
+      const existing=new Set((state.emailOrderDraftsV115||[]).map(x=>x.id||`${x.gmailMessageId||''}_${x.gmailItemIndex||1}`));
       let added=0;
       for(const raw of (data.drafts||[])){
         const d={...raw,dueDate:normalizeDueDate(raw.dueDate||raw.dueDateRaw||''),status:raw.status||'Da verificare'};
-        const key=d.gmailMessageId||d.id;
+        const key=d.id||`${d.gmailMessageId||''}_${d.gmailItemIndex||1}`;
         if(existing.has(key))continue;
         state.emailOrderDraftsV115.unshift(d);existing.add(key);added++;
       }
@@ -279,7 +279,7 @@
   }
 
   function rulesChips(){const r=rules();return `<div class="v115-rules"><span>Cambio stampo ${esc(r.moldChangeStart)}–${esc(r.moldChangeEnd)}</span><span>${esc(r.moldChangeTechnician)}</span><span>Coperchi ven/sab</span><span>Urgenza ≤ ${r.urgencyDays} gg</span><span>Roberto prevale sempre</span></div>`}
-  function emailDraftCard(d){const verified=d.status==='Verificata';return `<article class="v115-email-draft"><div><span>${esc(d.status||'Bozza')}</span><b>${esc(d.client||'Cliente da verificare')} · ${esc(d.product||'Prodotto da verificare')}</b><p>${fmt(d.qty)} pz${d.dueDate?' · consegna '+esc(d.dueDate):''}${d.subject?' · '+esc(d.subject):''}</p></div><div><button class="btn small" onclick="SPPlannerV115.editEmail('${esc(d.id)}')">${verified?'Modifica':'Controlla'}</button>${verified?`<button class="btn small primary" onclick="SPPlannerV115.toOrder('${esc(d.id)}')">Approva e crea ordine</button>`:'<span class="v115-waiting-ok">Da approvare</span>'}<button class="btn small danger" type="button" onclick="SPPlannerV115.discardEmail('${esc(d.id)}')">Scarta</button></div></article>`}
+  function emailDraftCard(d){const verified=d.status==='Verificata',cc=d.clientCode||orderClientCodeV115(d.client);return `<article class="v115-email-draft"><div><span>${esc(d.status||'Bozza')}</span><b>${d.client?`<button type="button" class="v115-inline-client" onclick="SPPlannerV115.client('${esc(cc||d.client)}')">${cc?esc(cc)+' · ':''}${esc(d.client)}</button>`:'Cliente da verificare'} · ${esc(d.product||'Prodotto da verificare')}</b><p>${fmt(d.qty)} pz${d.dueDate?' · consegna '+esc(d.dueDate):''}${d.subject?' · '+esc(d.subject):''}</p></div><div><button class="btn small" onclick="SPPlannerV115.editEmail('${esc(d.id)}')">${verified?'Modifica':'Controlla'}</button>${verified?`<button class="btn small primary" onclick="SPPlannerV115.toOrder('${esc(d.id)}')">Approva e crea ordine</button>`:'<span class="v115-waiting-ok">Da approvare</span>'}<button class="btn small danger" type="button" onclick="SPPlannerV115.discardEmail('${esc(d.id)}')">Scarta</button></div></article>`}
 
   function renderPlanner(){
     ensureState();const v=$('#plannerView');if(!v)return;
@@ -307,6 +307,7 @@
     const host=view.querySelector('.v106-page-head')||view.firstElementChild;
     if(host)host.insertAdjacentHTML('afterend',ordersEmailHtml());
     else view.insertAdjacentHTML('afterbegin',ordersEmailHtml());
+    decorateClientLinksV115();
   }
   function observeOrders(){
     const view=$('#ordersView');if(!view||view.dataset.v115EmailObserved==='1')return;
@@ -359,6 +360,142 @@
   function openRules(){const r=rules(),f=$('#v115RulesForm');f.elements.start.value=r.moldChangeStart;f.elements.end.value=r.moldChangeEnd;f.elements.technician.value=r.moldChangeTechnician;f.elements.urgency.value=r.urgencyDays;f.elements.friday.checked=r.lidDays.includes(5);f.elements.saturday.checked=r.lidDays.includes(6);f.elements.preferInstalled.checked=!!r.preferInstalledMold;f.elements.preferLids.checked=!!r.preferLidsWeekend;$('#v115RulesDialog').showModal()}
   function saveRules(e){e.preventDefault();const f=e.currentTarget;state.plannerRulesV115={...rules(),moldChangeStart:f.elements.start.value||'06:00',moldChangeEnd:f.elements.end.value||'12:00',moldChangeTechnician:f.elements.technician.value.trim()||'Saverio',urgencyDays:Math.max(0,n(f.elements.urgency.value)),lidDays:[f.elements.friday.checked?5:null,f.elements.saturday.checked?6:null].filter(x=>x!=null),preferInstalledMold:f.elements.preferInstalled.checked,preferLidsWeekend:f.elements.preferLids.checked};audit('Regole pianificazione aggiornate','V11.5',changeWindowLabel());saveNow('Regole salvate');$('#v115RulesDialog').close();renderPlanner()}
 
+
+  function clientDirectoryV115(){
+    const arr=Array.isArray(state.clientDirectory)?state.clientDirectory:[];
+    return arr.map((x,i)=>{
+      if(typeof x==='string') return {name:x,code:`CLI-${String(i+1).padStart(3,'0')}`,reference:`CLI-${String(i+1).padStart(3,'0')}`};
+      const code=x.code||x.reference||`CLI-${String(i+1).padStart(3,'0')}`;
+      return {...x,code,reference:x.reference||code};
+    }).filter(x=>x.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),'it'));
+  }
+  function productDirectoryV115(){
+    const arr=Array.isArray(state.products)?state.products:[];
+    return arr.map((x,i)=>{
+      if(typeof x==='string') return {name:x,code:`PRD-${String(i+1).padStart(3,'0')}`};
+      return {...x,code:x.code||`PRD-${String(i+1).padStart(3,'0')}`};
+    }).filter(x=>x.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),'it'));
+  }
+  function findClientV115(codeOrName){
+    const v=String(codeOrName||'').trim().toLowerCase();
+    return clientDirectoryV115().find(x=>String(x.code).toLowerCase()===v||String(x.name).toLowerCase()===v)||null;
+  }
+  function findProductV115(codeOrName){
+    const v=String(codeOrName||'').trim().toLowerCase();
+    return productDirectoryV115().find(x=>String(x.code).toLowerCase()===v||String(x.name).toLowerCase()===v)||null;
+  }
+  function optionHtmlV115(list,currentCode,currentName,placeholder){
+    const cc=String(currentCode||''),cn=String(currentName||'').toLowerCase();
+    return [`<option value="">${esc(placeholder)}</option>`].concat(list.map(x=>{
+      const sel=(cc&&String(x.code)===cc)||(!cc&&cn&&String(x.name).toLowerCase()===cn);
+      return `<option value="${esc(x.code)}" ${sel?'selected':''}>${esc(x.code)} · ${esc(x.name)}</option>`;
+    })).join('');
+  }
+  function fillEmailMasterDataV115(d){
+    const f=$('#v115EmailDraftForm');if(!f)return;
+    const cs=f.elements.clientCode,ps=f.elements.productCode;
+    if(cs) cs.innerHTML=optionHtmlV115(clientDirectoryV115(),d.clientCode,d.client,d.newClient?'Nuovo cliente: seleziona dopo il censimento':'Seleziona cliente');
+    if(ps) ps.innerHTML=optionHtmlV115(productDirectoryV115(),d.productCode,d.product,'Seleziona prodotto');
+    const note=$('#v115NewClientNote');
+    if(note){
+      note.style.display=d.newClient?'block':'none';
+      note.textContent=d.newClient?`Nuovo mittente: ${d.senderEmail||d.from||d.client||''}. Prima di confermare l'ordine, censisci il cliente nell'anagrafica e poi selezionalo dall'elenco.`:'';
+    }
+  }
+
+  function orderClientCodeV115(name){
+    return findClientV115(name)?.code||'';
+  }
+  function orderPendingV115(lines){
+    const active=(lines||[]).filter(o=>!o.cancelled);
+    if(!active.length)return false;
+    return active.some(o=>{
+      const s=String(o.status||'').toLowerCase();
+      const productionDone=Boolean(o.productionCompleteV106)||/soddisf|chius|consegn|complet/.test(s);
+      const deliveryRemaining=o.deliveryRemaining!=null?n(o.deliveryRemaining):Math.max(0,n(o.qty)-n(o.delivered));
+      return !productionDone || deliveryRemaining>0;
+    });
+  }
+  function clientOrdersV115(name){
+    const nm=String(name||'').trim().toLowerCase();
+    const parents=[...new Set((state.orders||[]).filter(o=>String(o.client||'').trim().toLowerCase()===nm).map(o=>String(o.parent||o.code||'')))].filter(Boolean);
+    return parents.map(parent=>{
+      const lines=(state.orders||[]).filter(o=>String(o.parent||o.code||'')===parent&&!o.cancelled);
+      const main=lines.find(o=>String(o.code||'').endsWith('A'))||lines[0]||{};
+      return {parent,lines,main,pending:orderPendingV115(lines)};
+    }).sort((a,b)=>Number(b.pending)-Number(a.pending)||String(b.main.date||'').localeCompare(String(a.main.date||'')));
+  }
+  function openClientV115(codeOrName){
+    const c=findClientV115(codeOrName)||{code:'',name:String(codeOrName||'Cliente')};
+    const rows=clientOrdersV115(c.name),pending=rows.filter(x=>x.pending),closed=rows.filter(x=>!x.pending);
+    const dlg=$('#v115ClientDialog'),title=$('#v115ClientTitle'),meta=$('#v115ClientMeta'),body=$('#v115ClientBody');
+    if(!dlg||!body)return;
+    title.textContent=`${c.code?c.code+' · ':''}${c.name}`;
+    meta.textContent=`${pending.length} ordini pendenti · ${rows.length} ordini totali`;
+    const rowHtml=x=>{
+      const a=x.main||{},qty=(x.lines||[]).reduce((s,o)=>s+n(o.qty),0);
+      return `<article class="v115-client-order ${x.pending?'pending':'closed'}"><div><span>ORDINE ${esc(x.parent)}</span><b>${esc(a.product||'')}</b><p>${fmt(qty)} pz${a.dueDate?' · consegna '+esc(a.dueDate):''}${a.status?' · '+esc(a.status):''}</p></div><div><span class="v115-client-state">${x.pending?'PENDENTE':'CHIUSO'}</span><button class="btn small" type="button" onclick="SPPlannerV115.clientOrderDetails('${esc(x.parent)}')">Dettagli</button></div></article>`;
+    };
+    body.innerHTML=`<div class="v115-client-kpis"><div><span>Pendenti</span><b>${pending.length}</b></div><div><span>Totali</span><b>${rows.length}</b></div></div><div class="v115-client-section"><h4>Ordini pendenti</h4>${pending.map(rowHtml).join('')||'<div class="v115-empty">Nessun ordine pendente.</div>'}</div>${closed.length?`<div class="v115-client-section"><h4>Storico</h4>${closed.map(rowHtml).join('')}</div>`:''}`;
+    dlg.showModal();
+  }
+  function clientOrderDetailsV115(parent){
+    $('#v115ClientDialog')?.close();
+    if(typeof traceOrder==='function') traceOrder(parent);
+  }
+  function decorateClientLinksV115(){
+    const view=$('#ordersView');if(!view)return;
+    $$('#ordersCardsV106 .v106-admin-card',view).forEach(card=>{
+      const h3=card.querySelector('.v106-admin-top h3');if(!h3||h3.dataset.v115ClientLink==='1')return;
+      const name=h3.textContent.trim();if(!name)return;
+      h3.dataset.v115ClientLink='1';
+      const code=orderClientCodeV115(name);
+      h3.innerHTML=`<button type="button" class="v115-client-link" onclick="SPPlannerV115.client('${esc(code||name)}')">${code?`<small>${esc(code)}</small>`:''}${esc(name)}</button>`;
+    });
+  }
+
+  function patchOrderMasterDataV115(){
+    const f=$('#orderForm');if(!f||f.dataset.v115Master==='1')return;
+    f.dataset.v115Master='1';
+    const clientInput=f.elements.client,productInput=f.elements.product;
+    if(clientInput&&clientInput.tagName==='INPUT'){
+      const sel=document.createElement('select');sel.id='orderClientMasterV115';sel.innerHTML=optionHtmlV115(clientDirectoryV115(),'','','Seleziona cliente');
+      clientInput.style.display='none';clientInput.removeAttribute('required');clientInput.parentElement.insertBefore(sel,clientInput);
+      const code=document.createElement('input');code.type='hidden';code.name='clientCode';clientInput.parentElement.appendChild(code);
+      sel.onchange=()=>{const c=findClientV115(sel.value);clientInput.value=c?.name||'';code.value=c?.code||'';clientInput.dispatchEvent(new Event('change',{bubbles:true}));};
+    }
+    if(productInput&&productInput.tagName==='INPUT'){
+      const sel=document.createElement('select');sel.id='orderProductMasterV115';sel.innerHTML=optionHtmlV115(productDirectoryV115(),'','','Seleziona prodotto');
+      productInput.style.display='none';productInput.parentElement.insertBefore(sel,productInput);
+      const code=document.createElement('input');code.type='hidden';code.name='productCode';productInput.parentElement.appendChild(code);
+      sel.onchange=()=>{const p=findProductV115(sel.value);productInput.value=p?.name||'';code.value=p?.code||'';productInput.dispatchEvent(new Event('change',{bubbles:true}));};
+    }
+    const oldOpen=window.openNewOrder;
+    if(typeof oldOpen==='function'&&!oldOpen.__v115master){
+      const wrapped=function(){const r=oldOpen.apply(this,arguments);setTimeout(()=>{
+        patchOrderMasterDataV115();
+        const ff=$('#orderForm'),cs=$('#orderClientMasterV115'),ps=$('#orderProductMasterV115');
+        if(cs){const c=findClientV115(ff.elements.client?.value);cs.value=c?.code||'';if(ff.elements.clientCode)ff.elements.clientCode.value=c?.code||'';}
+        if(ps){const p=findProductV115(ff.elements.product?.value);ps.value=p?.code||'';if(ff.elements.productCode)ff.elements.productCode.value=p?.code||'';}
+      },0);return r};wrapped.__v115master=true;window.openNewOrder=wrapped;try{openNewOrder=wrapped}catch(_){}
+    }
+    const oldSubmit=f.onsubmit;
+    if(typeof oldSubmit==='function'&&!oldSubmit.__v115master){
+      const wrappedSubmit=function(e){
+        const clientCode=String(this.elements.clientCode?.value||''),productCode=String(this.elements.productCode?.value||'');
+        if(!clientCode){e.preventDefault();alert('Seleziona il cliente dall’anagrafica.');return false}
+        if(!productCode&&String(this.elements.product?.value||'').trim()){e.preventDefault();alert('Seleziona il prodotto dall’anagrafica.');return false}
+        const parent=String(this.elements.parent?.value||'').trim(),before=(state.orders||[]).filter(o=>String(o.parent)===parent).length;
+        const r=oldSubmit.call(this,e);
+        setTimeout(()=>{
+          const rows=(state.orders||[]).filter(o=>String(o.parent)===parent);
+          if(rows.length>before){for(const o of rows){o.clientCode=clientCode;if(productCode&&String(o.code||'').endsWith('A'))o.productCode=productCode}saveNow();}
+        },20);
+        return r;
+      };wrappedSubmit.__v115master=true;f.onsubmit=wrappedSubmit;
+    }
+  }
+
   function parseEmailText(text,subject=''){
     const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);const find=(re)=>{const l=lines.find(x=>re.test(x));return l?l.replace(re,'').replace(/^\s*[:\-]\s*/,'').trim():''};
     const client=find(/^(cliente|customer)\b\s*[:\-]?/i);
@@ -374,8 +511,27 @@
   }
   function openImportEmail(){const f=$('#v115EmailImportForm');f.reset();$('#v115EmailImportDialog').showModal()}
   function submitEmailImport(e){e.preventDefault();const f=e.currentTarget,parsed=parseEmailText(f.elements.body.value,f.elements.subject.value);const d={id:uid('mail'),companyCode:'smartpack',receivedAt:iso(),status:'Da verificare',from:f.elements.from.value.trim(),...parsed};state.emailOrderDraftsV115.unshift(d);audit('E-mail ordine importata',d.orderRef||d.id,d.subject||d.from);saveNow('Bozza e-mail creata');$('#v115EmailImportDialog').close();if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner();decorateOrdersEmail();editEmail(d.id)}
-  function editEmail(id){const d=state.emailOrderDraftsV115.find(x=>x.id===id);if(!d)return;emailDraftEditing=id;const f=$('#v115EmailDraftForm');['client','product','orderRef','qty','dueDate','liters','priority'].forEach(k=>{if(f.elements[k])f.elements[k].value=d[k]||''});$('#v115EmailDraftSource').textContent=d.sourceText||'';$('#v115EmailDraftDialog').showModal()}
-  function saveEmailDraft(e){e.preventDefault();const d=state.emailOrderDraftsV115.find(x=>x.id===emailDraftEditing);if(!d)return;const f=e.currentTarget;['client','product','orderRef','dueDate','liters','priority'].forEach(k=>d[k]=f.elements[k].value);d.qty=Math.max(0,n(f.elements.qty.value));d.status='Verificata';d.verifiedAt=iso();saveNow('Bozza verificata');$('#v115EmailDraftDialog').close();emailDraftEditing='';if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner();decorateOrdersEmail()}
+  function editEmail(id){
+    const d=state.emailOrderDraftsV115.find(x=>x.id===id);if(!d)return;
+    emailDraftEditing=id;const f=$('#v115EmailDraftForm');
+    fillEmailMasterDataV115(d);
+    ['orderRef','qty','dueDate','liters','priority'].forEach(k=>{if(f.elements[k])f.elements[k].value=d[k]||''});
+    $('#v115EmailDraftSource').textContent=d.sourceText||'';
+    $('#v115EmailDraftDialog').showModal();
+  }
+  function saveEmailDraft(e){
+    e.preventDefault();const d=state.emailOrderDraftsV115.find(x=>x.id===emailDraftEditing);if(!d)return;
+    const f=e.currentTarget,clientCode=String(f.elements.clientCode?.value||''),productCode=String(f.elements.productCode?.value||'');
+    if(!clientCode){alert('Seleziona il cliente dall’anagrafica. Per un nuovo cliente, censiscilo prima e poi selezionalo.');return}
+    if(!productCode){alert('Seleziona il prodotto dall’anagrafica.');return}
+    const client=findClientV115(clientCode),product=findProductV115(productCode);
+    if(!client||!product){alert('Cliente o prodotto non valido. Riapri la verifica.');return}
+    d.clientCode=client.code;d.client=client.name;d.productCode=product.code;d.product=product.name;
+    ['orderRef','dueDate','liters','priority'].forEach(k=>d[k]=f.elements[k].value);
+    d.qty=Math.max(0,n(f.elements.qty.value));d.status='Verificata';d.verifiedAt=iso();d.newClient=false;
+    saveNow('Bozza verificata');$('#v115EmailDraftDialog').close();emailDraftEditing='';
+    if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner();decorateOrdersEmail();
+  }
   function cancelEmailEdit(){emailDraftEditing='';$('#v115EmailDraftDialog')?.close()}
   function discardEmailDraft(id){
     const d=state.emailOrderDraftsV115.find(x=>x.id===id);if(!d)return;
@@ -391,9 +547,9 @@
   function toOrder(id){
     const d=state.emailOrderDraftsV115.find(x=>x.id===id);if(!d)return;
     if(d.status!=='Verificata'){alert('Prima controlla la bozza e premi “Salva verifica”. L’ordine viene creato solo dopo la vostra approvazione.');editEmail(id);return}
-    if(!d.client||!d.product||!d.qty){alert('Controlla prima cliente, prodotto e quantità.');editEmail(id);return}
+    if(!d.clientCode||!d.productCode||!d.client||!d.product||!d.qty){alert('Prima seleziona cliente e prodotto dalle anagrafiche e salva la verifica.');editEmail(id);return}
     if(!confirm(`Confermi la creazione dell’ordine${d.orderRef?' '+d.orderRef:''} per ${d.client}?`))return;
-    if(typeof openNewOrder!=='function'){alert('Modulo nuovo ordine non disponibile.');return}openNewOrder();setTimeout(()=>{const f=$('#orderForm');if(!f)return;f.elements.client.value=d.client;f.elements.product.value=d.product;f.elements.orderRef.value=d.orderRef||'';f.elements.qty.value=d.qty;f.elements.dueDate.value=d.dueDate||'';if(d.liters)f.elements.liters.value=d.liters;f.elements.priority.value=d.priority||'Normale';f.elements.notes.value=`Ordine importato da e-mail${d.from?' · '+d.from:''}${d.subject?' · '+d.subject:''}`;d.status='Convertita';d.convertedAt=iso();saveNow('Ordine approvato: dati trasferiti nel modulo');decorateOrdersEmail();if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner()},80)
+    if(typeof openNewOrder!=='function'){alert('Modulo nuovo ordine non disponibile.');return}openNewOrder();setTimeout(()=>{const f=$('#orderForm');if(!f)return;f.elements.client.value=d.client;f.elements.product.value=d.product;if(f.elements.clientCode)f.elements.clientCode.value=d.clientCode||'';if(f.elements.productCode)f.elements.productCode.value=d.productCode||'';const cs=$('#orderClientMasterV115'),ps=$('#orderProductMasterV115');if(cs)cs.value=d.clientCode||'';if(ps)ps.value=d.productCode||'';f.elements.orderRef.value=d.orderRef||'';f.elements.qty.value=d.qty;f.elements.dueDate.value=d.dueDate||'';if(d.liters)f.elements.liters.value=d.liters;f.elements.priority.value=d.priority||'Normale';f.elements.notes.value=`Ordine importato da e-mail · Cliente ${d.clientCode||''} · Prodotto ${d.productCode||''}${d.from?' · '+d.from:''}${d.subject?' · '+d.subject:''}`;d.status='Convertita';d.convertedAt=iso();saveNow('Ordine approvato: dati trasferiti nel modulo');decorateOrdersEmail();if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner()},80)
   }
   function emailSetup(){
     $('#v115EmailSetupDialog').showModal();
@@ -402,7 +558,7 @@
 
   function injectStyles(){if($('#v115Styles'))return;const s=document.createElement('style');s.id='v115Styles';s.textContent=`
     #plannerView{--v115:#17394a;--v115soft:#f2f8fa}.v115-hero{display:flex;gap:18px;align-items:center;background:linear-gradient(135deg,#fff,#f3faf8);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}.v115-hero h2{font-size:25px;margin:2px 0 6px}.v115-hero p{font-size:11px;color:var(--muted);line-height:1.55;margin:0;max-width:760px}.v115-eyebrow,.v115-section-head>div>span,.v115-machine-head>div>span,.v115-over{font-size:8px;font-weight:900;letter-spacing:.11em;color:var(--primary);text-transform:uppercase}.v115-hero-actions{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.v115-rules{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.v115-rules span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 9px;font-size:8px;font-weight:850;color:#4e6671}.v115-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.v115-kpis>div{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px}.v115-kpis span,.v115-kpis small{display:block;font-size:8px;color:var(--muted)}.v115-kpis b{display:block;font-size:22px;margin:4px 0}.v115-status{display:flex;gap:12px;align-items:center;margin:12px 0;border-radius:13px;padding:10px 12px;font-size:9px}.v115-status b{font-size:10px}.v115-status span{color:#5f737d}.v115-status.ok{background:#edf9f4;border:1px solid #c9e8da}.v115-status.warn{background:#fff8ea;border:1px solid #efd9ad}.v115-machines{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.v115-machine{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;min-width:0}.v115-machine-head{display:flex;gap:10px;align-items:flex-start}.v115-machine-head h3{font-size:17px;margin:3px 0}.v115-machine-head p{font-size:9px;color:var(--muted);margin:0}.v115-machine-summary{margin-left:auto;text-align:center;background:var(--soft);border-radius:12px;padding:7px 10px;min-width:62px}.v115-machine-summary b{display:block;font-size:17px}.v115-machine-summary span{font-size:7px;color:var(--muted)}.v115-advice{display:flex;gap:10px;align-items:flex-start;margin:11px 0;border:1px solid #bcded3;background:#f3fbf7;border-radius:13px;padding:11px}.v115-advice>div{flex:1}.v115-advice span{font-size:7px;font-weight:900;color:#26715c;letter-spacing:.08em}.v115-advice b{display:block;font-size:10px;margin-top:3px}.v115-advice p{font-size:8px;color:#4e6f64;line-height:1.45;margin:4px 0 0}.v115-score{font-size:12px!important;background:#fff;border-radius:10px;padding:7px!important;color:#26715c!important}.v115-warning{border:1px solid #efd6a4;background:#fff8e9;border-radius:11px;padding:9px 10px;font-size:8px;color:#735a2d;margin-bottom:9px}.v115-queue{display:grid;gap:8px;min-height:40px}.v115-run{display:grid;grid-template-columns:24px 1fr;gap:8px;border:1px solid #d9e5e9;border-radius:14px;padding:10px;background:#fff;transition:.16s}.v115-run:hover{border-color:#a8c8d3}.v115-run.dragging{opacity:.45}.v115-run.over{border-color:var(--primary);box-shadow:0 0 0 2px rgba(31,94,120,.10)}.v115-grip{display:flex;align-items:center;justify-content:center;color:#91a5ae;cursor:grab;font-weight:900}.v115-run-top{display:flex;gap:8px;align-items:flex-start}.v115-run-top>div:first-child{flex:1}.v115-run h4{font-size:10px;margin:3px 0 0}.v115-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.v115-chip{display:inline-flex;padding:4px 6px;border-radius:999px;background:#edf2f4;color:#5f727c;font-size:6.8px;font-weight:950;white-space:nowrap}.v115-chip.urgent{background:#fdebec;color:#9b3e44}.v115-chip.lid{background:#fff2dc;color:#8a5b17}.v115-chip.change{background:#fff6e8;color:#925e13}.v115-chip.ok{background:#eaf7f1;color:#1d7258}.v115-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}.v115-metrics div{background:#f7fafb;border-radius:8px;padding:6px}.v115-metrics span{display:block;font-size:6.5px;color:var(--muted);text-transform:uppercase}.v115-metrics b{display:block;font-size:8.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis}.v115-reason{font-size:7.8px;line-height:1.45;color:#526a75;margin-top:7px}.v115-run-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.v115-run-actions .btn{font-size:7px!important;min-height:27px!important;padding:5px 7px!important}.v115-empty{padding:20px;text-align:center;color:var(--muted);font-size:9px}.v115-email{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px}.v115-section-head{display:flex;gap:10px;align-items:flex-start}.v115-section-head>div:first-child{flex:1}.v115-section-head h3{font-size:16px;margin:3px 0}.v115-section-head p{font-size:9px;color:var(--muted);margin:0;line-height:1.5}.v115-section-head>div:last-child{display:flex;gap:6px}.v115-email-state{margin:11px 0;background:#f5f9fa;border-radius:11px;padding:9px 10px}.v115-email-state b{display:block;font-size:9px}.v115-email-state span{display:block;font-size:8px;color:var(--muted);margin-top:3px}.v115-email-list{display:grid;gap:7px}.v115-email-draft{display:flex;align-items:center;gap:10px;border-top:1px solid #edf2f3;padding:9px 0}.v115-email-draft>div:first-child{flex:1}.v115-email-draft span{font-size:7px;color:var(--primary);font-weight:900}.v115-email-draft b{display:block;font-size:9px;margin-top:2px}.v115-email-draft p{font-size:8px;color:var(--muted);margin:3px 0}.v115-menu-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #edf2f3}.v115-menu-row label{font-size:10px}.v115-menu-row>div{display:flex;gap:4px}.v115-source{white-space:pre-wrap;background:#f5f8f9;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:160px;overflow:auto;font:9px/1.45 ui-monospace,monospace}.v115-oauth{display:grid;gap:8px}.v115-oauth>div{border:1px solid var(--line);border-radius:12px;padding:11px}.v115-oauth b{font-size:10px}.v115-oauth p{font-size:8px;color:var(--muted);line-height:1.5;margin:4px 0 0}
-    .v115-orders-email{margin:12px 0 16px;background:linear-gradient(135deg,#ffffff,#f5fafb);border:1px solid #cfe0e6;border-radius:18px;padding:15px;box-shadow:0 8px 24px rgba(23,57,74,.05)}.v115-orders-email .v115-orders-email-top{display:flex;gap:12px;align-items:flex-start}.v115-orders-email .v115-orders-email-top>div:first-child{flex:1}.v115-orders-email h3{font-size:16px;margin:3px 0}.v115-orders-email p{font-size:9px;color:var(--muted);line-height:1.5;margin:0}.v115-orders-email-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.v115-orders-email .v115-email-state{margin:10px 0}.v115-waiting-ok{display:inline-flex;align-items:center;padding:6px 8px;border-radius:999px;background:#fff3df;color:#8a5b17;font-size:7px;font-weight:900}.v115-email-summary{margin-top:14px}.v115-orders-email-count{display:inline-flex;margin-top:8px;padding:5px 8px;border-radius:999px;background:#e8f5ef;color:#176b57;font-size:8px;font-weight:900}.btn.danger{border-color:#e5b9bd!important;background:#fff5f5!important;color:#a13d46!important}.btn.danger:hover{background:#fdebec!important}
+    .v115-orders-email{margin:12px 0 16px;background:linear-gradient(135deg,#ffffff,#f5fafb);border:1px solid #cfe0e6;border-radius:18px;padding:15px;box-shadow:0 8px 24px rgba(23,57,74,.05)}.v115-orders-email .v115-orders-email-top{display:flex;gap:12px;align-items:flex-start}.v115-orders-email .v115-orders-email-top>div:first-child{flex:1}.v115-orders-email h3{font-size:16px;margin:3px 0}.v115-orders-email p{font-size:9px;color:var(--muted);line-height:1.5;margin:0}.v115-orders-email-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.v115-orders-email .v115-email-state{margin:10px 0}.v115-waiting-ok{display:inline-flex;align-items:center;padding:6px 8px;border-radius:999px;background:#fff3df;color:#8a5b17;font-size:7px;font-weight:900}.v115-email-summary{margin-top:14px}.v115-orders-email-count{display:inline-flex;margin-top:8px;padding:5px 8px;border-radius:999px;background:#e8f5ef;color:#176b57;font-size:8px;font-weight:900}.btn.danger{border-color:#e5b9bd!important;background:#fff5f5!important;color:#a13d46!important}.btn.danger:hover{background:#fdebec!important}.v115-client-link,.v115-inline-client{border:0;background:transparent;padding:0;color:var(--ink);font:inherit;font-weight:900;cursor:pointer;text-align:left}.v115-client-link:hover,.v115-inline-client:hover{color:var(--primary);text-decoration:underline}.v115-client-link small{display:inline-flex;margin-right:7px;padding:3px 6px;border-radius:999px;background:#eaf4f7;color:var(--primary);font-size:9px}.v115-master-warning{display:block;color:#9a5a16;background:#fff8e8;border:1px solid #efdcb6;border-radius:8px;padding:7px 8px;font-size:8px;line-height:1.4}.v115-client-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.v115-client-kpis>div{background:#f5f9fa;border:1px solid var(--line);border-radius:12px;padding:12px}.v115-client-kpis span{display:block;font-size:8px;color:var(--muted)}.v115-client-kpis b{display:block;font-size:22px;margin-top:4px}.v115-client-section{margin-top:14px}.v115-client-section h4{font-size:12px;margin:0 0 8px}.v115-client-order{display:flex;align-items:center;gap:10px;border:1px solid #dbe7eb;border-radius:12px;padding:10px;margin-bottom:7px;background:#fff}.v115-client-order.pending{border-left:4px solid #d8a13b}.v115-client-order.closed{opacity:.78}.v115-client-order>div:first-child{flex:1}.v115-client-order span{font-size:7px;color:var(--muted);font-weight:900}.v115-client-order b{display:block;font-size:10px;margin-top:2px}.v115-client-order p{font-size:8px;color:var(--muted);margin:3px 0 0}.v115-client-order>div:last-child{display:flex;gap:7px;align-items:center}.v115-client-state{padding:5px 7px;border-radius:999px;background:#fff2d8;color:#8a5b17!important}.v115-client-order.closed .v115-client-state{background:#eaf7f1;color:#26715c!important}
     @media(max-width:1050px){.v115-kpis{grid-template-columns:repeat(3,1fr)}.v115-machines{grid-template-columns:1fr}}
     @media(max-width:760px){.v115-hero{display:block}.v115-hero-actions{margin-top:12px;justify-content:flex-start}.v115-hero-actions .btn{flex:1}.v115-kpis{grid-template-columns:1fr 1fr}.v115-metrics{grid-template-columns:1fr 1fr}.v115-section-head{display:block}.v115-section-head>div:last-child{margin-top:10px;display:grid;grid-template-columns:1fr 1fr}.v115-email-draft{display:block}.v115-email-draft>div:last-child{margin-top:8px}.v115-run{grid-template-columns:18px 1fr}.v115-run-top{display:block}.v115-badges{justify-content:flex-start;margin-top:5px}.v115-status{display:block}.v115-status span{display:block;margin-top:3px}}
   `;document.head.appendChild(s)}
@@ -412,8 +568,9 @@
     if(!$('#v115MenuDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115MenuDialog"><div class="modal-head"><div><span class="eyebrow">Direzione</span><h3>Personalizza menu</h3><p>Scegli ordine e visibilità delle voci nel menu laterale.</p></div><button type="button" class="close" onclick="document.getElementById('v115MenuDialog').close()">×</button></div><div class="modal-body" id="v115MenuBody"></div><div class="modal-actions"><button class="btn" onclick="document.getElementById('v115MenuDialog').close()">Annulla</button><button class="btn primary" onclick="SPPlannerV115.saveMenu()">Salva menu</button></div></dialog>`);
     if(!$('#v115RulesDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115RulesDialog"><form id="v115RulesForm"><div class="modal-head"><div><span class="eyebrow">Regole operative</span><h3>Pianificazione produzione</h3><p>Queste regole guidano i consigli. Roberto può sempre scegliere diversamente.</p></div><button type="button" class="close" onclick="document.getElementById('v115RulesDialog').close()">×</button></div><div class="modal-body"><div class="form-grid"><label class="field">Cambio stampo da<input type="time" name="start" required></label><label class="field">Cambio stampo fino a<input type="time" name="end" required></label><label class="field">Tecnico disponibile<input name="technician" required></label><label class="field">Ordine urgente entro (giorni)<input type="number" min="0" max="30" name="urgency"></label><label class="field"><span>Giorni coperchi</span><span style="display:flex;gap:12px;padding:8px 0"><span><input type="checkbox" name="friday"> Venerdì</span><span><input type="checkbox" name="saturday"> Sabato</span></span></label><label class="field"><span>Preferenze</span><span style="display:grid;gap:7px;padding:8px 0"><span><input type="checkbox" name="preferInstalled"> Evita cambi stampo inutili</span><span><input type="checkbox" name="preferLids"> Coperchi a fine settimana</span></span></label></div><div class="notice ok" style="margin-top:10px"><strong>Principio:</strong> il sistema suggerisce. Non cambia mai automaticamente la pianificazione decisa da Roberto.</div></div><div class="modal-actions"><button type="button" class="btn" onclick="document.getElementById('v115RulesDialog').close()">Annulla</button><button class="btn primary" type="submit">Salva regole</button></div></form></dialog>`);
     if(!$('#v115EmailImportDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115EmailImportDialog"><form id="v115EmailImportForm"><div class="modal-head"><div><span class="eyebrow">Ordini da e-mail</span><h3>Importa e-mail di prova</h3><p>Incolla un ordine ricevuto: il sistema estrae i dati e crea solo una bozza da controllare.</p></div><button type="button" class="close" onclick="document.getElementById('v115EmailImportDialog').close()">×</button></div><div class="modal-body"><div class="form-grid"><label class="field">Mittente<input name="from" type="email" placeholder="cliente@azienda.it"></label><label class="field">Oggetto<input name="subject" placeholder="Ordine 123"></label><label class="field full">Testo e-mail<textarea name="body" rows="10" placeholder="Cliente: ...\nOrdine: ...\nProdotto: ...\nQuantità: 800 pz\nConsegna: 25/09/2026" required></textarea></label></div></div><div class="modal-actions"><button type="button" class="btn" onclick="document.getElementById('v115EmailImportDialog').close()">Annulla</button><button class="btn primary" type="submit">Analizza e crea bozza</button></div></form></dialog>`);
-    if(!$('#v115EmailDraftDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115EmailDraftDialog"><form id="v115EmailDraftForm"><div class="modal-head"><div><span class="eyebrow">Controllo umano obbligatorio</span><h3>Verifica ordine e-mail</h3><p>Correggi i dati prima di creare l'ordine nella piattaforma.</p></div><button type="button" class="close" onclick="document.getElementById('v115EmailDraftDialog').close()">×</button></div><div class="modal-body"><div class="form-grid"><label class="field">Cliente<input name="client" required></label><label class="field">Rif. ordine<input name="orderRef"></label><label class="field full">Prodotto<input name="product" required></label><label class="field">Quantità<input name="qty" type="number" min="1" required></label><label class="field">Consegna<input name="dueDate" type="date"></label><label class="field">Formato<select name="liters"><option value="">Da verificare</option><option>3LT</option><option>5LT</option><option>14LT</option><option>18LT</option></select></label><label class="field">Priorità<select name="priority"><option>Normale</option><option>Urgente</option></select></label><div class="full"><span class="eyebrow">Testo originale</span><div id="v115EmailDraftSource" class="v115-source"></div></div></div></div><div class="modal-actions"><button type="button" class="btn danger" onclick="SPPlannerV115.discardEmailDraftCurrent()">Elimina bozza</button><button type="button" class="btn" onclick="SPPlannerV115.cancelEmailEdit()">Annulla</button><button class="btn primary" type="submit">Salva verifica</button></div></form></dialog>`);
+    if(!$('#v115EmailDraftDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115EmailDraftDialog"><form id="v115EmailDraftForm"><div class="modal-head"><div><span class="eyebrow">Controllo umano obbligatorio</span><h3>Verifica ordine e-mail</h3><p>Correggi i dati prima di creare l'ordine nella piattaforma.</p></div><button type="button" class="close" onclick="document.getElementById('v115EmailDraftDialog').close()">×</button></div><div class="modal-body"><div class="form-grid"><label class="field">Cliente<select name="clientCode" required></select><small id="v115NewClientNote" class="v115-master-warning" style="display:none"></small></label><label class="field">Rif. ordine<input name="orderRef"></label><label class="field full">Prodotto<select name="productCode" required></select></label><label class="field">Quantità<input name="qty" type="number" min="1" required></label><label class="field">Consegna<input name="dueDate" type="date"></label><label class="field">Formato<select name="liters"><option value="">Da verificare</option><option>3LT</option><option>5LT</option><option>14LT</option><option>18LT</option></select></label><label class="field">Priorità<select name="priority"><option>Normale</option><option>Urgente</option></select></label><div class="full"><span class="eyebrow">Testo originale</span><div id="v115EmailDraftSource" class="v115-source"></div></div></div></div><div class="modal-actions"><button type="button" class="btn danger" onclick="SPPlannerV115.discardEmailDraftCurrent()">Elimina bozza</button><button type="button" class="btn" onclick="SPPlannerV115.cancelEmailEdit()">Annulla</button><button class="btn primary" type="submit">Salva verifica</button></div></form></dialog>`);
     if(!$('#v115EmailSetupDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115EmailSetupDialog"><div class="modal-head"><div><span class="eyebrow">SMART PACK · Gmail OAuth</span><h3>Casella ordini Smart Pack</h3><p>Collegamento sicuro in sola lettura tramite Google. Nessuna password Gmail viene salvata.</p></div><button type="button" class="close" onclick="document.getElementById('v115EmailSetupDialog').close()">×</button></div><div class="modal-body"><div class="v115-email-state" id="v115GmailDialogState">Verifica connessione…</div><div class="v115-oauth"><div><b>Permesso richiesto</b><p>Solo lettura Gmail. La piattaforma può leggere i messaggi necessari a creare bozze ordine, ma non può inviare, cancellare o modificare e-mail.</p></div><div><b>Controllo umano</b><p>Ogni messaggio importato entra come bozza. Roberto o amministrazione verificano cliente, articolo, quantità e consegna prima di creare l'ordine.</p></div><div><b>Token protetto</b><p>Il refresh token Google resta cifrato nel backend Supabase e non viene esposto al browser o all'APK.</p></div><div><b>Allegati</b><p>I nomi degli allegati vengono rilevati. La lettura automatica di PDF/Excel può essere aggiunta nella fase successiva.</p></div></div></div><div class="modal-actions"><button class="btn" id="v115GmailDisconnectBtn" onclick="SPPlannerV115.disconnectGmail()" style="display:none">Scollega</button><button class="btn" onclick="document.getElementById('v115EmailSetupDialog').close()">Chiudi</button><button class="btn" id="v115GmailSyncBtn" onclick="SPPlannerV115.syncGmail()" style="display:none">Sincronizza ora</button><button class="btn primary" id="v115GmailConnectBtn" onclick="SPPlannerV115.connectGmail()">Collega Gmail</button></div></dialog>`);
+    if(!$('#v115ClientDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v115ClientDialog"><div class="modal-head"><div><span class="eyebrow">ANAGRAFICA CLIENTE</span><h3 id="v115ClientTitle">Cliente</h3><p id="v115ClientMeta">Ordini cliente</p></div><button type="button" class="close" onclick="document.getElementById('v115ClientDialog').close()">×</button></div><div class="modal-body" id="v115ClientBody"></div><div class="modal-actions"><button type="button" class="btn" onclick="document.getElementById('v115ClientDialog').close()">Chiudi</button></div></dialog>`);
     $('#v115RulesForm').onsubmit=saveRules;$('#v115EmailImportForm').onsubmit=submitEmailImport;$('#v115EmailDraftForm').onsubmit=saveEmailDraft;
   }
 
@@ -433,14 +590,14 @@
 
   function boot(){
     ensureState();injectStyles();ensureView();ensureDialogs();addNav();patchRenderNav();patchRenderCurrent();patchOrdersRender();version();
-    try{renderNav()}catch(_){}applyMenuPrefs();
+    try{renderNav()}catch(_){}applyMenuPrefs();patchOrderMasterDataV115();decorateClientLinksV115();
     const params=new URL(location.href).searchParams;
     if(params.has('gmail')){
       const result=params.get('gmail');const account=params.get('account')||'';
       if(result==='connected')setTimeout(()=>{try{toast(`Gmail collegato${account?' · '+account:''}`)}catch(_){}},300);
       const clean=new URL(location.href);clean.searchParams.delete('gmail');clean.searchParams.delete('account');clean.searchParams.delete('reason');history.replaceState({},'',clean.toString());
     }
-    setTimeout(()=>{version();applyMenuPrefs();if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner();decorateOrdersEmail();loadGmailStatus(true)},900);
+    setTimeout(()=>{version();applyMenuPrefs();patchOrderMasterDataV115();if(typeof currentView!=='undefined'&&currentView===VIEW)renderPlanner();decorateOrdersEmail();decorateClientLinksV115();loadGmailStatus(true)},900);
     setTimeout(()=>{if(gmailStatus.loading)loadGmailStatus(true)},2600);
   }
 
@@ -448,6 +605,7 @@
     refresh:renderPlanner,move:moveRun,lock:toggleLock,apply:applySuggestions,menu:openMenu,saveMenu,rules:openRules,
     importEmail:openImportEmail,editEmail,toOrder,emailSetup,connectGmail,syncGmail,disconnectGmail,refreshOrdersEmail:decorateOrdersEmail,
     cancelEmailEdit,discardEmail:discardEmailDraft,discardEmailDraftCurrent:()=>{if(emailDraftEditing)discardEmailDraft(emailDraftEditing)},
+    client:openClientV115,clientOrderDetails:clientOrderDetailsV115,
     suggest:()=>Object.fromEntries(machineList().map(m=>[m.id,suggestedForMachine(m.id).map(r=>({id:r.id,orderCode:r.orderCode,score:runScore(r).score,reason:reasonText(r,0)}))])),
     rulesData:rules
   };

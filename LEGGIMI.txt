@@ -1,9 +1,23 @@
-V11.5 - Azioni bozze e-mail
+V11.5 - ANAGRAFICHE CLIENTI/PRODOTTI + SCHEDA CLIENTE
 
-- Aggiunto Annulla nella verifica ordine: chiude senza salvare modifiche.
-- Aggiunto Elimina bozza nella finestra di verifica.
-- Aggiunto Scarta direttamente nella lista bozze.
-- Conferma obbligatoria prima della cancellazione.
-- Audit della bozza scartata.
-- Una bozza scartata non viene trasformata in ordine.
-- Cache incrementata a static-5.
+- Verifica ordine e-mail:
+  * Cliente = selezione obbligatoria CLI-xxx · Nome
+  * Prodotto = selezione obbligatoria PRD-xxx · Descrizione
+  * niente più testo libero
+  * nuovo cliente: deve essere censito prima dell'approvazione
+
+- Nuovo ordine manuale:
+  * cliente e prodotto selezionati dalle stesse anagrafiche
+  * codice cliente/prodotto salvato sugli ordini nuovi
+
+- Scheda cliente:
+  * clic sul nome cliente nella pagina Ordini
+  * mostra codice cliente
+  * ordini pendenti in primo piano
+  * storico ordini sotto
+  * pulsante Dettagli per aprire la tracciabilità dell'ordine
+
+- Corretto anche il caso Gmail con più righe nello stesso messaggio:
+  ogni riga ordine mantiene la propria bozza.
+
+- Cache aggiornata a static-6.
