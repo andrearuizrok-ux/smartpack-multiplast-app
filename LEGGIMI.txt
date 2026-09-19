@@ -1,8 +1,9 @@
-V11.5 - Gmail SOLO Smart Pack
+V11.5 - Azioni bozze e-mail
 
-- Gmail collegabile direttamente dall'Account aziendale Smart Pack.
-- Connessione, sincronizzazione e bozze sono associate a company_code=smartpack.
-- In ambiente Multiplast il blocco Gmail non viene mostrato.
-- Gli ordini importati da Gmail sono solo Smart Pack.
-- Nessun ordine viene creato senza verifica e approvazione.
-- Cache aggiornata a static-4.
+- Aggiunto Annulla nella verifica ordine: chiude senza salvare modifiche.
+- Aggiunto Elimina bozza nella finestra di verifica.
+- Aggiunto Scarta direttamente nella lista bozze.
+- Conferma obbligatoria prima della cancellazione.
+- Audit della bozza scartata.
+- Una bozza scartata non viene trasformata in ordine.
+- Cache incrementata a static-5.
