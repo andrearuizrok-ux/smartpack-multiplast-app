@@ -13,6 +13,8 @@
   const BUILD='V11.5';
   const MARKER='PIATTAFORMA-GRUPPO-V11.5';
   const VIEW='planner';
+  // poi115-access-cleanup: il flusso accessi è gestito esclusivamente da access-v11.5.js.
+
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
   const n=v=>Number(v||0);
@@ -861,183 +863,6 @@
   }
 
 
-
-  const ACCESS_COMPANY_KEY_V115='poi_v113_company';
-
-  function closeAccessOverlaysV115(){
-    $$('.poi113-overlay').forEach(x=>x.classList.remove('open'));
-  }
-
-  function setAccessHeaderV115(title,subtitle,logo='SP·MP'){
-    const gate=$('#poi113CompanyGate');
-    if(!gate)return;
-    const h=gate.querySelector('.poi113-head h2');
-    const p=gate.querySelector('.poi113-head p');
-    const l=gate.querySelector('.poi113-logo');
-    if(h)h.textContent=title;
-    if(p)p.textContent=subtitle;
-    if(l)l.textContent=logo;
-  }
-
-  function accessRootV115(){
-    const gate=$('#poi113CompanyGate'),body=$('#poi113CompanyBody');
-    if(!gate||!body)return;
-    closeAccessOverlaysV115();
-    setAccessHeaderV115('Seleziona area di lavoro','Scegli Smart Pack, Multiplast oppure Amministrazione.','SP·MP');
-    body.innerHTML=`
-      <div class="v115-access-main-grid">
-        <button class="v115-access-main smartpack" type="button" onclick="SPPlannerV115.accessArea('smartpack')">
-          <div class="v115-access-symbol">SP</div>
-          <div><b>Smart Pack</b><span>Gestione commerciale e produzione Smart Pack.</span></div>
-          <em>Apri →</em>
-        </button>
-        <button class="v115-access-main multiplast" type="button" onclick="SPPlannerV115.accessArea('multiplast')">
-          <div class="v115-access-symbol">MP</div>
-          <div><b>Multiplast</b><span>Responsabile produzione e reparto produttivo Multiplast.</span></div>
-          <em>Apri →</em>
-        </button>
-        <button class="v115-access-main administration" type="button" onclick="SPPlannerV115.accessArea('administration')">
-          <div class="v115-access-symbol">AM</div>
-          <div><b>Amministrazione</b><span>DDT, consegne, chiusure e attività amministrative del gruppo.</span></div>
-          <em>Apri →</em>
-        </button>
-      </div>
-      <div class="v115-access-help">L'area scelta determina solamente gli strumenti visibili. I dati restano collegati nella stessa piattaforma.</div>`;
-    gate.classList.add('open');
-  }
-
-  function accessRoleMenuV115(company){
-    const gate=$('#poi113AccessGate'),body=$('#poi113AccessBody');
-    if(!gate||!body)return;
-    closeAccessOverlaysV115();
-    const smart=company==='smartpack';
-    sessionStorage.setItem(ACCESS_COMPANY_KEY_V115,company);
-    const logo=$('#poi113AccessLogo'),title=$('#poi113AccessTitle');
-    if(logo)logo.textContent=smart?'SP':'MP';
-    if(title)title.textContent=smart?'Smart Pack':'Multiplast';
-    const sub=gate.querySelector('.poi113-head p');
-    if(sub)sub.textContent=smart
-      ?'Scegli se entrare nella gestione Smart Pack o nel reparto produzione.'
-      :'Scegli se entrare come responsabile produzione o nel reparto produzione.';
-    body.innerHTML=smart?`
-      <div class="v115-access-role-grid">
-        <button type="button" class="v115-access-role" onclick="SPPlannerV115.accessRole('smartpack','director')">
-          <span class="v115-role-icon">G</span>
-          <div><b>Gestione Smart Pack</b><small>Ordini, clienti, Gmail, IML, pianificazione, registro, magazzino e controllo produzione.</small></div>
-          <em>Entra →</em>
-        </button>
-        <button type="button" class="v115-access-role" onclick="SPPlannerV115.accessRole('smartpack','worker')">
-          <span class="v115-role-icon">P</span>
-          <div><b>Produzione Smart Pack</b><small>Fogli produzione, attività operative, avanzamento e chiusura lavorazioni.</small></div>
-          <em>Entra →</em>
-        </button>
-      </div>`:`
-      <div class="v115-access-role-grid">
-        <button type="button" class="v115-access-role" onclick="SPPlannerV115.accessRole('multiplast','manager')">
-          <span class="v115-role-icon">R</span>
-          <div><b>Responsabile produzione Multiplast</b><small>Pianificazione presse, consegne, priorità, turni, materiali e controllo della produzione.</small></div>
-          <em>Entra →</em>
-        </button>
-        <button type="button" class="v115-access-role" onclick="SPPlannerV115.accessRole('multiplast','mpworker')">
-          <span class="v115-role-icon">P</span>
-          <div><b>Produzione Multiplast</b><small>Lavori assegnati, foglio turno, contatori, scarti e istruzioni operative.</small></div>
-          <em>Entra →</em>
-        </button>
-      </div>`;
-    const back=$('#poi113AccessBack');
-    if(back){back.textContent='Indietro';back.onclick=accessRootV115}
-    gate.classList.add('open');
-  }
-
-  function roleLabelV115(role){
-    return {
-      director:'Gestione Smart Pack',
-      worker:'Produzione Smart Pack',
-      manager:'Responsabile produzione Multiplast',
-      mpworker:'Produzione Multiplast',
-      admin:'Amministrazione'
-    }[role]||role;
-  }
-
-  function decorateEnteredRoleV115(role){
-    const label=roleLabelV115(role);
-    const name=$('#userName'),userRole=$('#userRole'),mode=$('#profileMode');
-    if(name)name.textContent=role==='admin'?'Amministrazione':'Account aziendale';
-    if(userRole)userRole.textContent=label;
-    if(mode)mode.textContent=label;
-    const badge=$('#logoutProfile');
-    if(badge)badge.title=`${label} · Esci dal profilo`;
-  }
-
-  function enterAccessRoleV115(company,role){
-    sessionStorage.setItem(ACCESS_COMPANY_KEY_V115,company);
-    closeAccessOverlaysV115();
-
-    try{
-      window.POICloudV10?.enterRole?.(role);
-    }catch(e){
-      console.warn('[V11.5] access role',e);
-      try{setRole(role)}catch(_){}
-    }
-
-    [50,180,450,900].forEach(delay=>setTimeout(()=>{
-      try{
-        if(typeof window.switchCompanyV92==='function')window.switchCompanyV92(company);
-      }catch(_){}
-      decorateEnteredRoleV115(role);
-    },delay));
-  }
-
-  function accessAreaV115(area){
-    if(area==='smartpack'){accessRoleMenuV115('smartpack');return}
-    if(area==='multiplast'){accessRoleMenuV115('multiplast');return}
-    if(area==='administration'){
-      // Amministrazione è un accesso trasversale. Parte da Smart Pack;
-      // il selettore azienda della piattaforma permette di passare a Multiplast.
-      enterAccessRoleV115('smartpack','admin');
-    }
-  }
-
-  function patchAccessHierarchyV115(){
-    const api113=window.POIV113;
-    if(!api113)return false;
-
-    // Il menu principale non deve più saltare direttamente a director/manager.
-    api113.showCompanyMenu=accessRootV115;
-    api113.selectCompany=company=>{
-      if(company==='smartpack'||company==='multiplast')accessRoleMenuV115(company);
-    };
-
-    const back=$('#poi113AccessBack');
-    if(back)back.onclick=accessRootV115;
-
-    const gate=$('#poi113CompanyGate');
-    if(gate?.classList.contains('open'))accessRootV115();
-
-    if(!window.__v115AccessObserver&&gate){
-      window.__v115AccessObserver=new MutationObserver(()=>{
-        if(gate.classList.contains('open')){
-          const body=$('#poi113CompanyBody');
-          if(body&&!body.querySelector('.v115-access-main-grid'))accessRootV115();
-        }
-      });
-      window.__v115AccessObserver.observe(gate,{attributes:true,attributeFilter:['class']});
-    }
-
-    return true;
-  }
-
-  function initAccessHierarchyV115(){
-    let tries=0;
-    const run=()=>{
-      tries++;
-      if(patchAccessHierarchyV115())return;
-      if(tries<30)setTimeout(run,200);
-    };
-    run();
-  }
-
-
   function parseEmailText(text,subject=''){
     const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);const find=(re)=>{const l=lines.find(x=>re.test(x));return l?l.replace(re,'').replace(/^\s*[:\-]\s*/,'').trim():''};
     const client=find(/^(cliente|customer)\b\s*[:\-]?/i);
@@ -1180,28 +1005,6 @@
   .v115-email-draft b.v115-master-row{font-size:13px!important}
   #v115OrdersEmailPanel .v115-orders-email-head h3{font-size:18px!important}
 }
-
-/* V11.5 · gerarchia accessi Smart Pack / Multiplast / Amministrazione */
-.v115-access-main-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.v115-access-main{position:relative;min-height:190px;border:1px solid #d5e3e8;background:#fff;border-radius:20px;padding:20px;text-align:left;display:flex;flex-direction:column;gap:14px;color:#102331;transition:.18s;box-shadow:0 7px 20px rgba(25,64,79,.045)}
-.v115-access-main:hover{transform:translateY(-3px);border-color:#85b4c5;box-shadow:0 15px 32px rgba(24,70,88,.11)}
-.v115-access-main .v115-access-symbol{width:50px;height:50px;border-radius:15px;background:#eaf4f7;color:#1F5E78;display:grid;place-items:center;font-size:15px;font-weight:950}
-.v115-access-main.multiplast .v115-access-symbol{background:#eef4ef;color:#426b4a}
-.v115-access-main.administration .v115-access-symbol{background:#f4f0e9;color:#7a6042}
-.v115-access-main b{display:block;font-size:20px;line-height:1.2}
-.v115-access-main span{display:block;font-size:12px!important;line-height:1.5!important;color:#617781;margin-top:7px}
-.v115-access-main em{font-size:11px;font-style:normal;font-weight:900;color:#1F5E78;margin-top:auto}
-.v115-access-help{margin-top:14px;padding:12px 14px;border-radius:13px;background:#edf5f7;color:#556d78;font-size:11px;line-height:1.5}
-.v115-access-role-grid{display:grid;grid-template-columns:1fr;gap:12px}
-.v115-access-role{width:100%;border:1px solid #d5e3e8;background:#fff;border-radius:18px;padding:17px 18px;display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:center;text-align:left;color:#102331;transition:.17s}
-.v115-access-role:hover{border-color:#85b4c5;background:#fbfefe;box-shadow:0 10px 24px rgba(24,70,88,.08)}
-.v115-role-icon{width:48px;height:48px;border-radius:14px;background:#eaf4f7;color:#1F5E78;display:grid;place-items:center;font-size:16px;font-weight:950}
-.v115-access-role b{display:block;font-size:17px}
-.v115-access-role small{display:block;font-size:11px;line-height:1.48;color:#637982;margin-top:5px}
-.v115-access-role em{font-style:normal;font-size:11px;font-weight:900;color:#1F5E78;white-space:nowrap}
-#poi113CompanyGate .poi113-head h2,#poi113AccessGate .poi113-head h2{font-size:24px!important}
-#poi113CompanyGate .poi113-head p,#poi113AccessGate .poi113-head p{font-size:12px!important}
-@media(max-width:850px){.v115-access-main-grid{grid-template-columns:1fr}.v115-access-main{min-height:145px}.v115-access-role{grid-template-columns:44px 1fr}.v115-access-role em{grid-column:2}.v115-access-main b{font-size:18px}}
 @media(max-width:1050px){.v115-kpis{grid-template-columns:repeat(3,1fr)}.v115-machines{grid-template-columns:1fr}}
     @media(max-width:760px){.v115-hero{display:block}.v115-hero-actions{margin-top:12px;justify-content:flex-start}.v115-hero-actions .btn{flex:1}.v115-kpis{grid-template-columns:1fr 1fr}.v115-metrics{grid-template-columns:1fr 1fr}.v115-section-head{display:block}.v115-section-head>div:last-child{margin-top:10px;display:grid;grid-template-columns:1fr 1fr}.v115-email-draft{display:block}.v115-email-draft>div:last-child{margin-top:8px}.v115-run{grid-template-columns:18px 1fr}.v115-run-top{display:block}.v115-badges{justify-content:flex-start;margin-top:5px}.v115-status{display:block}.v115-status span{display:block;margin-top:3px}}
   `;document.head.appendChild(s)}
@@ -1232,7 +1035,7 @@
   function version(){document.title=`Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · ${BUILD}`;document.body.dataset.build=MARKER;$$('.version-badge').forEach(x=>x.textContent=BUILD)}
 
   function boot(){
-    ensureState();injectStyles();ensureView();ensureDialogs();addNav();patchRenderNav();patchRenderCurrent();patchOrdersRender();patchOrdersRegisterV115();patchRegisterSaveV115();patchDashboardV115();initAccessHierarchyV115();version();
+    ensureState();injectStyles();ensureView();ensureDialogs();addNav();patchRenderNav();patchRenderCurrent();patchOrdersRender();patchOrdersRegisterV115();patchRegisterSaveV115();patchDashboardV115();version();
     try{renderNav()}catch(_){}applyMenuPrefs();patchOrderMasterDataV115();decorateClientLinksV115();
     const params=new URL(location.href).searchParams;
     if(params.has('gmail')){
@@ -1250,7 +1053,6 @@
     cancelEmailEdit,discardEmail:discardEmailDraft,discardEmailDraftCurrent:()=>{if(emailDraftEditing)discardEmailDraft(emailDraftEditing)},
     client:openClientV115,clientOrderDetails:clientOrderDetailsV115,
     dashboardGo:dashboardGoV115,
-    accessArea:accessAreaV115,accessRole:enterAccessRoleV115,
     suggest:()=>Object.fromEntries(machineList().map(m=>[m.id,suggestedForMachine(m.id).map(r=>({id:r.id,orderCode:r.orderCode,score:runScore(r).score,reason:reasonText(r,0)}))])),
     rulesData:rules
   };

@@ -1,23 +1,24 @@
-V11.5 - ACCESSI OPERATORI USER + PIN
+V11.5 - HOME PORTALE FULL-SCREEN
 
-Flusso produzione:
-- Produzione Smart Pack -> USER + PIN -> solo ruolo worker
-- Produzione Multiplast -> USER + PIN -> solo ruolo mpworker
-- Esci dalla postazione -> torna alla scelta Produzione Smart Pack / Produzione Multiplast
-- Il vecchio selettore V9.6 dei 5 profili viene nascosto.
+Correzioni:
+- La piattaforma NON è più visibile/sfocata dietro la home.
+- Rimosso il conflitto con il vecchio selettore profili del planner.
+- Una sola home di accesso gestita da access-v11.5.js.
+- Home Produzione a schermo intero:
+  * Produzione Smart Pack
+  * Produzione Multiplast
+  * USER + PIN
+  * Accesso uffici separato
+- Home Uffici a schermo intero:
+  * Gestione Smart Pack
+  * Responsabile produzione Multiplast
+  * Amministrazione
+- Hover, animazioni leggere, layout industriale pulito e responsive.
+- Font e pulsanti più leggibili.
+- Uscita Produzione torna sempre alla home Produzione.
+- Blocco Uffici torna alla home Produzione.
+- Cache aggiornata a static-13.
 
-Flusso uffici:
-- Accesso uffici / amministrazione richiede nuovamente email + password aziendale.
-- Dopo lo sblocco compaiono solo Gestione Smart Pack, Responsabile produzione Multiplast, Amministrazione.
-- Esci/Blocca da un ruolo ufficio torna alla postazione produzione e richiede di nuovo la password per riaprire gli uffici.
-
-NOMYRA:
-- riattivata la gestione USER Produzione.
-- Smart Pack può creare soltanto Produzione Smart Pack.
-- Multiplast può creare soltanto Produzione Multiplast.
-
-Nota:
-- su ogni dispositivo la sessione aziendale Supabase deve essere stata configurata almeno una volta; dopo, gli operatori lavorano con USER + PIN.
-- al momento nel database non risultano ancora USER operatore creati.
-
-Cache: static-12.
+IMPORTANTE:
+caricare TUTTI i file della patch su GitHub mantenendo esattamente le cartelle,
+perché planner-v11.5.js rimuove il vecchio override che causava la schermata precedente.

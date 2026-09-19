@@ -65,6 +65,139 @@
       #poiCloudUserBox{display:none!important}#poiCloudSwitchProfile{display:none!important}
       #accessGate{display:none!important}
       .poi115-production-grid,.poi115-office-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.poi115-production-card,.poi115-office-card{background:#fff;border:1px solid #d6e4e9;border-radius:18px;padding:20px;text-align:left;cursor:pointer;transition:.18s;min-height:150px;display:flex;flex-direction:column}.poi115-production-card:hover,.poi115-office-card:hover{transform:translateY(-2px);border-color:#86b5c8;box-shadow:0 12px 28px rgba(24,70,88,.1)}.poi115-production-card b,.poi115-office-card b{display:block;font-size:18px}.poi115-production-card span,.poi115-office-card span{display:block;color:#627984;font-size:11px;line-height:1.5;margin-top:7px}.poi115-production-card em,.poi115-office-card em{font-style:normal;font-size:10px;font-weight:900;color:#1f5e78;margin-top:auto;padding-top:14px}.poi115-office-link{margin-top:14px;padding:14px;border:1px solid #d8e5e9;border-radius:14px;background:#f5f9fa;display:flex;gap:10px;align-items:center;justify-content:space-between}.poi115-office-link div b{font-size:12px}.poi115-office-link div span{display:block;font-size:9px;color:#657b85;margin-top:3px}.poi115-office-link .btn{white-space:nowrap}.poi115-security-note{margin-top:12px;border:1px solid #d5e7df;background:#f3faf7;border-radius:12px;padding:10px 12px;font-size:9px;line-height:1.45;color:#43645a}.poi115-office-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.poi115-office-card{min-height:165px}.poi115-office-card .role{width:42px;height:42px;border-radius:12px;background:#eaf4f7;color:#1f5e78;display:grid;place-items:center;font-weight:950;margin-bottom:14px}.poi115-lock-note{margin-top:12px;color:#6a7d86;font-size:9px;line-height:1.45}.poi115-employee-company{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:#eef5f7}.poi115-employee-company b{font-size:12px}.poi115-employee-company span{font-size:9px;color:#657983}.poi115-employee-company .badge{width:36px;height:36px;border-radius:10px;background:#1f5e78;color:#fff;display:grid;place-items:center;font-weight:900}
+
+      /* V11.5.1 · Home accesso full-screen */
+      #poi113CompanyGate,#poi113AccessGate{
+        background:
+          radial-gradient(circle at 8% 12%,rgba(31,94,120,.13),transparent 28%),
+          radial-gradient(circle at 88% 84%,rgba(57,111,83,.10),transparent 30%),
+          linear-gradient(135deg,#f7fbfc 0%,#edf5f7 48%,#f7faf8 100%)!important;
+        backdrop-filter:none!important;
+        padding:0!important;
+        overflow:auto!important;
+      }
+      #poi113CompanyGate::before,#poi113AccessGate::before{
+        content:"";position:fixed;inset:0;pointer-events:none;opacity:.42;
+        background-image:
+          linear-gradient(rgba(23,57,74,.035) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(23,57,74,.035) 1px,transparent 1px);
+        background-size:44px 44px;
+        mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 88%);
+      }
+      #poi113CompanyGate.open,#poi113AccessGate.open{display:block!important}
+      #poi113CompanyGate .poi113-card{
+        position:relative;z-index:1;width:min(1380px,calc(100% - 48px));min-height:100vh;
+        margin:0 auto;padding:42px 34px 38px;background:transparent;border:0;border-radius:0;box-shadow:none;
+        display:flex;flex-direction:column;justify-content:center;
+      }
+      #poi113AccessGate .poi113-card{
+        position:relative;z-index:1;width:min(620px,calc(100% - 36px));margin:7vh auto;
+        background:rgba(255,255,255,.96);border:1px solid rgba(185,210,219,.9);
+        box-shadow:0 28px 80px rgba(17,52,66,.16);border-radius:28px;padding:28px;
+      }
+      #poi113CompanyGate .poi113-head{margin-bottom:28px;align-items:center}
+      #poi113CompanyGate .poi113-logo{
+        width:58px;height:58px;border-radius:18px;background:linear-gradient(145deg,#17394a,#1f5e78);
+        box-shadow:0 10px 25px rgba(23,57,74,.18);font-size:13px
+      }
+      #poi113CompanyGate .poi113-head h2{font-size:34px!important;letter-spacing:-.035em;line-height:1.08}
+      #poi113CompanyGate .poi113-head p{font-size:14px!important;line-height:1.55;max-width:790px;color:#627985}
+      #poi113CompanyGate .poi113-close{
+        min-width:86px;height:42px;border:1px solid #cfdee3;background:rgba(255,255,255,.82);
+        font-size:11px;border-radius:13px
+      }
+
+      .poi115-portal-shell{display:grid;grid-template-columns:minmax(0,.82fr) minmax(560px,1.18fr);gap:46px;align-items:center}
+      .poi115-portal-copy{padding:18px 8px 18px 4px}
+      .poi115-kicker{display:inline-flex;align-items:center;gap:8px;border:1px solid #cfe0e6;background:rgba(255,255,255,.72);
+        color:#1f5e78;border-radius:999px;padding:8px 12px;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+      .poi115-kicker::before{content:"";width:7px;height:7px;border-radius:50%;background:#28a476;box-shadow:0 0 0 5px rgba(40,164,118,.10)}
+      .poi115-portal-copy h3{font-size:48px;line-height:1.04;letter-spacing:-.05em;margin:22px 0 16px;color:#102735;max-width:620px}
+      .poi115-portal-copy>p{font-size:16px;line-height:1.65;color:#607883;max-width:620px;margin:0}
+      .poi115-portal-points{display:grid;gap:10px;margin-top:28px}
+      .poi115-portal-point{display:flex;gap:11px;align-items:flex-start;color:#536b76;font-size:12px;line-height:1.5}
+      .poi115-portal-point i{font-style:normal;width:26px;height:26px;flex:0 0 auto;border-radius:8px;background:#e8f3f6;color:#1f5e78;display:grid;place-items:center;font-weight:950}
+      .poi115-portal-panel{
+        position:relative;background:rgba(255,255,255,.78);border:1px solid rgba(195,216,223,.95);
+        border-radius:30px;padding:22px;box-shadow:0 28px 70px rgba(23,57,74,.10);overflow:hidden
+      }
+      .poi115-portal-panel::before{
+        content:"";position:absolute;width:250px;height:250px;border-radius:50%;right:-120px;top:-140px;
+        background:radial-gradient(circle,rgba(31,94,120,.12),transparent 65%);pointer-events:none
+      }
+      .poi115-panel-title{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:16px;padding:2px 2px 4px}
+      .poi115-panel-title b{font-size:15px;color:#17394a}.poi115-panel-title span{font-size:10px;color:#738892}
+      .poi115-production-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important}
+      .poi115-production-card{
+        position:relative;overflow:hidden;min-height:235px!important;padding:22px!important;border-radius:22px!important;
+        border:1px solid #d4e3e8!important;background:#fff!important;box-shadow:0 8px 22px rgba(23,57,74,.055);
+        transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease!important
+      }
+      .poi115-production-card::before{
+        content:"";position:absolute;inset:auto -34px -48px auto;width:145px;height:145px;border-radius:50%;
+        background:radial-gradient(circle,rgba(31,94,120,.12),transparent 68%);transition:.22s
+      }
+      .poi115-production-card:nth-child(2)::before{background:radial-gradient(circle,rgba(64,110,74,.14),transparent 68%)}
+      .poi115-production-card:hover{transform:translateY(-6px)!important;box-shadow:0 20px 38px rgba(23,57,74,.13)!important;border-color:#7fb3c5!important}
+      .poi115-production-card:hover::before{transform:scale(1.18)}
+      .poi115-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+      .poi115-company-mark{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:14px;font-weight:950;background:#e8f3f6;color:#1f5e78}
+      .poi115-production-card:nth-child(2) .poi115-company-mark{background:#edf5ef;color:#46724f}
+      .poi115-live-badge{display:inline-flex;gap:6px;align-items:center;font-size:8.5px;font-weight:900;color:#667d87;background:#f4f8f9;border:1px solid #e0eaed;border-radius:999px;padding:6px 8px}
+      .poi115-live-badge::before{content:"";width:6px;height:6px;background:#30a578;border-radius:50%}
+      .poi115-production-card b{font-size:21px!important;line-height:1.2!important}
+      .poi115-production-card span{font-size:12px!important;line-height:1.55!important;color:#667d88!important}
+      .poi115-production-card em{font-size:11px!important;color:#1f5e78!important;padding-top:20px!important}
+      .poi115-office-link{
+        margin-top:15px!important;padding:15px 16px!important;background:rgba(248,251,252,.92)!important;
+        border:1px solid #d9e6ea!important;border-radius:17px!important
+      }
+      .poi115-office-link div b{font-size:12.5px!important}.poi115-office-link div span{font-size:10px!important;line-height:1.45!important}
+      .poi115-office-link .btn{min-height:40px;font-size:10.5px!important;padding:9px 13px!important}
+      .poi115-security-note{
+        margin-top:14px!important;background:transparent!important;border:0!important;border-top:1px solid #deeaed!important;
+        border-radius:0!important;padding:13px 2px 0!important;font-size:9.5px!important;color:#6c828c!important
+      }
+      .poi115-footer{margin-top:24px;display:flex;justify-content:space-between;gap:12px;align-items:center;color:#79909a;font-size:9.5px}
+      .poi115-footer strong{color:#526c77}
+
+      /* Office home: same visual language */
+      .poi115-office-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px!important}
+      .poi115-office-card{min-height:230px!important;border-radius:22px!important;padding:21px!important;box-shadow:0 8px 22px rgba(23,57,74,.05)}
+      .poi115-office-card:hover{transform:translateY(-5px)!important;box-shadow:0 18px 34px rgba(23,57,74,.12)!important}
+      .poi115-office-card .role{width:48px!important;height:48px!important;border-radius:15px!important;font-size:13px!important}
+      .poi115-office-card b{font-size:18px!important;line-height:1.25!important}
+      .poi115-office-card span:not(.role){font-size:11.5px!important;line-height:1.55!important}
+      .poi115-office-card em{font-size:10.5px!important}
+      .poi115-lock-note{font-size:10px!important;background:#f6fafb;border:1px solid #dce8ec;border-radius:13px;padding:11px 12px}
+
+      @keyframes poi115PortalIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+      .poi115-portal-copy,.poi115-portal-panel{animation:poi115PortalIn .42s ease both}
+      .poi115-portal-panel{animation-delay:.07s}
+      .poi115-production-card:nth-child(1){animation:poi115PortalIn .4s .12s ease both}
+      .poi115-production-card:nth-child(2){animation:poi115PortalIn .4s .18s ease both}
+
+      @media(max-width:1050px){
+        .poi115-portal-shell{grid-template-columns:1fr;gap:22px}
+        .poi115-portal-copy{padding-bottom:0}
+        .poi115-portal-copy h3{font-size:39px;max-width:760px}
+        .poi115-portal-copy>p{max-width:780px}
+        #poi113CompanyGate .poi113-card{padding-top:28px;justify-content:flex-start}
+      }
+      @media(max-width:760px){
+        #poi113CompanyGate .poi113-card{width:100%;padding:22px 15px 28px}
+        #poi113CompanyGate .poi113-head h2{font-size:27px!important}
+        #poi113CompanyGate .poi113-head p{font-size:12px!important}
+        .poi115-portal-copy h3{font-size:34px}
+        .poi115-portal-copy>p{font-size:13px}
+        .poi115-production-grid,.poi115-office-grid{grid-template-columns:1fr!important}
+        .poi115-production-card,.poi115-office-card{min-height:185px!important}
+        .poi115-office-link{align-items:flex-start!important;flex-direction:column!important}
+        .poi115-office-link .btn{width:100%}
+        .poi115-portal-panel{padding:15px;border-radius:22px}
+        .poi115-footer{align-items:flex-start;flex-direction:column}
+      }
+
       @media(max-width:760px){.poi113-company-grid,.poi113-admin-grid,.poi113-form-grid,.poi115-production-grid,.poi115-office-grid{grid-template-columns:1fr}.poi113-form-grid .full{grid-column:auto}.poi113-card{padding:16px}.poi113-overlay{padding:10px}.poi113-employee,.poi113-request{grid-template-columns:1fr}.poi113-row-actions{justify-content:flex-start}.poi113-request select{min-width:100%;max-width:100%}}
     `;
     document.head.appendChild(style);
@@ -179,33 +312,100 @@
     ensureUI();if(!profile())return;
     closeOverlays();hideLegacyProfileGate();
     officeUnlockedFlag=false;employee=null;pendingEntry=null;sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(OFFICE_ROLE_KEY);
-    const body=$('#poi113CompanyBody');
-    $('.poi113-head h2',$('#poi113CompanyGate')).textContent='Postazione produzione';
-    $('.poi113-head p',$('#poi113CompanyGate')).textContent='Gli operatori entrano esclusivamente con USER e PIN personale. Scegli l’azienda in cui devi lavorare.';
-    $('.poi113-logo',$('#poi113CompanyGate')).textContent='PROD';
-    $('#poi113CompanyLogout').style.display='none';$('#poi113CompanyLogout').textContent='Disconnetti';
-    body.innerHTML=`<div class="poi115-production-grid">
-      <button class="poi115-production-card" type="button" onclick="POIV113.openProductionLogin('smartpack')"><b>Produzione Smart Pack</b><span>Fogli produzione, avanzamento lavorazioni e attività del reparto Smart Pack.</span><em>USER + PIN →</em></button>
-      <button class="poi115-production-card" type="button" onclick="POIV113.openProductionLogin('multiplast')"><b>Produzione Multiplast</b><span>Turni, presse, contatori, scarti e istruzioni operative Multiplast.</span><em>USER + PIN →</em></button>
-    </div><div class="poi115-office-link"><div><b>Accesso uffici / amministrazione</b><span>Gestione Smart Pack, Responsabile produzione Multiplast e Amministrazione richiedono la password aziendale.</span></div><button class="btn" type="button" onclick="POIV113.openOfficeLogin()">Accesso uffici</button></div><div class="poi115-security-note">Ogni operatore viene identificato dal proprio USER. Il PIN determina quale reparto può aprire e le operazioni restano associate all’utente.</div>`;
-    $('#poi113CompanyGate').classList.add('open');decorateCloudMenu();
+    const gate=$('#poi113CompanyGate'),body=$('#poi113CompanyBody');
+    $('.poi113-head h2',gate).textContent='Piattaforma operativa';
+    $('.poi113-head p',gate).textContent='Smart Pack · Multiplast · accessi separati per reparto e responsabilità.';
+    $('.poi113-logo',gate).textContent='SP·MP';
+    $('#poi113CompanyLogout').style.display='none';
+
+    body.innerHTML=`
+      <div class="poi115-portal-shell">
+        <section class="poi115-portal-copy">
+          <span class="poi115-kicker">Sistema operativo di fabbrica</span>
+          <h3>Una postazione semplice. Il reparto giusto, subito.</h3>
+          <p>Gli operatori entrano con il proprio USER e PIN. La piattaforma mostra solo ciò che serve alla postazione scelta e mantiene separati i flussi Smart Pack e Multiplast.</p>
+          <div class="poi115-portal-points">
+            <div class="poi115-portal-point"><i>✓</i><span><b>Accesso personale</b><br>Ogni attività resta associata all’operatore che l’ha eseguita.</span></div>
+            <div class="poi115-portal-point"><i>↗</i><span><b>Accesso diretto al reparto</b><br>Niente menu amministrativi o aree che l’operaio non deve utilizzare.</span></div>
+            <div class="poi115-portal-point"><i>●</i><span><b>Dati condivisi in tempo reale</b><br>Produzione, ordini e avanzamenti restano sincronizzati nella stessa piattaforma.</span></div>
+          </div>
+        </section>
+
+        <section class="poi115-portal-panel">
+          <div class="poi115-panel-title">
+            <div><b>Scegli la postazione</b><span>USER + PIN personale</span></div>
+            <span>Accesso produzione</span>
+          </div>
+          <div class="poi115-production-grid">
+            <button class="poi115-production-card" type="button" onclick="POIV113.openProductionLogin('smartpack')">
+              <div class="poi115-card-top"><span class="poi115-company-mark">SP</span><span class="poi115-live-badge">Operativa</span></div>
+              <b>Produzione Smart Pack</b>
+              <span>Fogli di produzione, avanzamento lavorazioni, attività operative e chiusura delle produzioni Smart Pack.</span>
+              <em>Accedi con USER + PIN →</em>
+            </button>
+            <button class="poi115-production-card" type="button" onclick="POIV113.openProductionLogin('multiplast')">
+              <div class="poi115-card-top"><span class="poi115-company-mark">MP</span><span class="poi115-live-badge">Operativa</span></div>
+              <b>Produzione Multiplast</b>
+              <span>Turni, presse, contatori macchina, scarti, avanzamento e istruzioni operative Multiplast.</span>
+              <em>Accedi con USER + PIN →</em>
+            </button>
+          </div>
+
+          <div class="poi115-office-link">
+            <div><b>Sei in ufficio o amministrazione?</b><span>Gestione Smart Pack, Responsabile produzione Multiplast e Amministrazione sono protetti da e-mail e password aziendale.</span></div>
+            <button class="btn" type="button" onclick="POIV113.openOfficeLogin()">Accesso uffici →</button>
+          </div>
+          <div class="poi115-security-note">Gli operai non possono passare alle aree ufficio senza autenticazione aziendale. Uscendo dalla produzione si torna sempre a questa schermata.</div>
+        </section>
+      </div>
+      <div class="poi115-footer"><span><strong>Smart Pack · Multiplast</strong> · Piattaforma Operativa Integrata</span><span>Accessi tracciati · dati cloud sincronizzati</span></div>`;
+
+    gate.classList.add('open');decorateCloudMenu();
   }
 
   function showOfficeMenu(){
     ensureUI();if(!profile())return;if(isPlatform()){openNomyra();return}
     if(!officeUnlocked()){openOfficeLogin();return}
     closeOverlays();hideLegacyProfileGate();
-    const body=$('#poi113CompanyBody');
-    $('.poi113-head h2',$('#poi113CompanyGate')).textContent='Accesso uffici';
-    $('.poi113-head p',$('#poi113CompanyGate')).textContent='Scegli l’area autorizzata. Le postazioni Produzione restano separate e richiedono USER + PIN.';
-    $('.poi113-logo',$('#poi113CompanyGate')).textContent='UFF';
-    $('#poi113CompanyLogout').style.display='inline-flex';$('#poi113CompanyLogout').textContent='Blocca';$('#poi113CompanyLogout').onclick=()=>{officeUnlockedFlag=false;sessionStorage.removeItem(OFFICE_ROLE_KEY);showProductionHome()};
-    body.innerHTML=`<div class="poi115-office-grid">
-      <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('director')"><span class="role">SP</span><b>Gestione Smart Pack</b><span>Ordini, clienti, Gmail, IML, pianificazione, registro, magazzino e controllo produzione.</span><em>Entra →</em></button>
-      <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('manager')"><span class="role">MP</span><b>Responsabile produzione Multiplast</b><span>Piano presse, priorità, consegne, miscele, materiali e controllo produttivo.</span><em>Entra →</em></button>
-      <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('admin')"><span class="role">AM</span><b>Amministrazione</b><span>Consegne, DDT, chiusure ordine, documenti e tracciabilità amministrativa.</span><em>Entra →</em></button>
-    </div><div class="poi115-lock-note">Per tornare alla postazione operatori premi <b>Blocca</b>. Per rientrare negli uffici sarà richiesta nuovamente la password aziendale.</div>`;
-    $('#poi113CompanyGate').classList.add('open');decorateCloudMenu();
+    const gate=$('#poi113CompanyGate'),body=$('#poi113CompanyBody');
+    $('.poi113-head h2',gate).textContent='Area uffici';
+    $('.poi113-head p',gate).textContent='Scegli la funzione di lavoro autorizzata per questo account.';
+    $('.poi113-logo',gate).textContent='UFF';
+    $('#poi113CompanyLogout').style.display='inline-flex';$('#poi113CompanyLogout').textContent='Blocca';
+    $('#poi113CompanyLogout').onclick=()=>{officeUnlockedFlag=false;sessionStorage.removeItem(OFFICE_ROLE_KEY);showProductionHome()};
+
+    body.innerHTML=`
+      <div class="poi115-portal-shell">
+        <section class="poi115-portal-copy">
+          <span class="poi115-kicker">Accesso uffici verificato</span>
+          <h3>Controllo, pianificazione e amministrazione.</h3>
+          <p>Le funzioni di responsabilità restano separate dalle postazioni operative. Quando blocchi l’area uffici, la piattaforma torna automaticamente alla home Produzione.</p>
+          <div class="poi115-portal-points">
+            <div class="poi115-portal-point"><i>SP</i><span><b>Smart Pack</b><br>Ordini, Gmail, IML, pianificazione, registro e controllo produzione.</span></div>
+            <div class="poi115-portal-point"><i>MP</i><span><b>Multiplast</b><br>Presse, priorità, consegne, turni, miscele e materiali.</span></div>
+            <div class="poi115-portal-point"><i>AM</i><span><b>Amministrazione</b><br>DDT, consegne, documenti, chiusure e tracciabilità amministrativa.</span></div>
+          </div>
+        </section>
+
+        <section class="poi115-portal-panel">
+          <div class="poi115-panel-title"><div><b>Scegli area ufficio</b><span>Sessione aziendale sbloccata</span></div><span>Accesso protetto</span></div>
+          <div class="poi115-office-grid">
+            <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('director')">
+              <span class="role">SP</span><b>Gestione Smart Pack</b><span>Ordini, clienti, Gmail, IML, pianificazione, registro e controllo produttivo.</span><em>Entra →</em>
+            </button>
+            <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('manager')">
+              <span class="role">MP</span><b>Responsabile produzione Multiplast</b><span>Piano presse, priorità, consegne, miscele, materiali e performance.</span><em>Entra →</em>
+            </button>
+            <button class="poi115-office-card" type="button" onclick="POIV113.enterOfficeRole('admin')">
+              <span class="role">AM</span><b>Amministrazione</b><span>DDT, consegne, chiusure ordine, documenti e tracciabilità.</span><em>Entra →</em>
+            </button>
+          </div>
+          <div class="poi115-lock-note">Premi <b>Blocca</b> per chiudere la sessione uffici e tornare alla postazione Produzione. La password sarà richiesta nuovamente al prossimo accesso.</div>
+        </section>
+      </div>
+      <div class="poi115-footer"><span><strong>Area uffici</strong> · sessione protetta</span><span>Blocca quando lasci la postazione</span></div>`;
+
+    gate.classList.add('open');decorateCloudMenu();
   }
 
   async function openOfficeLogin(){
@@ -635,8 +835,20 @@
     if(foot){const badge=document.createElement('div');badge.id='sp113Build';badge.style.cssText='margin-top:8px;font-size:11px;font-weight:900;opacity:.95';badge.textContent=BUILD+' · Accessi protetti USER/PIN';foot.appendChild(badge)}
   }
 
+
+  function bindPortalMotion(){
+    if(window.__poi115PortalMotion)return;
+    window.__poi115PortalMotion=true;
+    document.addEventListener('pointermove',e=>{
+      const gate=$('#poi113CompanyGate');
+      if(!gate?.classList.contains('open'))return;
+      gate.style.setProperty('--poi115-x',`${Math.round(e.clientX/window.innerWidth*100)}%`);
+      gate.style.setProperty('--poi115-y',`${Math.round(e.clientY/window.innerHeight*100)}%`);
+    },{passive:true});
+  }
+
   function boot(){
-    updateBuildLabels();ensureUI();hideLegacyProfileGate();bindPasswordRecovery();
+    updateBuildLabels();ensureUI();bindPortalMotion();hideLegacyProfileGate();bindPasswordRecovery();
     [250,700,1500,3000,7200].forEach(delay=>setTimeout(()=>{ensureUI();decorateAuth();decorateCloudMenu();updateBuildLabels();hideLegacyProfileGate()},delay));
     setTimeout(()=>{
       if(!profile()||$('.poi113-overlay.open'))return;
