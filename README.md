@@ -1,18 +1,19 @@
-# Smart Pack · Multiplast — Piattaforma Operativa Integrata V11.4
+# Smart Pack · Multiplast — Piattaforma Operativa Integrata V11.5
 
-Repository pulito e definitivo per:
-- app Android nativa WebView;
-- backend Supabase;
+Repository per:
+- app Android WebView;
+- backend e sincronizzazione Supabase;
 - sito Cloudflare Pages;
 - build APK automatica con GitHub Actions.
 
 ## Struttura
-- `app/src/main/assets/index.html` — applicazione
-- `app/src/main/assets/smartpack-v11.js` — logica cumulativa V10.5–V11 consolidata in un solo file
-- `app/src/main/assets/access-v11.4.js` — accessi separati cliente, dipendenti e NOMYRA
-- `app/src/main/assets/service-worker.js` — cache web V11 network-first per HTML/JS
-- `.github/workflows/main.yml` — build APK V11.4
-- `docs/` — setup e schema Supabase di riferimento
+- `app/src/main/assets/index.html` — applicazione principale
+- `app/src/main/assets/smartpack-v11.js` — logica operativa consolidata
+- `app/src/main/assets/access-v11.5.js` — accesso account/ruoli
+- `app/src/main/assets/planner-v11.5.js` — Coda Roberto, menu personalizzabile, assistente pianificazione e Inbox ordini e-mail
+- `app/src/main/assets/service-worker.js` — cache web V11.5 network-first per HTML/JS
+- `.github/workflows/main.yml` — build APK V11.5
+- `docs/V11.5_PIANIFICAZIONE_E_EMAIL.md` — regole e flusso introdotto
 
 ## Cloudflare Pages
 - Production branch: `main`
@@ -22,16 +23,15 @@ Repository pulito e definitivo per:
 - Build output directory: `app/src/main/assets`
 - Automatic deployments: Enabled
 
-## Nota dati
-La sostituzione del repository NON richiede la cancellazione di Supabase. I dati operativi restano nel database cloud.
+## V11.5 — Pianificazione Roberto
+- Coda produzione riordinabile e bloccabile da Roberto.
+- Suggerimenti spiegati per pressa, senza modifiche automatiche.
+- Cambio stampo: finestra iniziale 06:00–12:00 con Saverio.
+- Coperchi: preferenza iniziale venerdì/sabato.
+- Urgenza, consegna, tempo ciclo, stampo installato e disponibilità IML entrano nella valutazione.
+- Menu Direzione personalizzabile.
+- Inbox ordini e-mail con flusso bozza → verifica → ordine.
+- Predisposizione per collegamento OAuth server-side della casella ordini.
 
-
-
-## V11.4 — Accesso semplificato
-
-- Super-admin unico: `info.nomyra@gmail.com`.
-- Account cliente principale: `info@smartpack.srl`.
-- Registrazione pubblica e recupero password via e-mail non esposti.
-- NOMYRA gestisce direttamente e-mail, password e stato dell’account cliente.
-- Il cliente sceglie Smart Pack o Multiplast ed entra direttamente senza secondo USER/PIN.
-- I dati operativi e la sincronizzazione Supabase restano invariati.
+## Dati cloud
+L'aggiornamento del repository non richiede la cancellazione di Supabase. I nuovi campi di pianificazione vengono salvati nello stato condiviso esistente.

@@ -8,8 +8,8 @@ android {
         applicationId = "com.smartpackmultiplast.operations"
         minSdk = 24
         targetSdk = 35
-        versionCode = 114
-        versionName = "11.4"
+        versionCode = 115
+        versionName = "11.5"
     }
 
     buildTypes {

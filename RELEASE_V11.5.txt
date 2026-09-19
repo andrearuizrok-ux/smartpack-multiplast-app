@@ -1,0 +1,33 @@
+SMART PACK · MULTIPLAST — V11.5
+
+NUOVO: CODA ROBERTO
+- Nuova voce "Coda Roberto" per la Direzione.
+- Coda produzione riordinabile con drag & drop e pulsanti Su/Giù.
+- Roberto può bloccare una posizione: i suggerimenti non la spostano.
+- L'ordine di arrivo non determina automaticamente l'ordine di produzione.
+
+ASSISTENTE PIANIFICAZIONE
+- Suggerimenti spiegati per ogni pressa.
+- Considera urgenza e data di consegna.
+- Considera tempo ciclo / pezzi ora e residuo da produrre.
+- Preferisce mantenere lo stampo già installato quando sensato.
+- Cambio stampo consigliato esclusivamente nella finestra 06:00-12:00 con Saverio (regola modificabile).
+- Coperchi favoriti a fine settimana (venerdì/sabato, modificabile).
+- Considera disponibilità IML quando presente.
+- Nessun suggerimento modifica la coda automaticamente: serve conferma di Roberto.
+
+MENU PERSONALIZZABILE
+- Roberto può cambiare ordine e visibilità delle voci del menu laterale.
+- Preferenze salvate e sincronizzate con lo stato cloud.
+
+ORDINI DA E-MAIL — PRIMA FASE
+- Nuova Inbox ordini dentro Coda Roberto.
+- Import manuale di una e-mail per provare estrazione cliente, riferimento, prodotto, quantità, consegna e priorità.
+- Ogni e-mail crea una BOZZA da verificare, mai un ordine definitivo automatico.
+- Pulsante "Crea ordine" precompila il normale modulo ordine.
+- Architettura pronta per OAuth server-side Gmail / Google Workspace o altro provider.
+- Password/token e-mail non vengono memorizzati nel browser o nell'APK.
+
+VERSIONE ANDROID
+versionCode 115
+versionName 11.5

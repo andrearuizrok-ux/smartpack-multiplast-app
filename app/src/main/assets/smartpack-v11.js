@@ -78,7 +78,7 @@
 /* ===== Smart Pack · Multiplast — V11.2 ACCOUNT AZIENDA + USER/PIN ===== */
 (()=>{
   'use strict';
-  const BUILD='V11.4', MARKER='PIATTAFORMA-GRUPPO-V11.4', GROUP='smartpack-multiplast';
+  const BUILD='V11.5', MARKER='PIATTAFORMA-GRUPPO-V11.5', GROUP='smartpack-multiplast';
   let selectedCompany=sessionStorage.getItem('poi_v112_company')||'', employee=null, manageCompany='smartpack';
   try{employee=JSON.parse(sessionStorage.getItem('poi_v112_employee')||'null')}catch(_){employee=null}
   const $=(s,r=document)=>r.querySelector(s);
@@ -913,8 +913,8 @@
 */
 (function(){
   'use strict';
-  const BUILD='V11.4';
-  const MARKER='PIATTAFORMA-GRUPPO-V11.4';
+  const BUILD='V11.5';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.5';
   let repairedOnce=false;
 
   function arr(v){return Array.isArray(v)?v:[];}
@@ -1009,7 +1009,7 @@
 */
 (function(){
   'use strict';
-  const BUILD='V11.4', MARKER='PIATTAFORMA-GRUPPO-V11.4';
+  const BUILD='V11.5', MARKER='PIATTAFORMA-GRUPPO-V11.5';
   function mark(){
     try{document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+BUILD;document.body.dataset.build=MARKER;}catch(_){ }
     document.querySelectorAll('.version-badge').forEach(x=>x.textContent=BUILD);
@@ -1039,7 +1039,7 @@
 */
 (function(){
   'use strict';
-  const BUILD='V11.4', MARKER='PIATTAFORMA-GRUPPO-V11.4';
+  const BUILD='V11.5', MARKER='PIATTAFORMA-GRUPPO-V11.5';
   function mark(){
     try{document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+BUILD;document.body.dataset.build=MARKER;}catch(_){}
     document.querySelectorAll('.version-badge').forEach(x=>x.textContent=BUILD);
@@ -1068,8 +1068,8 @@
 /* ===== Smart Pack · Multiplast — V11.0 FINAL CLEAN ===== */
 (function(){
   'use strict';
-  const BUILD='V11.4';
-  const MARKER='PIATTAFORMA-GRUPPO-V11.4';
+  const BUILD='V11.5';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.5';
 
   function markBuild(){
     try{
@@ -1116,11 +1116,11 @@
 })();
 
 
-/* ===== Smart Pack · Multiplast — V11.4 COMPLIANCE + UI CONSOLIDATION ===== */
+/* ===== Smart Pack · Multiplast — V11.5 COMPLIANCE + UI CONSOLIDATION ===== */
 (function(){
   'use strict';
-  const BUILD='V11.4';
-  const MARKER='PIATTAFORMA-GRUPPO-V11.4';
+  const BUILD='V11.5';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.5';
   const $1=id=>document.getElementById(id);
   const esc1=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const today1=()=>new Date().toISOString().slice(0,10);
