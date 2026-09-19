@@ -1,15 +1,19 @@
-V11.5 - FIX SICUREZZA ACCESSO UFFICI
+SMART PACK · MULTIPLAST — V11.5 PATCH HOME PULITA + LOGIN UFFICI INLINE
 
-Correzione:
-- clic su "Accesso uffici / amministrazione" mostra SEMPRE prima email + password;
-- la sessione Supabase già aperta NON sblocca più automaticamente gli uffici;
-- Gestione Smart Pack / Responsabile produzione Multiplast / Amministrazione compaiono SOLO dopo password corretta;
-- tornando alla home Produzione l'autorizzazione uffici viene invalidata;
-- dopo reload pagina l'area uffici è nuovamente bloccata;
-- cache aggiornata a static-16.
+MODIFICHE
+- Rimossi i testi duplicati nell'intestazione.
+- In alto restano solo i loghi Smart Pack + Multiplast centrati.
+- Rimossa la dicitura "Piattaforma Industriale Integrata".
+- Nuovo titolo essenziale: "Accesso operativo".
+- Sottotitolo: "Seleziona l'area di lavoro."
+- Footer semplificato.
+- Eliminata la schermata intermedia "Sblocca accesso uffici".
+- Cliccando "Accesso uffici / amministrazione", e-mail e password compaiono direttamente nella home.
+- Cache service worker aggiornata per forzare il caricamento della nuova interfaccia.
 
-Flusso:
-HOME -> ACCESSO UFFICI -> EMAIL/PASSWORD -> MENU UFFICI -> RUOLO
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
 
-Mai:
-HOME -> MENU UFFICI senza password.
+Dopo la pubblicazione, attendere il deploy Cloudflare e ricaricare la pagina.
