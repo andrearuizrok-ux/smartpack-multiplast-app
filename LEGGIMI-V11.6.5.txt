@@ -1,0 +1,31 @@
+SMART PACK · MULTIPLAST — V11.6.5
+FIX REGISTRO ORDINI + CAMBIO AREA UFFICI
+
+1) REGISTRO ORDINI SMART PACK
+- Nuovo renderer canonico: legge direttamente state.orders.
+- Gli ordini Gmail e gli ordini manuali compaiono nello stesso registro.
+- Il registro non dipende più da associazioni anagrafiche complete per mostrare una riga.
+- Mostra: ordine, data, rif., cliente/codice, quantità, prodotto/codice, IML,
+  origine, link Gmail, foglio produzione, consegna, stato e azioni.
+- Gli ordini e-mail vecchi marcati "Convertita" senza un ordine realmente collegato
+  tornano nello stato "Verificata" per poter essere approvati correttamente.
+- Corretto il conflitto tra il vecchio convertitore Gmail e il nuovo flusso V11.6.4:
+  non vengono più eseguiti entrambi.
+- Dopo l'approvazione Gmail il Registro ordini viene aperto e filtrato sull'ordine creato.
+
+2) USCITA AREA UFFICI
+- Da Gestione Smart Pack / Responsabile Multiplast / Amministrazione,
+  il pulsante in alto non torna più alla home Produzione.
+- Torna direttamente alla schermata "Scegli area ufficio":
+  Gestione Smart Pack / Responsabile Produzione Multiplast / Amministrazione.
+- La sessione uffici resta sbloccata.
+- Il pulsante "Blocca" nella schermata area uffici continua invece a chiudere
+  la sessione e tornare alla home Produzione con nuova richiesta password.
+
+3) CACHE
+- Service worker: spmp-v116-static-23.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js

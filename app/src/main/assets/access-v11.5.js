@@ -646,14 +646,35 @@
   function hideLegacyProfileGate(){
     const legacy=$('#accessGate');if(legacy)legacy.style.setProperty('display','none','important');
     const oldLogout=$('#logoutProfile');
-    if(oldLogout){oldLogout.dataset.poi115='1';oldLogout.onclick=profileExit;}
+    if(oldLogout){
+      oldLogout.dataset.poi115='1';
+      oldLogout.onclick=profileExit;
+      const mode=oldLogout.querySelector('#profileMode');
+      if(!employee&&officeUnlocked()){
+        // Keep the current role name, but make the action explicit.
+        const txt=[...oldLogout.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);
+        if(txt)txt.textContent=' · Cambia area';
+        oldLogout.title='Torna alla scelta area ufficio';
+      }
+    }
   }
 
   function profileExit(event){
     event?.preventDefault?.();event?.stopPropagation?.();
     if(employee){employeeLogout();return false}
     if(isPlatform()){corporateLogout();return false}
-    officeUnlockedFlag=false;sessionStorage.removeItem(OFFICE_ROLE_KEY);sessionStorage.removeItem('industrialos_role_session');
+    if(officeUnlocked()){
+      // Uscita da Gestione Smart Pack / Multiplast / Amministrazione:
+      // mantiene valida la sessione uffici e torna al selettore dei ruoli.
+      sessionStorage.removeItem(OFFICE_ROLE_KEY);
+      sessionStorage.removeItem('industrialos_role_session');
+      sessionStorage.removeItem(COMPANY_KEY);
+      sessionStorage.removeItem('nomyra_group_company_v92');
+      sessionStorage.removeItem('nomyra_group_role_v92');
+      selectedCompany='';
+      showOfficeMenu();
+      return false;
+    }
     showProductionHome();return false;
   }
 
