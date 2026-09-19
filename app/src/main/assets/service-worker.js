@@ -1,6 +1,7 @@
-/* Smart Pack · Multiplast V11.6.3 · static-21 */
-const CACHE='spmp-v116-static-21';
-const STATIC=['./','./index.html','./smartpack-v11.js','./access-v11.5.js','./planner-v11.5.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./IndustrialOS_Modello_Import_Dati_Azienda_V11.6.3.xlsx'];
+/* V11.6.4 static-22 */
+/* Smart Pack · Multiplast V11.6.4 · static-22 */
+const CACHE='spmp-v116-static-22';
+const STATIC=['./','./index.html','./smartpack-v11.js','./access-v11.5.js','./planner-v11.5.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./IndustrialOS_Modello_Import_Dati_Azienda_V11.6.3.xlsx','./multiplast-logo.png'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)).catch(()=>{}));

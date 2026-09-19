@@ -860,7 +860,14 @@
 
   function enterOfficeRole(role){
     if(!officeUnlocked()||!['director','manager','admin'].includes(role)){openOfficeLogin();return}
-    const company=role==='manager'?'multiplast':'smartpack';selectedCompany=company;sessionStorage.setItem(COMPANY_KEY,company);sessionStorage.setItem(OFFICE_ROLE_KEY,role);closeOverlays();enterRole(role,false);hideLegacyProfileGate();
+    const company=role==='manager'?'multiplast':'smartpack';
+    selectedCompany=company;
+    sessionStorage.setItem(COMPANY_KEY,company);
+    sessionStorage.setItem(OFFICE_ROLE_KEY,role);
+    sessionStorage.setItem('nomyra_group_company_v92',company);
+    sessionStorage.setItem('nomyra_group_role_v92',role);
+    sessionStorage.setItem('industrialos_role_session',role);
+    closeOverlays();enterRole(role,false);hideLegacyProfileGate();
   }
 
   function decorateAuth(){
@@ -996,14 +1003,32 @@
 
   function completeEmployeeEntry(){
     if(!employee)return;
-    selectedCompany=employee.company_code;sessionStorage.setItem(COMPANY_KEY,selectedCompany);sessionStorage.setItem(EMPLOYEE_KEY,JSON.stringify(employee));
+    selectedCompany=employee.company_code;
+    sessionStorage.setItem(COMPANY_KEY,selectedCompany);
+    sessionStorage.setItem(EMPLOYEE_KEY,JSON.stringify(employee));
+    sessionStorage.setItem('nomyra_group_company_v92',selectedCompany);
+    sessionStorage.setItem('nomyra_group_role_v92',employee.role_code);
+    sessionStorage.setItem('industrialos_role_session',employee.role_code);
     closeOverlays();decorateCloudMenu();enterRole(employee.role_code,true);
   }
 
   function enterRole(role,asEmployee=false){
     if(!asEmployee){employee=null;sessionStorage.removeItem(EMPLOYEE_KEY)}
+    const roleCompany=(role==='manager'||role==='mpworker')?'multiplast':'smartpack';
+    selectedCompany=roleCompany;
+    sessionStorage.setItem(COMPANY_KEY,roleCompany);
+    sessionStorage.setItem('nomyra_group_company_v92',roleCompany);
+    sessionStorage.setItem('nomyra_group_role_v92',role);
+    sessionStorage.setItem('industrialos_role_session',role);
+    try{currentRole=role}catch(_){ }
     api()?.enterRole?.(role);
-    [60,180,450].forEach(delay=>setTimeout(()=>{
+    if(roleCompany==='multiplast'){
+      [10,80,220,520].forEach(delay=>setTimeout(()=>{
+        try{currentRole=role}catch(_){ }
+        try{window.switchCompanyV92?.('multiplast')}catch(e){console.warn('[V11.6.4] attivazione Multiplast',e)}
+      },delay));
+    }
+    [60,180,450,700].forEach(delay=>setTimeout(()=>{
       const name=$('#userName'),label=$('#userRole');
       if(name)name.textContent=employee?.display_name||(isPlatform()?'NOMYRA':'Account aziendale');
       if(label)label.textContent=(employee?'Dipendente · ':'')+roleName(role);

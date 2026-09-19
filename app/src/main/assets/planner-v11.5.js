@@ -1932,10 +1932,357 @@
   function boot(){
     state.emailIMLConfirmationsV1163=Array.isArray(state.emailIMLConfirmationsV1163)?state.emailIMLConfirmationsV1163:[];
     window.SPMailFlowV1163={sync:syncGmailV1163,accept:acceptEmailOrder,associate:openAssociate,discardSupplier,refresh:decorateSupplierConfirmations};
-    if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=acceptEmailOrder}
+    if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?.accept?.(id)??acceptEmailOrder(id)}
     patchDeliveryImport();repairConvertedDrafts();ensureSupplierDialog();decorateSupplierConfirmations();
-    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=acceptEmailOrder}patchDeliveryImport();decorateSupplierConfirmations()},1600);
+    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?.accept?.(id)??acceptEmailOrder(id)}patchDeliveryImport();decorateSupplierConfirmations()},1600);
     document.body.dataset.mailFlow='V11.6.3';
   }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
+/* ===== V11.6.4 · MULTIPLAST SEPARATA + REGISTRO ORDINI SMART PACK ===== */
+(()=>{
+  'use strict';
+  if(window.SPMPV1164)return;
+  const VERSION='V11.6.4';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>Number(v||0);
+  const iso=()=>new Date().toISOString();
+  const uid=p=>`${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
+  const company=()=>sessionStorage.getItem('poi_v113_company')||sessionStorage.getItem('nomyra_group_company_v92')||'';
+  const officeRole=()=>sessionStorage.getItem('poi_v115_office_role')||sessionStorage.getItem('industrialos_role_session')||'';
+  const isMP=()=>company()==='multiplast'||['manager','mpworker'].includes(officeRole());
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:4}).format(num(v));
+  const nf=v=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(num(v));
+
+  function saveSafe(){try{save()}catch(e){console.warn('[V11.6.4] save',e)}}
+  function mainFor(parent){
+    const rows=(state.orders||[]).filter(o=>String(o.parent)===String(parent)&&!o.cancelled);
+    return rows.find(o=>String(o.code||'').endsWith('A'))||rows[0]||null;
+  }
+  function nextParent(){
+    const nums=(state.orders||[]).map(o=>String(o.parent||'')).filter(x=>/^\d+$/.test(x)).map(Number);
+    return String((nums.length?Math.max(...nums):0)+1);
+  }
+  function gmailUrl(d={}){
+    const rfc=String(d.rfcMessageId||'').trim();
+    if(rfc)return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent('rfc822msgid:'+rfc)}`;
+    const tid=String(d.gmailThreadId||'').trim();
+    if(tid)return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(tid)}`;
+    const mid=String(d.gmailMessageId||'').trim();
+    if(mid)return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(mid)}`;
+    return '';
+  }
+  function matchingIML(d){
+    const rows=(state.imls||[]).filter(i=>
+      String(i.clientCode||'')===String(d.clientCode||'') &&
+      String(i.productCode||'')===String(d.productCode||'')
+    );
+    return rows.length===1?rows[0]:null;
+  }
+  function nextSheetNo(){
+    const nums=(state.productionSheets||[]).map(x=>parseInt(String(x.sheetNo||'').replace(/\D/g,''),10)||0);
+    return (nums.length?Math.max(...nums):0)+1;
+  }
+  function makeSheet(parent,main,d={}){
+    state.productionSheets=Array.isArray(state.productionSheets)?state.productionSheets:[];
+    const found=state.productionSheets.find(x=>String(x.parent)===String(parent));
+    if(found)return found;
+    const liters=String(main.liters||'');
+    const cap=liters.startsWith('3')?725:liters.startsWith('5')?880:400;
+    let left=Math.max(0,num(main.productionRequiredQty!=null?main.productionRequiredQty:main.qty));
+    if(!left)left=num(main.qty);
+    const rows=[];
+    let pack=1;
+    while(left>0){
+      const pieces=Math.min(cap,left);
+      rows.push({
+        id:uid('row'),orderCode:main.code,imlCode:main.imlCode||'',pieces,
+        packageLabel:`# ${pack++}`,lidColor:`${main.color||'BIANCO'} TAPPI`,
+        status:'Da produrre',operatorProduction:'',operatorHandles:'',finishAt:'',notes:''
+      });
+      left-=pieces;
+    }
+    const sheet={
+      id:uid('sheet'),sheetNo:nextSheetNo(),sheetDate:main.date||new Date().toISOString().slice(0,10),
+      productionDate:'',parent,client:main.client,clientCode:main.clientCode||'',product:main.product,
+      productCode:main.productCode||'',imlCode:main.imlCode||'',orderCode:main.code,
+      priority:main.priority||'Normale',packageType:main.packaging||'Cesta',rows,
+      createdAt:iso(),createdBy:'Ordine Smart Pack',statusV106:'Aperto',companyCode:'smartpack',
+      sourceEmail:{gmailMessageId:d.gmailMessageId||'',gmailThreadId:d.gmailThreadId||'',rfcMessageId:d.rfcMessageId||'',subject:d.subject||'',from:d.from||'',receivedAt:d.receivedAt||''}
+    };
+    state.productionSheets.unshift(sheet);
+    return sheet;
+  }
+  function addEmailTrace(main,d,parent,sheet){
+    const url=gmailUrl(d);
+    const src={
+      type:'email',label:'E-mail',recordedAt:iso(),
+      recordedBy:window.POICloudV10?.getProfile?.()?.email||'Utente ufficio',
+      email:{receivedAt:d.receivedAt||'',verifiedAt:d.verifiedAt||'',from:d.from||'',subject:d.subject||'',gmailMessageId:d.gmailMessageId||'',gmailThreadId:d.gmailThreadId||'',rfcMessageId:d.rfcMessageId||'',gmailUrl:url},
+      history:[
+        {at:d.receivedAt||iso(),action:'E-mail ordine ricevuta',detail:d.from||''},
+        {at:d.verifiedAt||iso(),action:'Bozza verificata',detail:d.subject||''},
+        {at:iso(),action:'Ordine registrato',detail:`Ordine ${parent} · Foglio ${sheet?.sheetNo||''}`}
+      ]
+    };
+    main.orderSourceV1162=src;
+    main.sourceTypeV1162='email';
+    main.sourceRecordedAtV1162=src.recordedAt;
+    main.sourceRecordedByV1162=src.recordedBy;
+    main.sourceEmailUrlV1162=url;
+    main.sourceContact='MAIL';
+    main.source='GMAIL';
+  }
+  function createFromDraft(d,parentOverride=''){
+    if(!d||!d.client||!d.product||!num(d.qty))return null;
+    const parent=String(parentOverride||nextParent());
+    const existing=mainFor(parent);
+    if(existing){
+      const sheet=makeSheet(parent,existing,d);
+      return {parent,main:existing,sheet,created:false};
+    }
+    const iml=matchingIML(d);
+    const qty=num(d.qty);
+    const code=parent+'A';
+    const date=String(d.receivedAt||'').slice(0,10)||new Date().toISOString().slice(0,10);
+    let status='Da preparare';
+    try{if(iml&&typeof available==='function'&&available(iml)<qty)status='In attesa IML'}catch(_){ }
+    if(iml)iml.reserved=num(iml.reserved)+qty;
+    const main={
+      id:code,code,parent,date,client:String(d.client).toUpperCase(),clientCode:d.clientCode||'',
+      product:d.product,productCode:d.productCode||'',liters:d.liters||'',color:d.color||'BIANCO',
+      imlCode:iml?.code||'',qty,remaining:qty,delivered:0,status,dueDate:d.dueDate||'',
+      packaging:d.packaging||'Cesta',notes:`Ordine creato da Gmail${d.orderRef?' · Rif. '+d.orderRef:''}`,
+      priority:d.priority||'Normale',orderRef:d.orderRef||'',createdBy:'E-mail verificata',companyCode:'smartpack',
+      fulfillmentMode:'produce',warehouseReservedQty:0,warehousePreparedQty:0,productionRequiredQty:qty,cancelled:false
+    };
+    state.orders=Array.isArray(state.orders)?state.orders:[];
+    state.orders.push(main);
+    const sheet=makeSheet(parent,main,d);
+    addEmailTrace(main,d,parent,sheet);
+    return {parent,main,sheet,created:true};
+  }
+  function commitDraft(d,res){
+    d.status='Convertita';
+    d.convertedAt=iso();
+    d.linkedOrderParentV1163=res.parent;
+    d.linkedOrderParentV1164=res.parent;
+    d.linkedOrderCodeV1163=res.main.code;
+    d.linkedOrderCodeV1164=res.main.code;
+    d.productionSheetIdV1163=res.sheet?.id||'';
+    d.productionSheetIdV1164=res.sheet?.id||'';
+    try{addAudit('Ordine Smart Pack registrato',res.parent,`${d.clientCode||d.client} · ${d.productCode||d.product} · ${d.qty} pz`)}catch(_){ }
+    saveSafe();
+  }
+  function openRegister(parent=''){
+    try{if(typeof navTo==='function')navTo('ordersRegister')}catch(_){ }
+    setTimeout(()=>{
+      try{window.renderOrdersRegisterV53?.()}catch(e){console.warn('[V11.6.4] registro ordini',e)}
+      const search=$('#regSearchV54');
+      if(search&&parent){search.value=String(parent);search.dispatchEvent(new Event('input',{bubbles:true}))}
+    },120);
+  }
+  function acceptDraft(id){
+    const d=(state.emailOrderDraftsV115||[]).find(x=>String(x.id)===String(id));
+    if(!d)return;
+    const linked=String(d.linkedOrderParentV1164||d.linkedOrderParentV1163||'');
+    if(linked&&mainFor(linked)){openRegister(linked);return}
+    if(d.status!=='Verificata'){
+      alert('Prima verifica cliente, prodotto, quantità e consegna e premi “Salva verifica”.');
+      try{window.SPPlannerV115?.editEmail?.(id)}catch(_){ }
+      return;
+    }
+    if(!d.clientCode||!d.productCode||!d.client||!d.product||!num(d.qty)){
+      alert('Cliente, prodotto e quantità devono essere associati alle anagrafiche prima della creazione.');
+      return;
+    }
+    if(!confirm(`Creare ora l’ordine Smart Pack per ${d.client} · ${num(d.qty).toLocaleString('it-IT')} pz?\nVerranno creati anche Registro ordini e foglio produzione.`))return;
+    const res=createFromDraft(d,linked);
+    if(!res||!mainFor(res.parent)){alert('Non è stato possibile registrare l’ordine. Riprova.');return}
+    commitDraft(d,res);
+    try{toast(`Ordine ${res.parent} registrato · Foglio ${res.sheet?.sheetNo||''} creato`)}catch(_){ }
+    openRegister(res.parent);
+  }
+  function reconcileEmailOrders(){
+    state.emailOrderDraftsV115=Array.isArray(state.emailOrderDraftsV115)?state.emailOrderDraftsV115:[];
+    let fixed=0;
+    for(const d of state.emailOrderDraftsV115){
+      const parent=String(d.linkedOrderParentV1164||d.linkedOrderParentV1163||'');
+      if(!parent)continue;
+      let main=mainFor(parent);
+      if(!main&&d.client&&d.product&&num(d.qty)){
+        const res=createFromDraft(d,parent);
+        if(res){commitDraft(d,res);main=res.main;fixed++}
+      }
+      if(main){
+        main.companyCode='smartpack';
+        makeSheet(parent,main,d);
+      }
+    }
+    if(fixed){saveSafe();try{toast(`${fixed} ordine/i Gmail ripristinati nel Registro ordini`)}catch(_){ }}
+    return fixed;
+  }
+
+  /* ---------- Ambiente Multiplast dedicato ---------- */
+  const MODEL_NAMES=['Europa 17','Europa 20','Europa 22','Europa 26','GAE','Agricola','Simo','Big','Elisa','Small','Marina','Padellone 10','Padellone 12','Padellone 15'];
+  function mpState(){
+    state.groupV92=state.groupV92||{};
+    state.groupV92.multiplast=state.groupV92.multiplast||{};
+    const mp=state.groupV92.multiplast;
+    mp.presses=Array.isArray(mp.presses)?mp.presses:[];
+    mp.models=Array.isArray(mp.models)?mp.models:[];
+    for(const name of MODEL_NAMES){
+      if(!mp.models.some(x=>String(x.name||'').toLowerCase()===name.toLowerCase())){
+        mp.models.push({id:uid('mpmdl'),name,mold:'',compatible:'',cycleSec:0,piecesPerCycle:0,standardRatePph:0,minEfficiencyPct:85,palletCapacity:0,minStock:0,notes:'Parametri da configurare con i dati aziendali.'});
+      }
+    }
+    mp.costsV1164=mp.costsV1164&&typeof mp.costsV1164==='object'?mp.costsV1164:{
+      energyPriceKwh:0,kwhPerKg:0,laborCostHour:0,packagingPerPiece:0,transportPerPiece:0,otherPerPiece:0,models:{}
+    };
+    mp.costsV1164.models=mp.costsV1164.models||{};
+    return mp;
+  }
+  function enforceMPBrand(){
+    if(!isMP())return;
+    document.body.dataset.companyV1164='multiplast';
+    const img=$('#sideLogo'),fallback=$('#brandFallback');
+    if(img){img.src='multiplast-logo.png';img.classList.remove('hidden')}
+    if(fallback)fallback.classList.add('hidden');
+    const name=$('#sideName'),tag=$('#sideTag');
+    if(name)name.textContent='MULTIPLAST S.R.L.';
+    if(tag)tag.textContent='Produzione, materie prime, costi e tracciabilità';
+  }
+  function bridgeMP(){
+    if(!isMP())return;
+    sessionStorage.setItem('nomyra_group_company_v92','multiplast');
+    const r=officeRole()||'manager';
+    sessionStorage.setItem('nomyra_group_role_v92',r);
+    try{currentRole=r}catch(_){ }
+    if(document.body.dataset.mpBridgeV1164!=='1'){
+      document.body.dataset.mpBridgeV1164='1';
+      try{window.switchCompanyV92?.('multiplast')}catch(e){console.warn('[V11.6.4] switch Multiplast',e)}
+    }
+    enforceMPBrand();
+    mpState();
+  }
+  function modelCost(model){
+    const mp=mpState(),c=mp.costsV1164,m=c.models[model.name]||{};
+    const weight=num(m.weightKg),matKg=num(m.materialCostKg),kwhKg=num(m.kwhPerKg)||num(c.kwhPerKg),rate=num(m.ratePph)||num(model.standardRatePph);
+    const material=weight*matKg;
+    const energy=weight*kwhKg*num(c.energyPriceKwh);
+    const labor=rate>0?num(c.laborCostHour)/rate:0;
+    const pack=num(c.packagingPerPiece),transport=num(c.transportPerPiece),other=num(c.otherPerPiece);
+    const cost=material+energy+labor+pack+transport+other;
+    const sale=num(m.salePrice),margin=sale-cost,marginPct=sale>0?margin/sale*100:0;
+    return {weight,matKg,kwhKg,rate,material,energy,labor,pack,transport,other,cost,sale,margin,marginPct};
+  }
+  function ensureCostView(){
+    if($('#mpCostsV1164View'))return;
+    const content=$('.content');if(!content)return;
+    const view=document.createElement('section');view.id='mpCostsV1164View';view.className='view';content.appendChild(view);
+  }
+  function renderMPCosts(){
+    ensureCostView();const view=$('#mpCostsV1164View');if(!view)return;
+    const mp=mpState(),c=mp.costsV1164,models=mp.models.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'it'));
+    view.innerHTML=`
+      <div class="hero"><div><span class="eyebrow">MULTIPLAST · CONTROLLO INDUSTRIALE</span><h2>Costi industriali e marginalità</h2><p>I valori partono volutamente vuoti/zero: inserisci o importa i dati reali dell’azienda. Il costo unitario viene calcolato da materia prima, energia, manodopera, imballaggio, trasporto e altre voci.</p></div></div>
+      <div class="section panel"><div class="panel-head"><div><h3>Parametri generali</h3><p>Valori utilizzati come base per tutti i modelli.</p></div></div><div class="panel-body"><form id="mpCostGeneralV1164" class="v1164-cost-grid">
+        <label class="field">Energia €/kWh<input name="energyPriceKwh" type="number" min="0" step="0.0001" value="${c.energyPriceKwh||''}"></label>
+        <label class="field">Consumo standard kWh/kg<input name="kwhPerKg" type="number" min="0" step="0.0001" value="${c.kwhPerKg||''}"></label>
+        <label class="field">Costo manodopera €/h<input name="laborCostHour" type="number" min="0" step="0.01" value="${c.laborCostHour||''}"></label>
+        <label class="field">Imballaggio €/pz<input name="packagingPerPiece" type="number" min="0" step="0.0001" value="${c.packagingPerPiece||''}"></label>
+        <label class="field">Trasporto €/pz<input name="transportPerPiece" type="number" min="0" step="0.0001" value="${c.transportPerPiece||''}"></label>
+        <label class="field">Altri costi €/pz<input name="otherPerPiece" type="number" min="0" step="0.0001" value="${c.otherPerPiece||''}"></label>
+        <button class="btn primary" type="submit">Salva parametri</button>
+      </form></div></div>
+      <div class="section panel"><div class="panel-head"><div><h3>Costo per prodotto / modello</h3><p>La velocità può essere presa dalla capacità del modello oppure specificata qui. Nessun valore economico viene inventato.</p></div></div><div class="table-wrap"><table class="data-table v1164-cost-table"><thead><tr><th>Modello</th><th>Peso kg</th><th>Materia €/kg</th><th>kWh/kg</th><th>Pezzi/ora</th><th>Prezzo vendita</th><th>Materia</th><th>Energia</th><th>Manodopera</th><th>Altri costi</th><th>Costo unit.</th><th>Margine</th><th></th></tr></thead><tbody>${models.map((model,i)=>{const z=modelCost(model),m=c.models[model.name]||{};return `<tr data-model="${esc(model.name)}"><td><b>${esc(model.name)}</b></td><td><input data-f="weightKg" type="number" min="0" step="0.0001" value="${m.weightKg||''}"></td><td><input data-f="materialCostKg" type="number" min="0" step="0.0001" value="${m.materialCostKg||''}"></td><td><input data-f="kwhPerKg" type="number" min="0" step="0.0001" value="${m.kwhPerKg||''}"></td><td><input data-f="ratePph" type="number" min="0" step="1" value="${m.ratePph||model.standardRatePph||''}"></td><td><input data-f="salePrice" type="number" min="0" step="0.0001" value="${m.salePrice||''}"></td><td>${money(z.material)}</td><td>${money(z.energy)}</td><td>${money(z.labor)}</td><td>${money(z.pack+z.transport+z.other)}</td><td><b>${money(z.cost)}</b></td><td class="${z.sale?(z.margin>=0?'v1164-good':'v1164-bad'):''}">${z.sale?`${money(z.margin)} · ${nf(z.marginPct)}%`:'—'}</td><td><button class="btn small" type="button" data-save-cost="${i}">Salva</button></td></tr>`}).join('')}</tbody></table></div></div>`;
+    $('#mpCostGeneralV1164').onsubmit=e=>{
+      e.preventDefault();const f=new FormData(e.currentTarget);
+      for(const k of ['energyPriceKwh','kwhPerKg','laborCostHour','packagingPerPiece','transportPerPiece','otherPerPiece'])c[k]=num(f.get(k));
+      saveSafe();renderMPCosts();try{toast('Parametri costi Multiplast salvati')}catch(_){ }
+    };
+    $$('[data-save-cost]',view).forEach(btn=>btn.onclick=()=>{
+      const i=num(btn.dataset.saveCost),model=models[i],tr=btn.closest('tr');
+      c.models[model.name]=c.models[model.name]||{};
+      tr.querySelectorAll('[data-f]').forEach(inp=>c.models[model.name][inp.dataset.f]=num(inp.value));
+      if(num(c.models[model.name].ratePph))model.standardRatePph=num(c.models[model.name].ratePph);
+      saveSafe();renderMPCosts();try{toast(`${model.name} aggiornato`)}catch(_){ }
+    });
+  }
+  function openMPCosts(){
+    ensureCostView();
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    $('#mpCostsV1164View')?.classList.add('active');
+    try{currentView='mpCostsV1164'}catch(_){ }
+    const title=$('#pageTitle'),sub=$('#pageSubtitle');
+    if(title)title.textContent='Costi industriali Multiplast';
+    if(sub)sub.textContent='Materia prima, energia, manodopera e marginalità per prodotto';
+    decorateMPNav();renderMPCosts();enforceMPBrand();
+  }
+  function decorateMPNav(){
+    if(!isMP())return;
+    const side=$('#sideNav');if(!side)return;
+    let btn=$('#mpCostsNavV1164');
+    if(!btn){
+      btn=document.createElement('button');btn.id='mpCostsNavV1164';btn.type='button';
+      btn.innerHTML='<span class="icon">€</span><span>Costi industriali</span>';
+      btn.onclick=openMPCosts;
+      const analysis=[...side.querySelectorAll('button')].find(x=>/Analisi produttiva/i.test(x.textContent));
+      analysis?analysis.insertAdjacentElement('afterend',btn):side.appendChild(btn);
+    }
+    btn.classList.toggle('active',(()=>{try{return currentView==='mpCostsV1164'}catch(_){return false}})());
+  }
+  function decorateMPDashboard(){
+    if(!isMP())return;
+    const view=$('#mpDashboardView');if(!view||$('#mpCostSummaryV1164',view))return;
+    const mp=mpState(),configured=mp.models.filter(x=>{const z=modelCost(x);return z.weight>0&&z.matKg>0});
+    const priced=configured.filter(x=>modelCost(x).sale>0);
+    const avg=configured.length?configured.reduce((s,x)=>s+modelCost(x).cost,0)/configured.length:0;
+    const margin=priced.length?priced.reduce((s,x)=>s+modelCost(x).marginPct,0)/priced.length:0;
+    const box=document.createElement('div');box.id='mpCostSummaryV1164';box.className='section v1164-mp-summary';
+    box.innerHTML=`<div><span>Modelli con costo configurato</span><b>${configured.length}/${mp.models.length}</b></div><div><span>Costo standard medio</span><b>${configured.length?money(avg):'Da configurare'}</b></div><div><span>Margine medio</span><b>${priced.length?nf(margin)+'%':'Da configurare'}</b></div><button class="btn" type="button" onclick="SPMPV1164.openCosts()">Apri costi industriali</button>`;
+    view.querySelector('.hero')?.insertAdjacentElement('afterend',box);
+  }
+  function injectStyles(){
+    if($('#v1164Styles'))return;
+    const st=document.createElement('style');st.id='v1164Styles';st.textContent=`
+      body[data-company-v1164="multiplast"]{--primary:#174f7d;--secondary:#d72f3d}
+      body[data-company-v1164="multiplast"] .sidebar{background:linear-gradient(180deg,#102f48,#174f70)}
+      body[data-company-v1164="multiplast"] .topbar{border-top:2px solid #d72f3d}
+      .v1164-cost-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end}
+      .v1164-cost-table{min-width:1450px}.v1164-cost-table input{width:96px;min-height:34px;border:1px solid var(--line);border-radius:8px;padding:6px}
+      .v1164-good{color:#1c7358;font-weight:900}.v1164-bad{color:#a93d47;font-weight:900}
+      .v1164-mp-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:stretch}
+      .v1164-mp-summary>div{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px}
+      .v1164-mp-summary span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:900}
+      .v1164-mp-summary b{display:block;font-size:18px;margin-top:5px}.v1164-mp-summary .btn{align-self:center}
+      @media(max-width:900px){.v1164-cost-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.v1164-mp-summary{grid-template-columns:1fr 1fr}}
+      @media(max-width:620px){.v1164-cost-grid,.v1164-mp-summary{grid-template-columns:1fr}}
+    `;document.head.appendChild(st);
+  }
+  function patchInterfaces(){
+    if(window.SPPlannerV115)window.SPPlannerV115.toOrder=acceptDraft;
+    if(window.SPMailFlowV1163)window.SPMailFlowV1163.accept=acceptDraft;
+  }
+  function boot(){
+    injectStyles();
+    reconcileEmailOrders();
+    patchInterfaces();
+    if(isMP())setTimeout(bridgeMP,40);
+    setInterval(()=>{
+      patchInterfaces();
+      if(isMP()){
+        bridgeMP();decorateMPNav();decorateMPDashboard();enforceMPBrand();
+      }else{
+        document.body.removeAttribute('data-company-v1164');
+        document.body.removeAttribute('data-mp-bridge-v1164');
+      }
+    },900);
+    document.body.dataset.buildFinal='V11.6.4';
+  }
+  window.SPMPV1164={accept:acceptDraft,reconcile:reconcileEmailOrders,openRegister,openCosts:openMPCosts,bridgeMP,version:VERSION};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

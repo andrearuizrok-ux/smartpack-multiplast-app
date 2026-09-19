@@ -1,0 +1,37 @@
+SMART PACK · MULTIPLAST — V11.6.4
+MULTIPLAST SEPARATA + REGISTRO ORDINI SMART PACK
+
+1. MULTIPLAST
+- L'accesso "Responsabile Produzione Multiplast" apre ora l'ambiente Multiplast dedicato già presente nel core.
+- Il menu Smart Pack non viene più riutilizzato per Multiplast.
+- Branding Multiplast dedicato con logo aziendale.
+- Ambiente Multiplast: Panoramica, Consegne, Piano produzione, Fogli turno, Prodotti finiti,
+  Materie prime, Miscele, Tracciabilità, Analisi produttiva, Modelli/capacità e Istruzioni.
+- Aggiunto "Costi industriali" con costo materia prima, energia, manodopera,
+  imballaggio, trasporto, altri costi, prezzo vendita e marginalità.
+- I valori economici NON vengono inventati: partono vuoti/zero e vanno compilati con dati reali.
+- Aggiunti come anagrafica tecnica iniziale i nomi modello ricavati dal file PRODUZIONE Roberto,
+  senza impostare valori economici o tecnici non verificati.
+
+2. SMART PACK — ORDINI DA GMAIL
+- "Approva e crea ordine" crea realmente una riga in state.orders.
+- Genera codice ordine numerico + suffisso A.
+- Genera anche il foglio produzione collegato.
+- Registra la provenienza Gmail e conserva Message ID / Thread ID quando disponibili.
+- Dopo la creazione apre direttamente REGISTRO ORDINI filtrato sul nuovo ordine.
+- All'avvio viene eseguito un controllo di riconciliazione:
+  se una bozza Gmail risulta già convertita/collegata ma manca la riga ordine, viene ricreata.
+  Se manca il foglio produzione, viene creato.
+
+3. COMPATIBILITÀ ACCESSI
+- Le nuove chiavi di accesso V11.5/V11.6 vengono sincronizzate con le chiavi legacy del modulo Multiplast,
+  così manager e operatori Multiplast non ricadono più nella dashboard Smart Pack.
+
+FILE DA SOSTITUIRE / AGGIUNGERE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+app/src/main/assets/multiplast-logo.png
+
+CACHE
+spmp-v115-static-22
