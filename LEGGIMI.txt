@@ -1,24 +1,19 @@
-V11.5 - HOME PORTALE FULL-SCREEN
+V11.5 - HOME PROFESSIONALE CLIENTE
 
-Correzioni:
-- La piattaforma NON è più visibile/sfocata dietro la home.
-- Rimosso il conflitto con il vecchio selettore profili del planner.
-- Una sola home di accesso gestita da access-v11.5.js.
-- Home Produzione a schermo intero:
-  * Produzione Smart Pack
-  * Produzione Multiplast
-  * USER + PIN
-  * Accesso uffici separato
-- Home Uffici a schermo intero:
-  * Gestione Smart Pack
-  * Responsabile produzione Multiplast
-  * Amministrazione
-- Hover, animazioni leggere, layout industriale pulito e responsive.
-- Font e pulsanti più leggibili.
-- Uscita Produzione torna sempre alla home Produzione.
-- Blocco Uffici torna alla home Produzione.
-- Cache aggiornata a static-13.
+Aggiornata la home della piattaforma con uno stile più professionale, elegante e discreto:
+- titolo principale: "Piattaforma Industriale Integrata"
+- sottotitolo operativo, non commerciale
+- logo combinato Smart Pack + Multiplast nella testata
+- card Produzione Smart Pack e Produzione Multiplast con i rispettivi loghi
+- colori coerenti con i due marchi:
+  * Smart Pack: blu tecnico
+  * Multiplast: rosso/blu
+- accesso uffici/amministrazione separato in basso
+- grafica pulita da app industriale interna
+- rimosso il tono "troppo IA" / troppo marketing
+- cache aggiornata a static-14
 
-IMPORTANTE:
-caricare TUTTI i file della patch su GitHub mantenendo esattamente le cartelle,
-perché planner-v11.5.js rimuove il vecchio override che causava la schermata precedente.
+File da caricare:
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
