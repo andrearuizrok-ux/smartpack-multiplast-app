@@ -5,9 +5,13 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -18,13 +22,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK 35
+        shell: bash
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses > /dev/null || true
+          "$SDK_MANAGER" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -32,6 +39,7 @@ jobs:
           gradle-version: "8.10.2"
 
       - name: Verify V11.2 tenant and PIN package
+        shell: bash
         run: |
           test -f app/src/main/assets/index.html
           test -f app/src/main/assets/smartpack-v11.js
@@ -43,6 +51,11 @@ jobs:
           grep -q 'smartpack-v11.js' app/src/main/assets/index.html
           grep -q 'versionCode = 112' app/build.gradle.kts
           grep -q 'versionName = "11.2"' app/build.gradle.kts
+
+      - name: Verify JavaScript syntax
+        run: |
+          node --check app/src/main/assets/smartpack-v11.js
+          node --check app/src/main/assets/service-worker.js
 
       - name: Build Android APK
         run: gradle :app:assembleDebug
@@ -58,3 +71,4 @@ jobs:
           name: SmartPack-Multiplast-V11.2-APK
           path: app/build/outputs/apk/debug/SmartPack-Multiplast-V11.2.apk
           if-no-files-found: error
+          retention-days: 14
