@@ -1,12 +1,25 @@
-V11.5 - FONT PIÙ LEGGIBILI ORDINI DA E-MAIL
+V11.5 - NUOVA STRUTTURA ACCESSI
 
-- Aumentati font e spaziatura della sezione Acquisisci ordini da e-mail.
-- Stato bozza più grande.
-- Cliente/codice cliente più leggibili.
-- Prodotto/codice prodotto più leggibili.
-- Testo estratto dalla mail più leggibile.
-- Quantità, oggetto mail e consegna più leggibili.
-- Pulsanti Controlla / Approva / Scarta più grandi.
-- Migliorata anche la finestra Verifica ordine e-mail.
-- Layout mobile ottimizzato.
-- Cache aggiornata a static-10.
+Primo livello:
+- Smart Pack
+- Multiplast
+- Amministrazione
+
+Dentro Smart Pack:
+- Gestione Smart Pack -> ruolo tecnico director
+- Produzione Smart Pack -> ruolo tecnico worker
+
+Dentro Multiplast:
+- Responsabile produzione Multiplast -> ruolo tecnico manager
+- Produzione Multiplast -> ruolo tecnico mpworker
+
+Amministrazione:
+- ruolo tecnico admin
+- accesso trasversale alle funzioni amministrative del gruppo
+- mantiene la possibilità di passare tra Smart Pack e Multiplast
+
+I permessi backend non sono stati cambiati: è stata riorganizzata la navigazione e la nomenclatura.
+Il menu base cliente non entra più automaticamente in Gestione Smart Pack / Responsabile Produzione:
+mostra prima la scelta del ruolo operativo.
+
+Cache service worker: static-11.
