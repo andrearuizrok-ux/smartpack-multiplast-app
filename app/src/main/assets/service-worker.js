@@ -1,4 +1,4 @@
-const CACHE='spmp-v111-static-1';
+const CACHE='spmp-v112-static-1';
 const STATIC=['./','./index.html','./smartpack-v11.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{

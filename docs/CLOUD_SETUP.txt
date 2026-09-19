@@ -1,35 +1,39 @@
 PIATTAFORMA OPERATIVA INTEGRATA – GRUPPO SMART PACK – MULTIPLAST
-V10.4 CLOUD FINAL
+V11.2 CLOUD + ACCESSI AZIENDALI
 
 Questa build è già collegata al progetto Supabase dedicato SmartPack-Multiplast-Operations.
 Il progetto Toofar è separato e non viene utilizzato.
 
-PRIMO ACCESSO
-1. Pubblicare questo ZIP come progetto Cloudflare Pages.
-2. Aprire il sito e scegliere “Crea nuovo account”.
-3. Il PRIMO account registrato diventa amministratore iniziale della piattaforma e riceve tutti i profili di lavoro.
-4. Al primo login, se l’archivio cloud è vuoto, usare “Pubblica i dati locali sul cloud” per inizializzare i dati della demo.
+ACCOUNT AUTORIZZATI
+- NOMYRA: info.nomyra@gmail.com
+- Cliente Smart Pack: info@smartpack.srl
+- Backup già attivo: andrearuizrok@gmail.com
 
-UTENTI SUCCESSIVI
-1. Ogni utente crea il proprio account con e-mail e password.
-2. Seleziona il profilo richiesto.
-3. La richiesta resta in attesa.
-4. L’amministratore iniziale apre Cloud > Gestione utenti e approva la richiesta assegnando il ruolo corretto.
+ATTIVAZIONE NOMYRA / CLIENTE
+1. Pubblicare il contenuto dello ZIP su Cloudflare Pages.
+2. Aprire il sito e scegliere “Attiva account autorizzato”.
+3. Inserire uno degli indirizzi autorizzati e scegliere una password personale.
+4. Confermare l’e-mail, se richiesto da Supabase, poi accedere.
+5. Scegliere Smart Pack oppure Multiplast.
 
-RUOLI
-- Gestione Smart Pack
-- Responsabile Produzione Multiplast
-- Produzione Smart Pack
-- Produzione Multiplast
-- Amministrazione
+Non esiste più la regola “il primo account diventa amministratore”. I privilegi amministrativi vengono assegnati soltanto agli indirizzi preautorizzati nel database.
 
-SINCRONIZZAZIONE
-I dati autorizzati sono condivisi tramite Supabase e aggiornati in tempo reale tra PC, tablet e telefono.
-In assenza di connessione, l’interfaccia continua a usare i dati locali e tenta la sincronizzazione al ritorno online.
+DIPENDENTI
+1. Accedere con NOMYRA o con l’account cliente.
+2. Aprire “Utenti dipendenti e PIN”.
+3. Creare un USER distinto per ogni persona e scegliere un PIN iniziale di 4–8 cifre.
+4. Assegnare azienda e profilo operativo.
+5. Sospendere o resettare il PIN dal medesimo pannello quando necessario.
+
+FLUSSO GIORNALIERO
+- Account aziendale: e-mail + password.
+- Scelta azienda: Smart Pack o Multiplast.
+- Dipendente: USER + PIN personale.
+- Amministratore: accesso diretto alle aree di gestione autorizzate.
 
 SICUREZZA
-- Supabase Auth per e-mail/password
-- Row Level Security sulle tabelle applicative
-- autorizzazioni per ruolo e segmento dati
-- progetto database dedicato al gruppo
-- realtime attivo sui dati operativi
+- PIN cifrati con pgcrypto; il valore originale non viene archiviato.
+- Blocco di 15 minuti dopo cinque tentativi errati.
+- Audit degli accessi e delle modifiche agli utenti.
+- Row Level Security e funzioni RPC con controllo esplicito dell’account.
+- Nessuna chiave service_role inclusa nell’app.

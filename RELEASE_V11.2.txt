@@ -1,0 +1,23 @@
+SMART PACK · MULTIPLAST — V11.2
+
+ACCOUNT AZIENDALI
+- NOMYRA: info.nomyra@gmail.com, amministratore piattaforma.
+- Cliente Smart Pack: info@smartpack.srl, amministratore delle aziende Smart Pack e Multiplast.
+- Andrea resta disponibile come amministratore di emergenza.
+- Gli account autorizzati si attivano dalla schermata di login scegliendo una password personale.
+
+DIPENDENTI
+- Ogni dipendente ha USER e PIN personale.
+- Il PIN è cifrato nel database e non viene mai mostrato dopo il salvataggio.
+- NOMYRA e il cliente possono creare, sospendere, riattivare e resettare i PIN.
+- Dopo cinque tentativi errati l’accesso viene bloccato per 15 minuti.
+- Accessi, errori e modifiche degli utenti vengono registrati nell’audit.
+
+FLUSSO DI ACCESSO
+- Login con account e-mail aziendale.
+- Scelta dell’azienda Smart Pack o Multiplast.
+- Accesso amministrativo oppure accesso dipendente con USER+PIN.
+- Recupero password disponibile dalla schermata iniziale.
+
+CONTINUITA
+- Tutte le funzioni V11.1, compreso Scadenze & Compliance, restano incluse.

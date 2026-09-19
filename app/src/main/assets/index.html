@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#1F5E78">
-<title>Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · V11.1</title>
+<title>Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · V11.2</title>
 <style>
 :root{--primary:#1F5E78;--primary2:#17495e;--secondary:#2D9B86;--ink:#102331;--muted:#6d7f8b;--bg:#f3f7f8;--card:#fff;--line:#dce6e9;--soft:#edf4f5;--ok:#238b69;--warn:#d8902f;--danger:#c64f55;--shadow:0 12px 30px rgba(24,56,70,.09);--radius:18px}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -109,7 +109,7 @@ dialog{border:0;padding:0;border-radius:20px;box-shadow:0 30px 80px rgba(7,34,47
 <body data-build="PIATTAFORMA-GRUPPO-V10.5">
 <div class="access-gate" id="accessGate" style="display:none">
   <div class="access-card">
-    <div class="access-brand"><div class="access-logo">SP</div><div><strong>SMART PACK</strong><span style="display:block;color:var(--muted);font-size:10px;margin-top:3px">Piattaforma Operativa Integrata · accesso per ruolo <span class="version-badge">V11.1</span></span></div></div>
+    <div class="access-brand"><div class="access-logo">SP</div><div><strong>SMART PACK</strong><span style="display:block;color:var(--muted);font-size:10px;margin-top:3px">Piattaforma Operativa Integrata · accesso per ruolo <span class="version-badge">V11.2</span></span></div></div>
     <h2>Seleziona il profilo di lavoro</h2>
     <p>Ogni area mostra solo le funzioni necessarie al proprio ruolo, mantenendo distinti i flussi Smart Pack e Multiplast nello stesso sistema.</p>
     <div class="access-profiles v53-three">
@@ -442,7 +442,7 @@ applyBrand();fillDatalists();if(currentRole==='director'&&sessionStorage.getItem
 <script>
 // V5.0 — pulizia della cache PWA usata dalle versioni demo precedenti.
 window.addEventListener('load',()=>{
-  if ('caches' in window) caches.keys().then(keys=>Promise.all(keys.filter(k=>k!=='poi-spmp-v111-shell').map(k=>caches.delete(k)))).catch(()=>{});
+  if ('caches' in window) caches.keys().then(keys=>Promise.all(keys.filter(k=>k!=='poi-spmp-v112-shell').map(k=>caches.delete(k)))).catch(()=>{});
 });
 </script>
 
@@ -2559,7 +2559,7 @@ initGroup();ensureViews();ensureSwitch();ensureDialogs();patchAccessGate();docum
 <script>
 (()=>{
 'use strict';
-const V10='V11.1';
+const V10='V11.2';
 const CLOUD_CONFIG={
   enabled:true,
   url:'https://dqqbwdfpsnyoxwdhvjpi.supabase.co',
@@ -2580,7 +2580,7 @@ function effectiveConfig(){
 let cfg=effectiveConfig();
 function cloudConfigured(){return !!(cfg.enabled&&cfg.url&&cfg.publishableKey)}
 function roleAllowed(role){return !cloudProfile||Array.isArray(cloudProfile.allowed_roles)&&cloudProfile.allowed_roles.includes(role)}
-function isOwnerProfile(){const r=cloudProfile?.allowed_roles||[];return r.includes('admin')||(r.includes('director')&&r.includes('manager'))}
+function isOwnerProfile(){const t=cloudProfile?.account_type,r=cloudProfile?.allowed_roles||[];return ['platform_admin','tenant_admin','backup_admin'].includes(t)||r.includes('admin')||(r.includes('director')&&r.includes('manager'))}
 function setCloudStatus(stateName,label,small=''){
  const el=$c('#poiCloudChip'); if(!el)return; el.dataset.state=stateName; const t=$c('.poi-cloud-text',el); if(t)t.textContent=label; const s=$c('small',el); if(s)s.textContent=small;
  const strip=$c('#poiOnlineStrip'); if(strip){strip.classList.toggle('offline',['offline','error'].includes(stateName));strip.textContent=stateName==='online'?'Dati condivisi aggiornati in tempo reale':stateName==='syncing'?(label||'Sincronizzazione cloud…'):stateName==='local'?'Modalità demo locale: i dispositivi non condividono ancora i dati':'Connessione cloud non disponibile: le modifiche restano sul dispositivo finché torna online.'}
@@ -2606,14 +2606,14 @@ async function cloudRegister(e){e?.preventDefault();const er=$c('#poiCloudRegist
 async function tryBootstrapOrRequest(){if(!cloudUser)return false;let reg={};try{reg=JSON.parse(localStorage.getItem('poi_pending_registration_v10')||'{}')}catch(_){ }const displayName=reg.displayName||cloudUser.user_metadata?.display_name||cloudUser.email?.split('@')[0]||'Utente';const requestedRole=reg.requestedRole||'mpworker';const ownerRoles=['director','manager','worker','mpworker','admin'];const {data:created,error:createErr}=await sb.from(cfg.profileTable).insert({user_id:cloudUser.id,group_code:cfg.groupCode,display_name:displayName,allowed_roles:ownerRoles,active:true}).select().maybeSingle();if(created&&!createErr){cloudProfile=created;localStorage.removeItem('poi_pending_registration_v10');return true}await sb.from('poi_access_requests').upsert({user_id:cloudUser.id,group_code:cfg.groupCode,email:cloudUser.email,display_name:displayName,requested_roles:[requestedRole],status:'pending'},{onConflict:'user_id,group_code'});authError('Account creato ma ancora non autorizzato. La richiesta di accesso è stata inviata al responsabile della piattaforma.');setCloudStatus('error','In attesa di autorizzazione');return false}
 async function openUserManager(){if(!sb||!cloudUser||!isOwnerProfile())return;const modal=$c('#poiUserManager'),body=$c('#poiUserManagerBody');modal.classList.add('open');body.innerHTML='<p>Caricamento…</p>';const [{data:reqs},{data:profiles}]=await Promise.all([sb.from('poi_access_requests').select('*').eq('group_code',cfg.groupCode).order('created_at',{ascending:false}),sb.from(cfg.profileTable).select('*').eq('group_code',cfg.groupCode).order('created_at',{ascending:true})]);const roleOptions=Object.entries(roleNames).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');body.innerHTML=`<div class="section panel"><div class="panel-head"><div><h3>Richieste in attesa</h3><p>Approva solo gli utenti riconosciuti.</p></div></div><div class="panel-body">${(reqs||[]).filter(r=>r.status==='pending').map(r=>`<div style="display:grid;grid-template-columns:1.3fr 1.3fr 1fr auto;gap:10px;align-items:end;padding:12px 0;border-bottom:1px solid var(--line)"><div><b>${r.display_name||'Utente'}</b><br><small>${r.email||''}</small></div><label class="field">Profilo<select id="role_${r.user_id}">${roleOptions}</select></label><label class="field">Nome visualizzato<input id="name_${r.user_id}" value="${String(r.display_name||'').replace(/"/g,'&quot;')}"></label><button class="btn primary" onclick="POICloudV10.approveUser('${r.user_id}')">Approva</button></div>`).join('')||'<div class="empty"><b>Nessuna richiesta in attesa</b></div>'}</div></div><div class="section panel"><div class="panel-head"><div><h3>Utenti autorizzati</h3></div></div><div class="panel-body">${(profiles||[]).map(p=>`<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)"><span><b>${p.display_name||'Utente'}</b><br><small>${(p.allowed_roles||[]).map(r=>roleNames[r]||r).join(' · ')}</small></span><span class="sp101-state ${p.active?'ready':'partial'}">${p.active?'Attivo':'Disattivato'}</span></div>`).join('')}</div></div>`;for(const r of (reqs||[]).filter(r=>r.status==='pending')){const sel=$c('#role_'+r.user_id);if(sel&&r.requested_roles?.[0])sel.value=r.requested_roles[0]}}
 async function approveUser(userId){if(!isOwnerProfile())return;const role=$c('#role_'+userId)?.value,name=$c('#name_'+userId)?.value?.trim()||'Utente';if(!role)return;const {error}=await sb.from(cfg.profileTable).upsert({user_id:userId,group_code:cfg.groupCode,display_name:name,allowed_roles:[role],active:true},{onConflict:'user_id,group_code'});if(error){alert('Errore autorizzazione: '+error.message);return}await sb.from('poi_access_requests').update({status:'approved'}).eq('user_id',userId).eq('group_code',cfg.groupCode);openUserManager()}
-async function cloudLogin(e){e?.preventDefault();authError('');if(!sb&&!await initClient()){authError('Impossibile caricare il collegamento cloud. Controlla la connessione Internet.');return}const email=$c('#poiCloudEmail').value.trim(),password=$c('#poiCloudPassword').value;const btn=$c('#poiCloudLoginForm button[type="submit"]');btn.disabled=true;btn.textContent='Accesso…';const {data,error}=await sb.auth.signInWithPassword({email,password});btn.disabled=false;btn.textContent='Accedi';if(error){authError('Accesso non riuscito. Controlla e-mail e password.');return}cloudUser=data.user;const ok=await loadProfileAndData();if(ok)showAuth(false)}
+async function cloudLogin(e){e?.preventDefault();authError('');if(!sb&&!await initClient()){authError('Impossibile caricare il collegamento cloud. Controlla la connessione Internet.');return}const email=$c('#poiCloudEmail').value.trim(),password=$c('#poiCloudPassword').value;const btn=$c('#poiCloudLoginForm button[type="submit"]');btn.disabled=true;btn.textContent='Accesso…';const {data,error}=await sb.auth.signInWithPassword({email,password});btn.disabled=false;btn.textContent='Accedi';if(error){authError('Accesso non riuscito. Controlla e-mail e password.');return}cloudUser=data.user;const ok=await loadProfileAndData();if(ok){showAuth(false);setTimeout(()=>window.POIV112?.showCompanyMenu?.(),50)}}
 async function cloudLogout(){try{if(sb)await sb.auth.signOut()}catch(_){ }cloudUser=null;cloudProfile=null;remoteReady=false;cloudShadow.clear();if(rtChannel&&sb){try{await sb.removeChannel(rtChannel)}catch(_){ }}rtChannel=null;sessionStorage.clear();updateCloudMenu();setCloudStatus('offline','Accesso richiesto');showAuth(true);$c('#poiCloudMenu')?.classList.remove('open')}
 async function restoreCloudSession(){if(!sb)return false;const {data}=await sb.auth.getSession();if(!data?.session)return false;cloudUser=data.session.user;return await loadProfileAndData()}
 async function loadProfileAndData(){
  setCloudStatus('syncing','Caricamento dati…');
  let profiles=null,error=null;
  try{
-   const res=await cloudTimeout(sb.from(cfg.profileTable).select('user_id,group_code,display_name,allowed_roles,active').eq('user_id',cloudUser.id).eq('group_code',cfg.groupCode).limit(1),12000);
+   const res=await cloudTimeout(sb.from(cfg.profileTable).select('user_id,group_code,display_name,allowed_roles,active,account_type,company_codes').eq('user_id',cloudUser.id).eq('group_code',cfg.groupCode).limit(1),12000);
    profiles=res?.data||null; error=res?.error||null;
    if(res?._timeout){setCloudStatus('error','Timeout profilo');safeRenderCloudUI();updateCloudMenu();return true}
  }catch(err){
@@ -2657,7 +2657,7 @@ function applyRolePermissions(){
  apply();setTimeout(apply,80);setTimeout(apply,400);
 }
 function cloudEnterRole(role){if(!roleAllowed(role))return;const gate=$c('#accessGate');if(role==='director'){sessionStorage.setItem('nomyra_group_director_authenticated','1');if(typeof enterSmartPack==='function')enterSmartPack('director');else if(typeof setRole==='function')setRole('director')}else if(role==='worker'){if(typeof enterSmartPack==='function')enterSmartPack('worker');else setRole('worker')}else if(role==='admin'){if(typeof enterSmartPack==='function')enterSmartPack('admin');else setRole('admin')}else if(role==='manager'){if(typeof enterCustom==='function')enterCustom('manager','multiplast')}else if(role==='mpworker'){if(typeof enterCustom==='function')enterCustom('mpworker','multiplast')}if(gate)gate.style.display='none';setTimeout(()=>{const un=$c('#userName'),ur=$c('#userRole');if(un&&cloudProfile?.display_name)un.textContent=cloudProfile.display_name;if(ur)ur.textContent=roleNames[role]||role;injectMobileSummary()},30)}
-function showRoleGate(){const gate=$c('#accessGate');if(gate){gate.style.display='grid';if(typeof patchAccessGate==='function')patchAccessGate();applyRolePermissions()}$c('#poiCloudMenu')?.classList.remove('open')}
+function showRoleGate(){if(cloudProfile&&window.POIV112?.showCompanyMenu){window.POIV112.showCompanyMenu();$c('#poiCloudMenu')?.classList.remove('open');return}const gate=$c('#accessGate');if(gate){gate.style.display='grid';if(typeof patchAccessGate==='function')patchAccessGate();applyRolePermissions()}$c('#poiCloudMenu')?.classList.remove('open')}
 function writableSegmentsForRoles(roles=cloudProfile?.allowed_roles||[]){const allSP='*SP',allMP='*MP';const set=new Set();if(roles.includes('director'))set.add(allSP);if(roles.includes('manager'))set.add(allMP);if(roles.includes('admin'))['orders','deliveryRecords','warehouseAllocations','warehousePreparationEvents','finishedGoodsLots','finishedGoodsMovements','audit','complianceRecords','complianceSettings','complianceEmailLog','mp.deliveries','mp.fgStock','mp.fgMoves'].forEach(x=>set.add(x));if(roles.includes('worker'))['productionSheets','production','productionRuns','productionEvents','mixtures','operators','warehousePreparationEvents','directorMessages','audit','imls','imlLots','imlUsageEvents','finishedGoodsLots','finishedGoodsMovements'].forEach(x=>set.add(x));if(roles.includes('mpworker'))['mp.shifts','mp.mixtures','mp.materialLots','mp.materialMoves','mp.fgStock','mp.fgMoves','mp.tasks','mp.operators'].forEach(x=>set.add(x));return set}
 function cloudCanWrite(key){const s=writableSegmentsForRoles();if(s.has(key))return true;if(s.has('*SP')&&!key.startsWith('mp.'))return true;if(s.has('*MP')&&key.startsWith('mp.'))return true;return false}
 function flattenState(){const m=new Map();for(const [k,v] of Object.entries(state||{})){if(k==='currentRole'||k==='groupV92')continue;m.set(k,structuredClone(v))}const mpData=state?.groupV92?.multiplast||{};for(const [k,v] of Object.entries(mpData))m.set('mp.'+k,structuredClone(v));return m}
@@ -2761,7 +2761,7 @@ function subscribeRealtime(){
 function hookSave(){if(typeof save!=='function'||save.__poiCloudHooked)return;const old=save;const wrapped=function(){const r=old.apply(this,arguments);queueCloudSync();return r};wrapped.__poiCloudHooked=true;save=wrapped}
 function injectMobileSummary(){const content=$c('.content');if(!content||!currentRole)return;let box=$c('#poiMobileSummary');if(!box){box=document.createElement('div');box.id='poiMobileSummary';box.className='poi-mobile-summary';const strip=$c('#poiOnlineStrip');(strip||content.firstChild)?.insertAdjacentElement?.('afterend',box)||content.prepend(box)}let html='';try{if(currentRole==='manager'||currentRole==='mpworker'){const m=state.groupV92?.multiplast||{},tom=(()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)})(),dels=(m.deliveries||[]).filter(d=>d.date===tom&&d.status!=='Chiuso'),active=(m.presses||[]).filter(p=>(m.tasks||[]).some(t=>t.pressId===p.id&&!['Completata','Annullata'].includes(t.status))).length,ready=(m.fgStock||[]).reduce((a,x)=>a+Number(x.qty||0),0),alerts=(m.shifts||[]).slice(-20).filter(s=>typeof shiftAlerts==='function'&&shiftAlerts(s).length).length;html=`<div class="poi-ms-head"><div><h3>Multiplast oggi</h3><p>Vista rapida da telefono</p></div></div><div class="poi-ms-grid"><div class="poi-ms-card"><span>Presse attive</span><b>${active}/4</b><small>Produzione in corso</small></div><div class="poi-ms-card"><span>Consegne domani</span><b>${dels.length}</b><small>Priorità da coprire</small></div><div class="poi-ms-card"><span>Pezzi pronti</span><b>${new Intl.NumberFormat('it-IT').format(ready)}</b><small>Prodotti finiti a magazzino</small></div><div class="poi-ms-card"><span>Alert recenti</span><b>${alerts}</b><small>Efficienza / calo produttività</small></div></div>`}else if(currentRole==='director'){const groups=typeof groupOrders==='function'?groupOrders():[],open=groups.filter(g=>!['Completata','Soddisfatta','Annullata','Chiuso'].includes(g.status)).length,crit=(state.imls||[]).filter(i=>typeof available==='function'&&available(i)<=Number(i.minStock||0)).length,sheets=(state.productionSheets||[]).filter(s=>(s.rows||[]).some(r=>!r.finishAt)).length;html=`<div class="poi-ms-head"><div><h3>Smart Pack oggi</h3><p>Vista rapida da telefono</p></div></div><div class="poi-ms-grid"><div class="poi-ms-card"><span>Ordini aperti</span><b>${open}</b><small>Da seguire</small></div><div class="poi-ms-card"><span>IML critici</span><b>${crit}</b><small>Sotto livello minimo</small></div><div class="poi-ms-card"><span>Fogli attivi</span><b>${sheets}</b><small>Produzioni non concluse</small></div><div class="poi-ms-card"><span>Stato dati</span><b>${cloudUser?'Cloud':'Locale'}</b><small>${cloudUser?'Condivisi tra dispositivi':'Solo questo dispositivo'}</small></div></div>`}else box.innerHTML='';}catch(_){html=''}box.innerHTML=html}
 function hookRenders(){const f=()=>injectMobileSummary();['renderCurrent','navTo','switchCompanyV92'].forEach(name=>{try{const old=window[name];if(typeof old==='function'&&!old.__poiV10){const w=function(){const r=old.apply(this,arguments);setTimeout(f,20);return r};w.__poiV10=true;window[name]=w}}catch(_){}});setTimeout(f,200)}
-function updateBuildLabels(){document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+V10;document.body.dataset.build='PIATTAFORMA-GRUPPO-V11.1';$$c('.version-badge').forEach(x=>x.textContent=V10);const brand=$c('#accessGate .access-brand strong');if(brand)brand.textContent='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast'}
+function updateBuildLabels(){document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+V10;document.body.dataset.build='PIATTAFORMA-GRUPPO-V11.2';$$c('.version-badge').forEach(x=>x.textContent=V10);const brand=$c('#accessGate .access-brand strong');if(brand)brand.textContent='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast'}
 async function initCloudV10(){
  ensureCloudUI();updateBuildLabels();hookSave();hookRenders();
  // Mostra sempre l'interfaccia locale prima della rete.
@@ -2775,14 +2775,14 @@ async function initCloudV10(){
    if(!await initClient()){showAuth(true);safeRenderCloudUI();return}
    const restored=await restoreCloudSession();
    if(!restored)showAuth(true);
-   else{showAuth(false);applyRolePermissions();safeRenderCloudUI()}
+   else{showAuth(false);applyRolePermissions();safeRenderCloudUI();setTimeout(()=>window.POIV112?.showCompanyMenu?.(),80)}
  }catch(err){
    console.error('[Cloud] init',err);
    setCloudStatus('error','Cloud temporaneamente non disponibile');
    safeRenderCloudUI();
  }
 }
-window.POICloudV10={setConfig(c){localStorage.setItem(CLOUD_CFG_KEY,JSON.stringify({...c,enabled:true}));location.reload()},clearConfig(){localStorage.removeItem(CLOUD_CFG_KEY);location.reload()},syncNow:()=>cloudSyncDirty(true),showRoles:showRoleGate,approveUser};
+window.POICloudV10={setConfig(c){localStorage.setItem(CLOUD_CFG_KEY,JSON.stringify({...c,enabled:true}));location.reload()},clearConfig(){localStorage.removeItem(CLOUD_CFG_KEY);location.reload()},syncNow:()=>cloudSyncDirty(true),showRoles:showRoleGate,approveUser,getClient:()=>sb,getProfile:()=>cloudProfile,getUser:()=>cloudUser,enterRole:cloudEnterRole,isOwner:isOwnerProfile,openLegacyUsers:openUserManager};
 setTimeout(initCloudV10,180);
 })();
 </script>

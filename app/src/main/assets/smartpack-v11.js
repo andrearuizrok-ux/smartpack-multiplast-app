@@ -75,6 +75,142 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+/* ===== Smart Pack · Multiplast — V11.2 ACCOUNT AZIENDA + USER/PIN ===== */
+(()=>{
+  'use strict';
+  const BUILD='V11.2', MARKER='PIATTAFORMA-GRUPPO-V11.2', GROUP='smartpack-multiplast';
+  let selectedCompany=sessionStorage.getItem('poi_v112_company')||'', employee=null, manageCompany='smartpack';
+  try{employee=JSON.parse(sessionStorage.getItem('poi_v112_employee')||'null')}catch(_){employee=null}
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const api=()=>window.POICloudV10;
+  const profile=()=>api()?.getProfile?.()||null;
+  const client=()=>api()?.getClient?.()||null;
+  const canManage=()=>['platform_admin','tenant_admin','backup_admin'].includes(profile()?.account_type)||api()?.isOwner?.();
+  const companies=()=>{const c=profile()?.company_codes;return Array.isArray(c)&&c.length?c:['smartpack','multiplast']};
+  const companyName=c=>c==='multiplast'?'Multiplast':'Smart Pack';
+  const roleName=r=>({director:'Gestione Smart Pack',manager:'Responsabile Produzione Multiplast',worker:'Produzione Smart Pack',mpworker:'Produzione Multiplast',admin:'Amministrazione'}[r]||r);
+  const accountName=t=>({platform_admin:'Amministratore NOMYRA',tenant_admin:'Amministratore azienda',backup_admin:'Amministratore di emergenza',standard:'Account autorizzato'}[t]||'Account autorizzato');
+
+  function injectStyles(){
+    if($('#poi112Styles'))return;
+    const st=document.createElement('style');st.id='poi112Styles';st.textContent=`
+      .poi112-overlay{display:none;position:fixed;inset:0;z-index:14000;background:rgba(12,35,46,.72);backdrop-filter:blur(7px);padding:22px;overflow:auto}.poi112-overlay.open{display:grid;place-items:center}
+      .poi112-card{width:min(940px,100%);background:#f7fafb;border:1px solid #d7e4e9;border-radius:24px;box-shadow:0 30px 90px rgba(10,34,45,.34);padding:22px}.poi112-card.narrow{width:min(560px,100%)}
+      .poi112-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:18px}.poi112-logo{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:#17394a;color:#fff;font-weight:950}.poi112-head .grow{flex:1}.poi112-head h2{margin:0;font-size:21px}.poi112-head p{margin:5px 0 0;color:#647b86;font-size:10px;line-height:1.5}.poi112-close{border:0;background:#e8f0f3;width:34px;height:34px;border-radius:10px;font-size:19px;cursor:pointer}
+      .poi112-account{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid #dbe7eb;border-radius:14px;padding:11px 13px;margin-bottom:14px}.poi112-account span{font-size:9px;color:#627984}.poi112-badge{display:inline-flex;padding:5px 9px;border-radius:999px;background:#e8f5ef;color:#176c56;font-size:8px;font-weight:900}
+      .poi112-company-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.poi112-company{background:#fff;border:1px solid #d6e4e9;border-radius:18px;padding:18px;text-align:left;cursor:pointer;transition:.18s}.poi112-company:hover{transform:translateY(-2px);border-color:#86b5c8;box-shadow:0 12px 28px rgba(24,70,88,.1)}.poi112-company b{display:block;font-size:18px}.poi112-company span{display:block;color:#627984;font-size:10px;line-height:1.5;margin-top:5px}.poi112-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.poi112-actions .btn{flex:1;justify-content:center;min-width:150px}
+      .poi112-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.poi112-form-grid .full{grid-column:1/-1}.poi112-error{display:none;border:1px solid #efc8c8;background:#fff5f5;color:#9d3e3e;border-radius:11px;padding:9px 11px;font-size:9px}.poi112-error.show{display:block}
+      .poi112-tabs{display:flex;gap:7px;margin-bottom:12px}.poi112-tabs button{border:1px solid #d6e4e9;background:#fff;border-radius:999px;padding:7px 11px;font-size:9px;font-weight:900;cursor:pointer}.poi112-tabs button.active{background:#17394a;color:#fff;border-color:#17394a}
+      .poi112-admin-grid{display:grid;grid-template-columns:330px 1fr;gap:14px}.poi112-panel{background:#fff;border:1px solid #dbe7eb;border-radius:16px;padding:14px}.poi112-panel h3{margin:0 0 4px;font-size:14px}.poi112-panel>p{margin:0 0 12px;color:#647b86;font-size:9px;line-height:1.45}.poi112-employee{display:grid;grid-template-columns:1fr auto;gap:9px;padding:10px 0;border-bottom:1px solid #edf2f4}.poi112-employee:last-child{border-bottom:0}.poi112-employee b{font-size:10px}.poi112-employee small{display:block;color:#6c7f88;font-size:8px;margin-top:3px}.poi112-employee .poi112-row-actions{display:flex;gap:5px;align-items:center}.poi112-empty{padding:20px;text-align:center;color:#71858e;font-size:10px}.poi112-current{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:#eef7f4;color:#176b57;font-size:9px;font-weight:850;margin-top:10px}
+      @media(max-width:760px){.poi112-company-grid,.poi112-admin-grid,.poi112-form-grid{grid-template-columns:1fr}.poi112-form-grid .full{grid-column:auto}.poi112-card{padding:16px}.poi112-overlay{padding:10px}.poi112-employee{grid-template-columns:1fr}.poi112-employee .poi112-row-actions{justify-content:flex-start}}
+    `;document.head.appendChild(st);
+  }
+
+  function ensureUI(){
+    injectStyles();
+    if(!$('#poi112CompanyGate'))document.body.insertAdjacentHTML('beforeend',`<div class="poi112-overlay" id="poi112CompanyGate"><section class="poi112-card"><div class="poi112-head"><div class="poi112-logo">SP·MP</div><div class="grow"><h2 id="poi112Welcome">Scegli l’azienda</h2><p>Seleziona l’ambiente di lavoro. Gli operatori entrano con USER e PIN personale.</p></div><button class="poi112-close" id="poi112CompanyClose" type="button">×</button></div><div id="poi112CompanyBody"></div></section></div>`);
+    if(!$('#poi112AccessGate'))document.body.insertAdjacentHTML('beforeend',`<div class="poi112-overlay" id="poi112AccessGate"><section class="poi112-card narrow"><div class="poi112-head"><div class="poi112-logo" id="poi112AccessLogo">SP</div><div class="grow"><h2 id="poi112AccessTitle">Accesso azienda</h2><p id="poi112AccessSub">Scegli come entrare.</p></div><button class="poi112-close" id="poi112AccessClose" type="button">×</button></div><div id="poi112AccessBody"></div></section></div>`);
+    if(!$('#poi112Admin'))document.body.insertAdjacentHTML('beforeend',`<div class="poi112-overlay" id="poi112Admin"><section class="poi112-card"><div class="poi112-head"><div class="poi112-logo">UP</div><div class="grow"><h2>Utenti dipendenti e PIN</h2><p>Crea un USER personale per ogni dipendente. Il PIN viene cifrato e non è mai visibile dopo il salvataggio.</p></div><button class="poi112-close" id="poi112AdminClose" type="button">×</button></div><div class="poi112-tabs" id="poi112AdminTabs"></div><div class="poi112-admin-grid"><div class="poi112-panel"><h3>Nuovo dipendente</h3><p>Il nome USER è unico. Il PIN deve contenere da 4 a 8 cifre.</p><form id="poi112CreateForm"><div class="poi112-form-grid"><label class="field full">Nome e cognome<input name="display_name" required maxlength="100" placeholder="Mario Rossi"></label><label class="field">USER<input name="username" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" placeholder="mario.rossi"></label><label class="field">PIN<input name="pin" required inputmode="numeric" type="password" pattern="[0-9]{4,8}" minlength="4" maxlength="8" placeholder="4–8 cifre"></label><label class="field full">Profilo<select name="role_code" required></select></label><div class="poi112-error full" id="poi112CreateError"></div><button class="btn primary full" type="submit">Crea USER dipendente</button></div></form></div><div class="poi112-panel"><h3 id="poi112ListTitle">Dipendenti</h3><p>Resetta il PIN o sospendi immediatamente un accesso.</p><div id="poi112EmployeeList"><div class="poi112-empty">Caricamento…</div></div></div></div></section></div>`);
+    $('#poi112CompanyClose').onclick=()=>$('#poi112CompanyGate').classList.remove('open');
+    $('#poi112AccessClose').onclick=()=>{$('#poi112AccessGate').classList.remove('open');showCompanyMenu()};
+    $('#poi112AdminClose').onclick=()=>$('#poi112Admin').classList.remove('open');
+    $('#poi112CreateForm').onsubmit=createEmployee;
+    decorateAuth();decorateCloudMenu();
+  }
+
+  function decorateAuth(){
+    const reg=$('#poiCloudRegisterForm');if(reg){const role=$('#poiRegRole')?.closest('label');if(role)role.style.display='none';const b=reg.querySelector('button[type="submit"]');if(b)b.textContent='Attiva account autorizzato'}
+    const show=$('#poiShowRegister');if(show)show.textContent='Attiva account autorizzato';
+    const foot=$('.poi-cloud-auth-foot');if(foot)foot.textContent='Sono accettati solo gli indirizzi autorizzati: NOMYRA o account cliente. Ogni dipendente usa invece USER e PIN personale.';
+    const login=$('#poiCloudLoginForm .poi-cloud-auth-grid');if(login&&!$('#poi112Forgot')){const b=document.createElement('button');b.id='poi112Forgot';b.type='button';b.className='btn';b.textContent='Password dimenticata?';b.onclick=resetPassword;login.appendChild(b)}
+  }
+
+  async function resetPassword(){
+    const email=$('#poiCloudEmail')?.value?.trim();if(!email){alert('Inserisci prima l’indirizzo e-mail dell’account.');return}
+    const sb=client();if(!sb){alert('Collegamento cloud non ancora pronto. Riprova tra qualche secondo.');return}
+    const redirectTo=location.href.split('#')[0];const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+    alert(error?'Non è stato possibile inviare il recupero: '+error.message:'E-mail di recupero inviata. Controlla anche la cartella Spam.');
+  }
+
+  function bindPasswordRecovery(){
+    const sb=client();if(!sb||sb.__poi112RecoveryBound)return;sb.__poi112RecoveryBound=true;
+    sb.auth.onAuthStateChange(async event=>{if(event!=='PASSWORD_RECOVERY')return;setTimeout(async()=>{const first=prompt('Inserisci la nuova password (almeno 8 caratteri):');if(first===null)return;if(first.length<8){alert('La password deve contenere almeno 8 caratteri.');return}const second=prompt('Ripeti la nuova password:');if(first!==second){alert('Le due password non coincidono.');return}const {error}=await sb.auth.updateUser({password:first});alert(error?'Password non aggiornata: '+error.message:'Password aggiornata. Ora puoi usarla per i prossimi accessi.')},100)});
+  }
+
+  function decorateCloudMenu(){
+    const b=$('#poiCloudUsers');if(b){b.textContent='Utenti dipendenti e PIN';b.onclick=openAdmin}
+    const menu=$('#poiCloudMenu');if(menu&&!$('#poi112EmployeeLogout')){const x=document.createElement('button');x.id='poi112EmployeeLogout';x.type='button';x.className='btn';x.textContent='Termina sessione dipendente';x.style.display=employee?'inline-flex':'none';x.onclick=employeeLogout;const out=$('#poiCloudLogout');menu.insertBefore(x,out)}
+    const logout=$('#poiCloudLogout');if(logout&&!logout.dataset.poi112){logout.dataset.poi112='1';logout.addEventListener('click',()=>{$$('.poi112-overlay').forEach(x=>x.classList.remove('open'));sessionStorage.removeItem('poi_v112_employee');sessionStorage.removeItem('poi_v112_company');employee=null;selectedCompany=''},{capture:true})}
+  }
+  function $$(s,r=document){return [...r.querySelectorAll(s)]}
+
+  function showCompanyMenu(){
+    ensureUI();const p=profile();if(!p)return;
+    $('#accessGate')?.style.setProperty('display','none','important');
+    $('#poi112AccessGate').classList.remove('open');
+    $('#poi112Welcome').textContent=`Benvenuto, ${p.display_name||'utente'}`;
+    const cards=companies().map(c=>`<button class="poi112-company" type="button" onclick="POIV112.selectCompany('${c}')"><b>${companyName(c)}</b><span>${c==='smartpack'?'Ordini, produzione, IML, magazzino e amministrazione Smart Pack.':'Presse, miscele, turni, consegne e amministrazione Multiplast.'}</span></button>`).join('');
+    $('#poi112CompanyBody').innerHTML=`<div class="poi112-account"><div><b>${esc(p.display_name||'Account')}</b><span>${esc(api()?.getUser?.()?.email||'')}</span></div><i class="poi112-badge">${esc(accountName(p.account_type))}</i></div><div class="poi112-company-grid">${cards}</div>${employee?`<div class="poi112-current">Sessione dipendente attiva: ${esc(employee.display_name)} · ${esc(companyName(employee.company_code))}</div>`:''}${canManage()?'<div class="poi112-actions"><button class="btn" type="button" onclick="POIV112.openAdmin()">Gestisci dipendenti e PIN</button></div>':''}`;
+    $('#poi112CompanyGate').classList.add('open');
+  }
+
+  function selectCompany(c){
+    if(!companies().includes(c))return;selectedCompany=c;sessionStorage.setItem('poi_v112_company',c);$('#poi112CompanyGate').classList.remove('open');
+    const smart=c==='smartpack';$('#poi112AccessLogo').textContent=smart?'SP':'MP';$('#poi112AccessTitle').textContent=companyName(c);$('#poi112AccessSub').textContent='I dipendenti usano USER e PIN personale. L’account aziendale mantiene l’accesso amministrativo.';
+    const adminButtons=canManage()?`<div class="poi112-actions"><button class="btn primary" type="button" onclick="POIV112.enterAdmin('${smart?'director':'manager'}')">${smart?'Gestione Smart Pack':'Gestione produzione'}</button><button class="btn" type="button" onclick="POIV112.enterAdmin('admin')">Amministrazione</button><button class="btn" type="button" onclick="POIV112.openAdmin('${c}')">Gestisci USER e PIN</button></div>`:'';
+    $('#poi112AccessBody').innerHTML=`<form id="poi112PinForm"><div class="poi112-form-grid"><label class="field full">USER dipendente<input name="username" autocomplete="username" required maxlength="40" placeholder="es. mario.rossi"></label><label class="field full">PIN personale<input name="pin" autocomplete="current-password" inputmode="numeric" type="password" pattern="[0-9]{4,8}" required maxlength="8" placeholder="••••"></label><div class="poi112-error full" id="poi112PinError"></div><button class="btn primary full" type="submit">Entra come dipendente</button></div></form>${adminButtons}`;
+    $('#poi112PinForm').onsubmit=employeeLogin;$('#poi112AccessGate').classList.add('open');setTimeout(()=>$('#poi112PinForm [name="username"]')?.focus(),80);
+  }
+
+  async function employeeLogin(e){
+    e.preventDefault();const err=$('#poi112PinError'),f=new FormData(e.currentTarget),btn=e.currentTarget.querySelector('button[type="submit"]');err.classList.remove('show');btn.disabled=true;btn.textContent='Verifica…';
+    const {data,error}=await client().rpc('poi_verify_employee_pin',{p_username:String(f.get('username')||''),p_pin:String(f.get('pin')||''),p_company:selectedCompany,p_group:GROUP});btn.disabled=false;btn.textContent='Entra come dipendente';
+    const row=Array.isArray(data)?data[0]:data;if(error||!row?.success){err.textContent=row?.error_code==='locked'?'Accesso bloccato per 15 minuti dopo troppi tentativi errati.':'USER o PIN non corretti.';err.classList.add('show');return}
+    employee={employee_id:row.employee_id,username:row.username,display_name:row.display_name,role_code:row.role_code,company_code:row.company_code};sessionStorage.setItem('poi_v112_employee',JSON.stringify(employee));
+    $('#poi112AccessGate').classList.remove('open');decorateCloudMenu();enterRole(row.role_code,true);
+  }
+
+  function enterRole(role,asEmployee=false){
+    if(!selectedCompany)selectedCompany=role==='manager'||role==='mpworker'?'multiplast':'smartpack';sessionStorage.setItem('poi_v112_company',selectedCompany);
+    if(!asEmployee){employee=null;sessionStorage.removeItem('poi_v112_employee')}
+    api()?.enterRole?.(role);setTimeout(()=>{const u=$('#userName'),r=$('#userRole');if(u)u.textContent=employee?.display_name||profile()?.display_name||'Utente';if(r)r.textContent=(employee?'Dipendente · ':'')+roleName(role);const x=$('#poi112EmployeeLogout');if(x)x.style.display=employee?'inline-flex':'none'},80);
+  }
+  function enterAdmin(role){$('#poi112AccessGate').classList.remove('open');enterRole(role,false)}
+  function employeeLogout(){employee=null;sessionStorage.removeItem('poi_v112_employee');const x=$('#poi112EmployeeLogout');if(x)x.style.display='none';showCompanyMenu()}
+
+  function roleOptions(c){return c==='smartpack'?[['worker','Produzione Smart Pack'],['admin','Amministrazione'],['director','Gestione Smart Pack']]:[['mpworker','Produzione Multiplast'],['manager','Responsabile produzione'],['admin','Amministrazione']]}
+  function openAdmin(c){
+    ensureUI();if(!canManage())return;manageCompany=c||selectedCompany||companies()[0]||'smartpack';if(!companies().includes(manageCompany))manageCompany=companies()[0];
+    $('#poi112Admin').classList.add('open');renderAdminTabs();loadEmployees();
+  }
+  function renderAdminTabs(){
+    $('#poi112AdminTabs').innerHTML=companies().map(c=>`<button type="button" class="${c===manageCompany?'active':''}" onclick="POIV112.setManageCompany('${c}')">${companyName(c)}</button>`).join('');
+    const sel=$('#poi112CreateForm [name="role_code"]');if(sel)sel.innerHTML=roleOptions(manageCompany).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+    $('#poi112ListTitle').textContent='Dipendenti · '+companyName(manageCompany);
+  }
+  function setManageCompany(c){if(!companies().includes(c))return;manageCompany=c;renderAdminTabs();loadEmployees()}
+  async function loadEmployees(){
+    const list=$('#poi112EmployeeList');list.innerHTML='<div class="poi112-empty">Caricamento…</div>';const {data,error}=await client().rpc('poi_employee_list',{p_group:GROUP,p_company:manageCompany});
+    if(error){list.innerHTML='<div class="poi112-empty">Impossibile caricare gli utenti autorizzati.</div>';return}
+    list.innerHTML=(data||[]).map(e=>`<div class="poi112-employee"><div><b>${esc(e.display_name)}</b><small>USER: ${esc(e.username)} · ${esc(roleName(e.role_code))} · ${e.active?'Attivo':'Sospeso'}${e.locked_until&&new Date(e.locked_until)>new Date()?' · Bloccato':''}</small></div><div class="poi112-row-actions"><button class="btn small" type="button" onclick="POIV112.resetPin('${e.id}')">Reset PIN</button><button class="btn small ${e.active?'danger':''}" type="button" onclick="POIV112.toggleEmployee('${e.id}',${!e.active})">${e.active?'Sospendi':'Riattiva'}</button></div></div>`).join('')||'<div class="poi112-empty">Nessun dipendente creato per questa azienda.</div>';
+  }
+  async function createEmployee(e){
+    e.preventDefault();const f=new FormData(e.currentTarget),err=$('#poi112CreateError'),btn=e.currentTarget.querySelector('button[type="submit"]');err.classList.remove('show');btn.disabled=true;btn.textContent='Creazione…';
+    const args={p_company:manageCompany,p_username:String(f.get('username')||'').trim().toLowerCase(),p_display_name:String(f.get('display_name')||'').trim(),p_role_code:String(f.get('role_code')||''),p_pin:String(f.get('pin')||''),p_group:GROUP};
+    const {error}=await client().rpc('poi_employee_create',args);btn.disabled=false;btn.textContent='Crea USER dipendente';if(error){err.textContent=/duplicate|unique/i.test(error.message||'')?'Questo USER esiste già. Scegline un altro.':'Creazione non riuscita. Controlla USER, ruolo e PIN.';err.classList.add('show');return}e.currentTarget.reset();renderAdminTabs();loadEmployees();
+  }
+  async function resetPin(id){const pin=prompt('Nuovo PIN (da 4 a 8 cifre):');if(pin===null)return;if(!/^\d{4,8}$/.test(pin)){alert('Il PIN deve contenere da 4 a 8 cifre.');return}const {error}=await client().rpc('poi_employee_update',{p_employee_id:id,p_new_pin:pin,p_group:GROUP});alert(error?'Reset PIN non riuscito.':'PIN aggiornato. Il vecchio PIN non è più valido.');if(!error)loadEmployees()}
+  async function toggleEmployee(id,active){if(!confirm(active?'Riattivare questo utente?':'Sospendere subito questo utente?'))return;const {error}=await client().rpc('poi_employee_update',{p_employee_id:id,p_active:active,p_group:GROUP});if(error)alert('Aggiornamento non riuscito.');else loadEmployees()}
+
+  function boot(){
+    document.body.dataset.build=MARKER;document.title=document.title.replace(/V11\.\d+/,BUILD);injectStyles();
+    [250,700,1500,3000].forEach(ms=>setTimeout(()=>{ensureUI();decorateAuth();decorateCloudMenu();bindPasswordRecovery()},ms));
+  }
+  window.POIV112={showCompanyMenu,selectCompany,enterAdmin,openAdmin,setManageCompany,resetPin,toggleEmployee};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
 
 /* ===== migrated from v106-patch.js ===== */
 /* Smart Pack · Multiplast — V10.6
@@ -979,11 +1115,11 @@
 })();
 
 
-/* ===== Smart Pack · Multiplast — V11.1 COMPLIANCE + UI CONSOLIDATION ===== */
+/* ===== Smart Pack · Multiplast — V11.2 COMPLIANCE + UI CONSOLIDATION ===== */
 (function(){
   'use strict';
-  const BUILD='V11.1';
-  const MARKER='PIATTAFORMA-GRUPPO-V11.1';
+  const BUILD='V11.2';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.2';
   const $1=id=>document.getElementById(id);
   const esc1=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const today1=()=>new Date().toISOString().slice(0,10);
