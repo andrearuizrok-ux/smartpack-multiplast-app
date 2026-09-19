@@ -1059,3 +1059,306 @@
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+/* ===== Smart Pack · Multiplast — V11.6 CONSEGNA CLIENTE =====
+   Configurazione azienda + import/export Excel + guida interattiva.
+   La modalità guida non crea dati demo e non modifica dati reali.
+*/
+(()=>{
+  'use strict';
+  if(window.SPDeliveryV116) return;
+
+  const VIEW='companySettings';
+  const VERSION='V11.6';
+  const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const txt=v=>String(v??'').trim();
+  const norm=v=>txt(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+  const num=v=>{const x=Number(String(v??'').replace(/\s/g,'').replace(/\./g,'').replace(',','.'));return Number.isFinite(x)?x:0};
+  const iso=()=>new Date().toISOString();
+  const role=()=>typeof currentRole!=='undefined'?currentRole:'';
+  const cloudProfile=()=>window.POICloudV10?.getProfile?.()||null;
+  const accountType=()=>String(cloudProfile()?.account_type||'');
+  const isAdminAccount=()=>['platform_admin','tenant_admin','backup_admin'].includes(accountType())||window.POICloudV10?.isOwner?.();
+  const currentCompany=()=>sessionStorage.getItem('poi_v113_company')||sessionStorage.getItem('poi_v112_company')||'';
+  const companyName=c=>c==='multiplast'?'Multiplast':'Smart Pack';
+  let selectedCompany=sessionStorage.getItem('poi_v116_config_company')||currentCompany()||(role()==='manager'?'multiplast':'smartpack');
+  let pendingImport=null;
+  let tourIndex=0,tourItems=[];
+
+  function canConfigure(){return ['director','manager','admin'].includes(role())&&isAdminAccount()}
+  function allowedCompanies(){
+    if(role()==='director') return ['smartpack'];
+    if(role()==='manager') return ['multiplast'];
+    const arr=cloudProfile()?.company_codes;
+    const out=Array.isArray(arr)&&arr.length?arr.filter(x=>['smartpack','multiplast'].includes(x)):['smartpack','multiplast'];
+    return out.length?out:['smartpack','multiplast'];
+  }
+  function safeCompany(){const a=allowedCompanies();if(!a.includes(selectedCompany))selectedCompany=a[0]||'smartpack';return selectedCompany}
+  function saveState(msg=''){
+    try{save()}catch(e){try{localStorage.setItem('industrial_os_v2_state',JSON.stringify(state))}catch(_){} console.warn('[V11.6] save',e)}
+    if(msg){try{toast(msg)}catch(_){}}
+  }
+  function audit(action,ref,detail){
+    try{addAudit(action,ref,detail)}catch(_){
+      state.audit=Array.isArray(state.audit)?state.audit:[];
+      state.audit.unshift({id:'aud_'+Date.now(),at:iso(),action,ref,detail,role:role()});
+    }
+  }
+  function ensureData(){
+    state.companyProfilesV116=state.companyProfilesV116&&typeof state.companyProfilesV116==='object'?state.companyProfilesV116:{};
+    state.importHistoryV116=Array.isArray(state.importHistoryV116)?state.importHistoryV116:[];
+    state.operatorsByCompanyV116=state.operatorsByCompanyV116&&typeof state.operatorsByCompanyV116==='object'?state.operatorsByCompanyV116:{};
+    for(const c of ['smartpack','multiplast']) state.companyProfilesV116[c]=state.companyProfilesV116[c]||{};
+  }
+  function profileData(c=safeCompany()){ensureData();return state.companyProfilesV116[c]||{}}
+
+  function injectStyles(){
+    if($('#v116DeliveryStyles'))return;
+    const st=document.createElement('style');st.id='v116DeliveryStyles';st.textContent=`
+      .v116-settings{display:grid;gap:16px}.v116-settings .hero{margin-bottom:0}.v116-company-tabs{display:flex;gap:8px;flex-wrap:wrap}.v116-company-tabs button{border:1px solid var(--line,#d8e4e8);background:#fff;border-radius:999px;padding:8px 13px;font-weight:850;font-size:11px;cursor:pointer}.v116-company-tabs button.active{background:#17394a;color:#fff;border-color:#17394a}
+      .v116-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:16px}.v116-card{background:#fff;border:1px solid var(--line,#d8e4e8);border-radius:18px;padding:18px;box-shadow:0 7px 22px rgba(20,54,69,.05)}.v116-card h3{margin:0;font-size:16px}.v116-card>p{margin:5px 0 14px;color:var(--muted,#687f89);font-size:10.5px;line-height:1.5}.v116-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v116-form .full{grid-column:1/-1}.v116-form label{display:grid;gap:5px;font-size:9px;font-weight:850;color:#516a76}.v116-form input,.v116-form textarea,.v116-form select{width:100%;box-sizing:border-box;border:1px solid #d7e3e8;border-radius:10px;background:#fbfdfe;padding:10px 11px;font:inherit;font-size:11px;color:#17394a}.v116-form textarea{resize:vertical;min-height:74px}.v116-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.v116-actions .btn{min-height:40px}.v116-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.v116-kpi{background:#f5f9fa;border:1px solid #e0e9ed;border-radius:12px;padding:10px}.v116-kpi span{display:block;color:#6a7e88;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.v116-kpi b{display:block;font-size:20px;color:#17394a;margin-top:4px}.v116-upload{border:1.5px dashed #b9cdd5;border-radius:15px;padding:14px;background:#f8fbfc}.v116-upload input{width:100%;margin-top:8px}.v116-mode{display:flex;gap:7px;margin-top:10px}.v116-mode label{flex:1;border:1px solid #dbe6ea;border-radius:11px;padding:9px;background:#fff;font-size:9.5px}.v116-preview{margin-top:12px;display:grid;gap:7px}.v116-preview-row{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:10px;background:#f5f9fa;font-size:9.5px}.v116-preview-row b{color:#17394a}.v116-good{color:#19724f}.v116-warn{color:#9c6c13}.v116-history{display:grid;gap:7px;max-height:220px;overflow:auto}.v116-history-row{border:1px solid #e3ebee;border-radius:10px;padding:9px 10px;font-size:9px}.v116-history-row b{display:block;color:#17394a}.v116-history-row span{display:block;color:#6a7e88;margin-top:3px}.v116-guide-card{background:linear-gradient(135deg,#17394a,#245f78);color:#fff}.v116-guide-card h3,.v116-guide-card>p{color:#fff}.v116-guide-card>p{opacity:.78}.v116-guide-note{font-size:9px;opacity:.76;margin-top:10px}.v116-help{border:1px solid #cbdbe1;background:#fff;color:#17394a;border-radius:12px;min-height:38px;padding:0 12px;font-weight:900;font-size:10px;cursor:pointer;display:none;align-items:center;gap:7px}.v116-help.show{display:inline-flex}.v116-help-dot{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:#17394a;color:#fff}
+      #v116GuideDialog{width:min(620px,92vw);border:0;border-radius:22px;padding:0;box-shadow:0 30px 90px rgba(10,34,45,.3)}#v116GuideDialog::backdrop{background:rgba(7,28,39,.62);backdrop-filter:blur(4px)}.v116-guide-shell{padding:22px;background:#f8fbfc}.v116-guide-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.v116-guide-top .eyebrow{font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#2a718d}.v116-guide-top h3{margin:5px 0 0;font-size:22px;color:#17394a}.v116-guide-close{border:0;background:#e8f0f3;width:34px;height:34px;border-radius:10px;font-size:18px;cursor:pointer}.v116-guide-body{margin-top:15px;background:#fff;border:1px solid #dde8ec;border-radius:16px;padding:16px}.v116-guide-body p{font-size:11px;line-height:1.6;color:#607782;margin:0}.v116-guide-progress{height:5px;background:#e4ecef;border-radius:99px;overflow:hidden;margin:15px 0 0}.v116-guide-progress i{display:block;height:100%;background:#287ba0}.v116-guide-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px}.v116-guide-actions .right{display:flex;gap:8px}.v116-guide-module{display:flex;align-items:center;gap:10px;margin-bottom:10px}.v116-guide-module .num{width:32px;height:32px;border-radius:10px;background:#eaf3f6;color:#17536d;display:grid;place-items:center;font-weight:950}.v116-guide-module b{font-size:14px;color:#17394a}.v116-first{position:fixed;right:18px;bottom:18px;z-index:12000;width:min(360px,calc(100vw - 36px));background:#fff;border:1px solid #dbe7eb;border-radius:16px;box-shadow:0 20px 55px rgba(16,48,62,.18);padding:15px;display:none}.v116-first.show{display:block}.v116-first b{display:block;color:#17394a;font-size:13px}.v116-first p{font-size:9.5px;color:#657b86;line-height:1.5;margin:6px 0 11px}.v116-first .actions{display:flex;gap:7px}.v116-admin-shortcut{margin:0 0 12px;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;border:1px solid #d8e5e9;background:#fff;border-radius:13px}.v116-admin-shortcut b{font-size:11px}.v116-admin-shortcut span{font-size:8.5px;color:#6c818b;display:block;margin-top:2px}
+      @media(max-width:980px){.v116-grid{grid-template-columns:1fr}.v116-summary{grid-template-columns:repeat(3,1fr)}}@media(max-width:680px){.v116-form{grid-template-columns:1fr}.v116-form .full{grid-column:auto}.v116-summary{grid-template-columns:1fr 1fr}.v116-guide-actions{display:grid}.v116-guide-actions .right{display:grid}.v116-guide-actions .btn{width:100%}}
+    `;document.head.appendChild(st);
+  }
+
+  function ensureView(){
+    let v=$('#companySettingsView');if(v)return v;
+    v=document.createElement('section');v.className='view';v.id='companySettingsView';
+    ($('.content')||document.body).appendChild(v);return v;
+  }
+
+  function addNav(){
+    try{
+      if(typeof NAV!=='undefined'){
+        for(const r of ['director','manager','admin']){
+          NAV[r]=NAV[r]||[];
+          if(!NAV[r].some(x=>x[0]===VIEW)) NAV[r].push([VIEW,'settings','Configurazione azienda']);
+        }
+      }
+      if(typeof META!=='undefined') META[VIEW]=['Configurazione azienda','Dati aziendali, import Excel e guida alla piattaforma'];
+    }catch(e){console.warn('[V11.6] nav',e)}
+  }
+
+  function stats(){
+    ensureData();const c=safeCompany();
+    const filt=a=>(a||[]).filter(x=>belongs(x,c));
+    const openOrders=filt(state.orders).filter(x=>!x.cancelled&&!/chiuso|consegnato|evaso/i.test(String(x.status||'')));
+    return {clients:filt(state.clientDirectory||state.clients).length,products:filt(state.productDirectory||state.products).length,machines:filt(state.machines).length,molds:filt(state.molds).length,imls:filt(state.imls).length,orders:openOrders.length};
+  }
+  function belongs(x,c){
+    if(!x||typeof x!=='object') return c==='smartpack';
+    const v=norm(x.companyCode||x.company||x.azienda||'');
+    if(!v) return c==='smartpack';
+    return c==='multiplast'?v.includes('multiplast'):v.includes('smartpack')||v==='sp';
+  }
+
+  function renderConfig(){
+    ensureData();injectStyles();const view=ensureView();
+    if(!canConfigure()){
+      view.innerHTML=`<div class="hero"><div><h2>Configurazione azienda</h2><p>Questa sezione è riservata agli amministratori autorizzati.</p></div></div>`;return;
+    }
+    const c=safeCompany(),p=profileData(c),s=stats(),hist=(state.importHistoryV116||[]).filter(x=>x.company===c).slice(0,8);
+    const tabs=allowedCompanies().map(x=>`<button type="button" class="${x===c?'active':''}" onclick="SPDeliveryV116.setCompany('${x}')">${companyName(x)}</button>`).join('');
+    view.innerHTML=`<div class="v116-settings">
+      <div class="hero"><div><span class="eyebrow">Configurazione</span><h2>Dati aziendali e avvio piattaforma</h2><p>Aggiorna l'anagrafica, importa i dati esistenti e accompagna gli utenti nell'uso dei moduli.</p></div><div class="v116-company-tabs">${tabs}</div></div>
+      <div class="v116-summary"><div class="v116-kpi"><span>Clienti</span><b>${s.clients}</b></div><div class="v116-kpi"><span>Prodotti</span><b>${s.products}</b></div><div class="v116-kpi"><span>Macchine</span><b>${s.machines}</b></div><div class="v116-kpi"><span>Stampi</span><b>${s.molds}</b></div><div class="v116-kpi"><span>IML</span><b>${s.imls}</b></div><div class="v116-kpi"><span>Ordini aperti</span><b>${s.orders}</b></div></div>
+      <div class="v116-grid">
+        <div class="v116-card"><h3>Anagrafica ${companyName(c)}</h3><p>Questi dati diventano il riferimento aziendale della piattaforma e possono essere aggiornati in qualsiasi momento.</p>
+          <form id="v116CompanyForm" class="v116-form">
+            <label>Ragione sociale<input name="ragioneSociale" value="${esc(p.ragioneSociale||companyName(c))}"></label>
+            <label>Partita IVA<input name="partitaIva" value="${esc(p.partitaIva||'')}"></label>
+            <label>Codice fiscale<input name="codiceFiscale" value="${esc(p.codiceFiscale||'')}"></label>
+            <label>Codice SDI<input name="codiceSdi" value="${esc(p.codiceSdi||'')}"></label>
+            <label class="full">Sede legale<input name="sedeLegale" value="${esc(p.sedeLegale||'')}"></label>
+            <label class="full">Sede operativa<input name="sedeOperativa" value="${esc(p.sedeOperativa||'')}"></label>
+            <label>PEC<input name="pec" type="email" value="${esc(p.pec||'')}"></label>
+            <label>E-mail<input name="email" type="email" value="${esc(p.email||'')}"></label>
+            <label>Telefono<input name="telefono" value="${esc(p.telefono||'')}"></label>
+            <label>Sito web<input name="website" value="${esc(p.website||'')}"></label>
+            <label>Referente<input name="referente" value="${esc(p.referente||'')}"></label>
+            <label class="full">Note<textarea name="note">${esc(p.note||'')}</textarea></label>
+          </form><div class="v116-actions"><button class="btn primary" type="button" onclick="SPDeliveryV116.saveCompany()">Salva dati azienda</button></div>
+        </div>
+        <div style="display:grid;gap:16px">
+          <div class="v116-card"><h3>Importa dati da Excel</h3><p>Carica anagrafiche e dati operativi già esistenti senza partire da zero. Prima dell'importazione viene mostrata un'anteprima.</p>
+            <div class="v116-upload"><b>File Excel / CSV</b><div style="font-size:9px;color:#6d8089;margin-top:4px">Clienti, prodotti, macchine, stampi, IML, ordini, operatori e scadenze.</div><input id="v116ExcelFile" type="file" accept=".xlsx,.xls,.csv" onchange="SPDeliveryV116.previewExcel(this.files[0])"></div>
+            <div class="v116-mode"><label><input type="radio" name="v116ImportMode" value="merge" checked> <b>Unisci / aggiorna</b><br><span style="color:#6d8089">Mantiene i dati presenti e aggiorna i codici corrispondenti.</span></label><label><input type="radio" name="v116ImportMode" value="replace"> <b>Sostituisci sezioni</b><br><span style="color:#6d8089">Sostituisce solo le sezioni presenti nel file.</span></label></div>
+            <div id="v116ImportPreview" class="v116-preview"></div>
+            <div class="v116-actions"><button class="btn" type="button" onclick="SPDeliveryV116.downloadTemplate()">Scarica modello Excel</button><button class="btn" type="button" onclick="SPDeliveryV116.exportExcel()">Esporta dati attuali</button><button class="btn primary" id="v116ApplyImport" type="button" onclick="SPDeliveryV116.applyImport()" disabled>Importa dati</button></div>
+            ${localStorage.getItem('poi_v116_last_import_backup')?'<div class="v116-actions"><button class="btn" type="button" onclick="SPDeliveryV116.restoreImport()">Ripristina ultimo import</button></div>':''}
+          </div>
+          <div class="v116-card v116-guide-card"><h3>Guida interattiva</h3><p>Una modalità dimostrativa sicura che accompagna l'utente modulo per modulo senza creare o modificare dati reali.</p><div class="v116-actions"><button class="btn" type="button" onclick="SPDeliveryV116.startTour()">Avvia guida</button><button class="btn" type="button" onclick="SPDeliveryV116.resetGuide()">Ripristina primo accesso</button></div><div class="v116-guide-note">La guida usa i moduli realmente disponibili per il ruolo con cui l'utente ha effettuato l'accesso.</div></div>
+        </div>
+      </div>
+      <div class="v116-card"><h3>Storico importazioni</h3><p>Ultime operazioni registrate per ${companyName(c)}.</p><div class="v116-history">${hist.length?hist.map(x=>`<div class="v116-history-row"><b>${esc(x.file||'Importazione Excel')} · ${esc(x.mode==='replace'?'sostituzione':'aggiornamento')}</b><span>${esc(new Date(x.at).toLocaleString('it-IT'))} · ${esc(summaryText(x.counts||{}))}</span></div>`).join(''):'<div style="font-size:10px;color:#71858e">Nessuna importazione registrata.</div>'}</div></div>
+    </div>`;
+  }
+
+  function saveCompany(){
+    if(!canConfigure())return;ensureData();const f=$('#v116CompanyForm');if(!f)return;const fd=new FormData(f),c=safeCompany();
+    state.companyProfilesV116[c]={...profileData(c),ragioneSociale:txt(fd.get('ragioneSociale')),partitaIva:txt(fd.get('partitaIva')),codiceFiscale:txt(fd.get('codiceFiscale')),codiceSdi:txt(fd.get('codiceSdi')),sedeLegale:txt(fd.get('sedeLegale')),sedeOperativa:txt(fd.get('sedeOperativa')),pec:txt(fd.get('pec')),email:txt(fd.get('email')),telefono:txt(fd.get('telefono')),website:txt(fd.get('website')),referente:txt(fd.get('referente')),note:txt(fd.get('note')),updatedAt:iso()};
+    audit('Configurazione azienda aggiornata',companyName(c),'Dati anagrafici aziendali');saveState('Dati azienda salvati');renderConfig();
+  }
+  function setCompany(c){if(!allowedCompanies().includes(c))return;selectedCompany=c;sessionStorage.setItem('poi_v116_config_company',c);pendingImport=null;renderConfig()}
+
+  function ensureXLSX(){
+    if(window.XLSX)return Promise.resolve(window.XLSX);
+    if(window.__v116XlsxPromise)return window.__v116XlsxPromise;
+    window.__v116XlsxPromise=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');s.src=XLSX_URL;s.async=true;s.referrerPolicy='no-referrer';s.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('xlsx_not_loaded'));s.onerror=()=>reject(new Error('xlsx_download_failed'));document.head.appendChild(s);
+    });return window.__v116XlsxPromise;
+  }
+  function findSheet(wb,names){const map=new Map(wb.SheetNames.map(n=>[norm(n),n]));for(const n of names){const exact=map.get(norm(n));if(exact)return wb.Sheets[exact]}return null}
+  function rowsOf(wb,names){const ws=findSheet(wb,names);if(!ws)return null;return window.XLSX.utils.sheet_to_json(ws,{defval:'',raw:false}).filter(r=>Object.values(r).some(v=>txt(v)!==''))}
+  function val(row,aliases){if(!row)return'';const map={};for(const [k,v] of Object.entries(row))map[norm(k)]=v;for(const a of aliases){const k=norm(a);if(k in map)return map[k]}return''}
+  function bool(v,def=true){const s=norm(v);if(!s)return def;return !['no','false','0','inattivo','disattivo','annullato'].includes(s)}
+  function date(v){if(!v)return'';if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);const s=txt(v);const m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);if(m){let y=m[3];if(y.length===2)y='20'+y;return `${y}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`}const d=new Date(s);return isNaN(d)?s:d.toISOString().slice(0,10)}
+  function maxCode(prefix,arr,key='code'){let m=0;for(const x of arr||[]){const z=String(typeof x==='object'?x?.[key]:x||'').match(new RegExp('^'+prefix+'-(\\d+)$','i'));if(z)m=Math.max(m,Number(z[1]))}return m}
+  function nextCode(prefix,arr,key='code'){const n=maxCode(prefix,arr,key)+1;return `${prefix}-${String(n).padStart(3,'0')}`}
+
+  function parseWorkbook(wb,fileName=''){
+    const c=safeCompany(),out={company:c,file:fileName,sections:{},counts:{},errors:[]};
+    const companyRows=rowsOf(wb,['AZIENDA','COMPANY','DATI AZIENDA']);
+    if(companyRows){
+      const obj={};
+      if(companyRows.length&&val(companyRows[0],['Campo','Field'])){
+        const map={ragionesociale:'ragioneSociale',partitaiva:'partitaIva',codicefiscale:'codiceFiscale',codicesdi:'codiceSdi',sdi:'codiceSdi',sedelegale:'sedeLegale',sedeoperativa:'sedeOperativa',pec:'pec',email:'email',telefono:'telefono',sitoweb:'website',website:'website',referente:'referente',note:'note'};
+        for(const r of companyRows){const k=norm(val(r,['Campo','Field'])),vv=val(r,['Valore','Value']);for(const [alias,target] of Object.entries(map)){if(k===norm(alias.split(',')[0])||alias.split(',').some(a=>k===norm(a)))obj[target]=txt(vv)}}
+      }else if(companyRows[0]){
+        const r=companyRows[0];obj.ragioneSociale=txt(val(r,['Ragione sociale','Azienda','Company']));obj.partitaIva=txt(val(r,['Partita IVA','PIVA','VAT']));obj.codiceFiscale=txt(val(r,['Codice fiscale','CF']));obj.codiceSdi=txt(val(r,['Codice SDI','SDI']));obj.sedeLegale=txt(val(r,['Sede legale']));obj.sedeOperativa=txt(val(r,['Sede operativa']));obj.pec=txt(val(r,['PEC']));obj.email=txt(val(r,['Email','E-mail']));obj.telefono=txt(val(r,['Telefono','Phone']));obj.website=txt(val(r,['Sito web','Website']));obj.referente=txt(val(r,['Referente']));obj.note=txt(val(r,['Note']));
+      }
+      out.sections.company=obj;out.counts.company=Object.values(obj).filter(Boolean).length;
+    }
+    const clRows=rowsOf(wb,['CLIENTI','CLIENTS','ANAGRAFICA CLIENTI']);
+    if(clRows){const existing=state.clientDirectory||state.clients||[];let tmp=[...existing];out.sections.clients=clRows.map(r=>{let code=txt(val(r,['Codice cliente','Codice','Code','ID']));if(!code){code=nextCode('CLI',tmp);tmp.push({code})}const name=txt(val(r,['Cliente','Ragione sociale','Nome','Name']));if(!name)out.errors.push(`Cliente senza nome (${code})`);return{code,name,vat:txt(val(r,['Partita IVA','PIVA','VAT'])),fiscalCode:txt(val(r,['Codice fiscale','CF'])),email:txt(val(r,['Email','E-mail'])),phone:txt(val(r,['Telefono','Phone'])),address:txt(val(r,['Indirizzo','Address'])),city:txt(val(r,['Citta','Città','City'])),province:txt(val(r,['Provincia','Province'])),cap:txt(val(r,['CAP','ZIP'])),pec:txt(val(r,['PEC'])),sdi:txt(val(r,['SDI','Codice SDI'])),active:bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.name);out.counts.clients=out.sections.clients.length}
+    const prRows=rowsOf(wb,['PRODOTTI','PRODUCTS','ARTICOLI']);
+    if(prRows){const existing=state.productDirectory||state.products||[];let tmp=[...existing];out.sections.products=prRows.map(r=>{let code=txt(val(r,['Codice prodotto','Codice articolo','Codice','Code','ID']));if(!code){code=nextCode('PRD',tmp);tmp.push({code})}const name=txt(val(r,['Prodotto','Articolo','Descrizione','Nome','Name']));if(!name)out.errors.push(`Prodotto senza nome (${code})`);return{code,name,family:txt(val(r,['Famiglia','Categoria','Family'])),liters:txt(val(r,['Formato','Litri','Liters'])),color:txt(val(r,['Colore','Color'])),unit:txt(val(r,['UM','Unita','Unità','Unit']))||'PZ',notes:txt(val(r,['Note','Notes'])),active:bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.name);out.counts.products=out.sections.products.length}
+    const maRows=rowsOf(wb,['MACCHINE','MACHINES','PRESSE']);
+    if(maRows){let tmp=[...(state.machines||[])];out.sections.machines=maRows.map(r=>{let id=txt(val(r,['ID macchina','Codice macchina','ID','Codice','Code']));if(!id){id=nextCode('MCH',tmp,'id');tmp.push({id})}return{id,name:txt(val(r,['Macchina','Pressa','Nome','Name']))||id,status:txt(val(r,['Stato','Status']))||'Disponibile',installedMold:txt(val(r,['Stampo installato','Installed mold','Stampo'])),notes:txt(val(r,['Note','Notes'])),companyCode:c}});out.counts.machines=out.sections.machines.length}
+    const moRows=rowsOf(wb,['STAMPI','MOLDS']);
+    if(moRows){let tmp=[...(state.molds||[])];out.sections.molds=moRows.map(r=>{let id=txt(val(r,['ID stampo','Codice stampo','ID','Codice','Code']));if(!id){id=nextCode('MLD',tmp,'id');tmp.push({id})}const cyc=num(val(r,['Tempo ciclo sec','Cycle seconds','Ciclo secondi'])),rate=num(val(r,['Pezzi ora','Pz ora','Rate']));return{id,name:txt(val(r,['Stampo','Nome','Name']))||id,machineId:txt(val(r,['ID macchina','Macchina','Machine'])),kind:txt(val(r,['Tipo','Kind'])),cycleSeconds:cyc,rate:rate||(cyc?3600/cyc:0),notes:txt(val(r,['Note','Notes'])),companyCode:c}});out.counts.molds=out.sections.molds.length}
+    const imlRows=rowsOf(wb,['IML','ETICHETTE','LABELS']);
+    if(imlRows){let tmp=[...(state.imls||[])];out.sections.imls=imlRows.map(r=>{let code=txt(val(r,['Codice IML','IML','Codice','Code','ID']));if(!code){code=nextCode('IML',tmp);tmp.push({code})}return{code,id:code,productCode:txt(val(r,['Codice prodotto','Product code'])),clientCode:txt(val(r,['Codice cliente','Client code'])),description:txt(val(r,['Descrizione','Description']))||code,physical:num(val(r,['Giacenza fisica','Fisico','Physical','Quantita','Quantità'])),reserved:num(val(r,['Riservato','Reserved'])),minimum:num(val(r,['Scorta minima','Minimo','Minimum'])),status:txt(val(r,['Stato','Status'])),notes:txt(val(r,['Note','Notes'])),companyCode:c}});out.counts.imls=out.sections.imls.length}
+    const orRows=rowsOf(wb,['ORDINI','ORDERS','ORDINI APERTI']);
+    if(orRows){let seq=0;out.sections.orders=orRows.map(r=>{seq++;let code=txt(val(r,['Codice ordine','Codice riga','Code','ID']));if(!code)code=`ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(seq).padStart(3,'0')}`;let parent=txt(val(r,['Ordine padre','Parent','Rif interno']))||code;const cc=txt(val(r,['Codice cliente','Client code'])),pc=txt(val(r,['Codice prodotto','Product code']));const cm=(out.sections.clients||state.clientDirectory||state.clients||[]).find(x=>String(x.code)===cc),pm=(out.sections.products||state.productDirectory||state.products||[]).find(x=>String(x.code)===pc);return{code,parent,orderRef:txt(val(r,['Riferimento ordine','Ordine cliente','Order ref'])),clientCode:cc,client:txt(val(r,['Cliente','Client']))||cm?.name||'',productCode:pc,product:txt(val(r,['Prodotto','Product']))||pm?.name||'',qty:num(val(r,['Quantita','Quantità','Qty','Qta'])),dueDate:date(val(r,['Data consegna','Consegna','Due date'])),priority:txt(val(r,['Priorita','Priorità','Priority']))||'Normale',imlCode:txt(val(r,['Codice IML','IML'])),status:txt(val(r,['Stato','Status']))||'Aperto',notes:txt(val(r,['Note','Notes'])),cancelled:!bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.qty||x.client||x.product);out.counts.orders=out.sections.orders.length}
+    const opRows=rowsOf(wb,['OPERATORI','OPERATORS','DIPENDENTI']);
+    if(opRows){out.sections.operators=opRows.map(r=>txt(val(r,['Nome e cognome','Operatore','Nome','Name']))).filter(Boolean);out.counts.operators=out.sections.operators.length}
+    const coRows=rowsOf(wb,['SCADENZE','COMPLIANCE','SCADENZE COMPLIANCE']);
+    if(coRows){out.sections.compliance=coRows.map(r=>({id:txt(val(r,['ID','Codice']))||'cmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),company:companyName(c),subjectType:txt(val(r,['Tipo soggetto','Subject type']))||'Azienda',subjectName:txt(val(r,['Persona elemento','Soggetto','Subject']))||companyName(c),category:txt(val(r,['Categoria','Category']))||'Altro',title:txt(val(r,['Titolo','Title'])),issueDate:date(val(r,['Data rilascio','Data effettuazione','Issue date'])),expiryDate:date(val(r,['Data scadenza','Scadenza','Expiry date'])),responsible:txt(val(r,['Responsabile','Responsible'])),alertEmails:txt(val(r,['Email alert','Alert emails'])),documentRef:txt(val(r,['Riferimento documento','Document ref'])),notes:txt(val(r,['Note','Notes'])),active:bool(val(r,['Attivo','Active']),true),createdAt:iso()})).filter(x=>x.title&&x.expiryDate);out.counts.compliance=out.sections.compliance.length}
+    return out;
+  }
+
+  async function previewExcel(file){
+    if(!file)return;const box=$('#v116ImportPreview'),btn=$('#v116ApplyImport');if(box)box.innerHTML='<div class="v116-preview-row"><span>Lettura file…</span><b>Attendere</b></div>';if(btn)btn.disabled=true;
+    try{await ensureXLSX();const ab=await file.arrayBuffer();const wb=window.XLSX.read(ab,{type:'array',cellDates:true});pendingImport=parseWorkbook(wb,file.name);renderImportPreview();}catch(e){pendingImport=null;if(box)box.innerHTML=`<div class="v116-preview-row"><span>Impossibile leggere il file</span><b class="v116-warn">${esc(e?.message||e)}</b></div>`}
+  }
+  function renderImportPreview(){
+    const box=$('#v116ImportPreview'),btn=$('#v116ApplyImport');if(!box)return;if(!pendingImport){box.innerHTML='';if(btn)btn.disabled=true;return}
+    const labels={company:'Dati azienda',clients:'Clienti',products:'Prodotti',machines:'Macchine',molds:'Stampi',imls:'IML',orders:'Ordini',operators:'Operatori',compliance:'Scadenze'};
+    const entries=Object.entries(pendingImport.counts||{}).filter(([,n])=>n>0);box.innerHTML=entries.length?entries.map(([k,n])=>`<div class="v116-preview-row"><span>${labels[k]||k}</span><b class="v116-good">${n} ${k==='company'?'campi':'righe'}</b></div>`).join(''):'<div class="v116-preview-row"><span>Nessuna sezione riconosciuta</span><b class="v116-warn">Controlla i nomi dei fogli</b></div>';
+    if(pendingImport.errors?.length)box.innerHTML+=`<div class="v116-preview-row"><span>Avvisi</span><b class="v116-warn">${pendingImport.errors.length}</b></div>`;
+    if(btn)btn.disabled=!entries.length;
+  }
+  function importMode(){return document.querySelector('input[name="v116ImportMode"]:checked')?.value||'merge'}
+  function mergeObjects(existing,incoming,key,company,mode){
+    const old=Array.isArray(existing)?existing:[],inc=Array.isArray(incoming)?incoming:[];if(!inc.length)return old;
+    const other=old.filter(x=>!belongs(x,company));const same=old.filter(x=>belongs(x,company));
+    if(mode==='replace')return [...other,...inc];
+    const map=new Map(same.map(x=>[String(x?.[key]||'').toLowerCase(),x]));
+    for(const x of inc){const k=String(x?.[key]||'').toLowerCase();if(k&&map.has(k))map.set(k,{...map.get(k),...x});else map.set(k||'__'+Math.random(),x)}
+    return [...other,...map.values()];
+  }
+  function snapshot(){ensureData();return{companyProfilesV116:state.companyProfilesV116,clientDirectory:state.clientDirectory,clients:state.clients,productDirectory:state.productDirectory,products:state.products,machines:state.machines,molds:state.molds,imls:state.imls,orders:state.orders,operators:state.operators,operatorsByCompanyV116:state.operatorsByCompanyV116,complianceRecords:state.complianceRecords,importHistoryV116:state.importHistoryV116}}
+  function applyImport(){
+    if(!pendingImport||!canConfigure())return;const mode=importMode(),c=safeCompany(),sec=pendingImport.sections||{};if(!confirm(`Importare i dati di “${pendingImport.file}” in ${companyName(c)}?\nModalità: ${mode==='replace'?'Sostituisci le sezioni presenti':'Unisci / aggiorna'}.`))return;
+    try{localStorage.setItem('poi_v116_last_import_backup',JSON.stringify({at:iso(),company:c,data:snapshot()}))}catch(_){ }
+    ensureData();
+    if(sec.company)state.companyProfilesV116[c]={...profileData(c),...Object.fromEntries(Object.entries(sec.company).filter(([,v])=>txt(v)!=='')),updatedAt:iso()};
+    if(sec.clients){state.clientDirectory=mergeObjects(state.clientDirectory||state.clients,sec.clients,'code',c,mode);state.clients=state.clientDirectory.map(x=>({...x}))}
+    if(sec.products){state.productDirectory=mergeObjects(state.productDirectory||state.products,sec.products,'code',c,mode);state.products=state.productDirectory.map(x=>({...x}))}
+    if(sec.machines)state.machines=mergeObjects(state.machines,sec.machines,'id',c,mode);
+    if(sec.molds)state.molds=mergeObjects(state.molds,sec.molds,'id',c,mode);
+    if(sec.imls)state.imls=mergeObjects(state.imls,sec.imls,'code',c,mode);
+    if(sec.orders)state.orders=mergeObjects(state.orders,sec.orders,'code',c,mode);
+    if(sec.operators){state.operatorsByCompanyV116[c]=mode==='replace'?[...new Set(sec.operators)]:[...new Set([...(state.operatorsByCompanyV116[c]||[]),...sec.operators])];state.operators=[...new Set([...(state.operators||[]),...state.operatorsByCompanyV116[c]])]}
+    if(sec.compliance)state.complianceRecords=mergeObjects(state.complianceRecords,sec.compliance,'id',c,mode);
+    const entry={at:iso(),company:c,file:pendingImport.file,mode,counts:pendingImport.counts,by:cloudProfile()?.email||accountType()||role()};state.importHistoryV116.unshift(entry);state.importHistoryV116=state.importHistoryV116.slice(0,50);
+    audit('Importazione Excel completata',companyName(c),`${pendingImport.file} · ${summaryText(pendingImport.counts)}`);saveState('Importazione completata');pendingImport=null;renderConfig();
+    try{if(typeof renderNav==='function')renderNav();if(typeof renderCurrent==='function')renderCurrent()}catch(_){ }
+  }
+  function restoreImport(){
+    if(!canConfigure())return;let b;try{b=JSON.parse(localStorage.getItem('poi_v116_last_import_backup')||'null')}catch(_){b=null}if(!b?.data){alert('Nessun backup di importazione disponibile.');return}if(!confirm(`Ripristinare la situazione precedente all'ultimo import (${new Date(b.at).toLocaleString('it-IT')})?`))return;Object.assign(state,b.data);audit('Ripristino importazione',companyName(b.company||safeCompany()),'Ripristinato backup precedente');saveState('Backup ripristinato');localStorage.removeItem('poi_v116_last_import_backup');renderConfig();
+  }
+  function summaryText(c){const labels={clients:'clienti',products:'prodotti',machines:'macchine',molds:'stampi',imls:'IML',orders:'ordini',operators:'operatori',compliance:'scadenze'};return Object.entries(c||{}).filter(([k,n])=>n>0&&k!=='company').map(([k,n])=>`${n} ${labels[k]||k}`).join(' · ')||'dati azienda'}
+
+  function sheetRowsForExport(c){
+    ensureData();const p=profileData(c),filter=a=>(a||[]).filter(x=>belongs(x,c));const kv=[['Campo','Valore'],['Ragione sociale',p.ragioneSociale||companyName(c)],['Partita IVA',p.partitaIva||''],['Codice fiscale',p.codiceFiscale||''],['Codice SDI',p.codiceSdi||''],['Sede legale',p.sedeLegale||''],['Sede operativa',p.sedeOperativa||''],['PEC',p.pec||''],['Email',p.email||''],['Telefono',p.telefono||''],['Sito web',p.website||''],['Referente',p.referente||''],['Note',p.note||'']];
+    const clients=filter(state.clientDirectory||state.clients).map(x=>({'Codice cliente':x.code||'','Cliente':x.name||'','Partita IVA':x.vat||x.partitaIva||'','Codice fiscale':x.fiscalCode||'','Email':x.email||'','Telefono':x.phone||'','Indirizzo':x.address||'','Città':x.city||'','Provincia':x.province||'','CAP':x.cap||'','PEC':x.pec||'','Codice SDI':x.sdi||'','Attivo':x.active!==false?'SI':'NO'}));
+    const products=filter(state.productDirectory||state.products).map(x=>({'Codice prodotto':x.code||'','Prodotto':x.name||x.product||'','Famiglia':x.family||'','Formato':x.liters||'','Colore':x.color||'','UM':x.unit||'PZ','Note':x.notes||'','Attivo':x.active!==false?'SI':'NO'}));
+    const machines=filter(state.machines).map(x=>({'ID macchina':x.id||'','Macchina':x.name||'','Stato':x.status||'','Stampo installato':x.installedMold||x.moldId||'','Note':x.notes||''}));
+    const molds=filter(state.molds).map(x=>({'ID stampo':x.id||'','Stampo':x.name||'','ID macchina':x.machineId||'','Tipo':x.kind||'','Tempo ciclo sec':x.cycleSeconds||'','Pezzi ora':x.rate||'','Note':x.notes||''}));
+    const imls=filter(state.imls).map(x=>({'Codice IML':x.code||x.id||'','Codice prodotto':x.productCode||'','Codice cliente':x.clientCode||'','Descrizione':x.description||x.name||'','Giacenza fisica':x.physical??x.qty??'','Riservato':x.reserved??'','Scorta minima':x.minimum??x.minStock??'','Stato':x.status||'','Note':x.notes||''}));
+    const orders=filter(state.orders).map(x=>({'Codice ordine':x.code||'','Ordine padre':x.parent||'','Riferimento ordine':x.orderRef||'','Codice cliente':x.clientCode||'','Cliente':x.client||'','Codice prodotto':x.productCode||'','Prodotto':x.product||'','Quantità':x.qty||0,'Data consegna':x.dueDate||'','Priorità':x.priority||'','Codice IML':x.imlCode||'','Stato':x.status||'','Note':x.notes||'','Attivo':x.cancelled?'NO':'SI'}));
+    const operators=(state.operatorsByCompanyV116[c]||state.operators||[]).map(x=>({'Nome e cognome':typeof x==='string'?x:(x.name||x.display_name||'')})).filter(x=>x['Nome e cognome']);
+    const compliance=filter(state.complianceRecords).map(x=>({'ID':x.id||'','Tipo soggetto':x.subjectType||'','Persona elemento':x.subjectName||'','Categoria':x.category||'','Titolo':x.title||'','Data rilascio':x.issueDate||'','Data scadenza':x.expiryDate||'','Responsabile':x.responsible||'','Email alert':x.alertEmails||'','Riferimento documento':x.documentRef||'','Note':x.notes||'','Attivo':x.active!==false?'SI':'NO'}));
+    return{company:kv,clients,products,machines,molds,imls,orders,operators,compliance};
+  }
+  async function exportExcel(){
+    if(!canConfigure())return;try{await ensureXLSX();const c=safeCompany(),d=sheetRowsForExport(c),wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,window.XLSX.utils.aoa_to_sheet(d.company),'AZIENDA');for(const [name,key] of [['CLIENTI','clients'],['PRODOTTI','products'],['MACCHINE','machines'],['STAMPI','molds'],['IML','imls'],['ORDINI','orders'],['OPERATORI','operators'],['SCADENZE','compliance']])window.XLSX.utils.book_append_sheet(wb,window.XLSX.utils.json_to_sheet(d[key]),name);window.XLSX.writeFile(wb,`${companyName(c).replace(/\s/g,'_')}_dati_piattaforma_${new Date().toISOString().slice(0,10)}.xlsx`)}catch(e){alert('Esportazione Excel non riuscita: '+String(e?.message||e))}
+  }
+  function downloadTemplate(){const a=document.createElement('a');a.href='./IndustrialOS_Modello_Import_Dati_Azienda.xlsx';a.download='IndustrialOS_Modello_Import_Dati_Azienda.xlsx';document.body.appendChild(a);a.click();a.remove()}
+
+  const guideText={
+    dashboard:['Panoramica','La schermata iniziale riassume le attività che richiedono attenzione e permette di entrare rapidamente nei flussi operativi.'],
+    orders:['Ordini','Qui si inseriscono, verificano e seguono gli ordini cliente. I codici cliente e prodotto provengono dalle anagrafiche ufficiali.'],
+    planner:['Coda di produzione','Organizza la sequenza di produzione e consulta i suggerimenti del sistema. Le decisioni restano sempre all’utente responsabile.'],
+    production:['Produzione','Avvia, mette in pausa, aggiorna o chiude le lavorazioni e registra quantità prodotte e scarti.'],
+    warehouse:['Magazzino','Controlla disponibilità fisiche, lotti e movimenti collegati alla produzione e alle consegne.'],
+    inventory:['Giacenze','Consulta e aggiorna le giacenze operative necessarie alla produzione.'],
+    iml:['IML','Controlla disponibilità, fabbisogni e criticità delle etichette IML.'],
+    trace:['Tracciabilità','Ricostruisce il percorso di ordine, produzione, lotto, carico e consegna.'],
+    reports:['Analisi','Raccoglie indicatori e riepiloghi del periodo per supportare il controllo operativo.'],
+    compliance:['Scadenze & Compliance','Gestisce scadenze aziendali, verifiche, formazione e rinnovi senza inserire dati clinici sensibili.'],
+    admin:['Amministrazione','Gestisce attività amministrative e documentali collegate ai flussi operativi.'],
+    settings:['Impostazioni','Raccoglie le preferenze e le impostazioni della piattaforma.'],
+    companySettings:['Configurazione azienda','Aggiorna l’anagrafica dell’azienda, importa i dati esistenti e avvia la guida interattiva.']
+  };
+  function ensureGuideUI(){
+    if(!$('#v116GuideDialog'))document.body.insertAdjacentHTML('beforeend',`<dialog id="v116GuideDialog"><div class="v116-guide-shell"><div class="v116-guide-top"><div><span class="eyebrow">Guida piattaforma</span><h3 id="v116GuideTitle">Benvenuto</h3></div><button class="v116-guide-close" type="button" onclick="SPDeliveryV116.closeGuide()">×</button></div><div class="v116-guide-body" id="v116GuideBody"></div><div class="v116-guide-progress"><i id="v116GuideProgress" style="width:0%"></i></div><div class="v116-guide-actions"><button class="btn" type="button" id="v116GuidePrev" onclick="SPDeliveryV116.prevTour()">Indietro</button><div class="right"><button class="btn" type="button" onclick="SPDeliveryV116.closeGuide()">Chiudi</button><button class="btn primary" type="button" id="v116GuideNext" onclick="SPDeliveryV116.nextTour()">Avanti</button></div></div></div></dialog>`);
+    if(!$('#v116FirstHelp'))document.body.insertAdjacentHTML('beforeend',`<div class="v116-first" id="v116FirstHelp"><b>Vuoi una guida rapida?</b><p>Ti mostro i moduli disponibili per il tuo accesso, uno alla volta. Nessun dato viene modificato.</p><div class="actions"><button class="btn primary" type="button" onclick="SPDeliveryV116.startTour(true)">Avvia guida</button><button class="btn" type="button" onclick="SPDeliveryV116.dismissIntro()">Più tardi</button></div></div>`);
+  }
+  function navItems(){
+    let arr=[];try{if(typeof NAV!=='undefined'&&Array.isArray(NAV[role()]))arr=NAV[role()].filter(x=>x&&x[0]&&x[0]!==VIEW)}catch(_){ }
+    const seen=new Set();return arr.filter(x=>{if(seen.has(x[0]))return false;seen.add(x[0]);return true}).map(x=>({view:x[0],label:x[2]||guideText[x[0]]?.[0]||x[0],text:guideText[x[0]]?.[1]||(typeof META!=='undefined'&&META[x[0]]?.[1])||'Apri il modulo per vedere le funzioni disponibili.'}));
+  }
+  function startTour(fromIntro=false){ensureGuideUI();if(fromIntro)dismissIntro(true);tourItems=navItems();if(canConfigure()&&!tourItems.some(x=>x.view===VIEW))tourItems.push({view:VIEW,label:'Configurazione azienda',text:guideText.companySettings[1]});if(!tourItems.length){alert('La guida sarà disponibile dopo l’accesso a un reparto o a un’area ufficio.');return}tourIndex=0;renderTour();const d=$('#v116GuideDialog');if(!d.open)try{d.showModal()}catch(_){}}
+  function renderTour(){const item=tourItems[tourIndex];if(!item)return;$('#v116GuideTitle').textContent=`${tourIndex+1}. ${item.label}`;$('#v116GuideBody').innerHTML=`<div class="v116-guide-module"><span class="num">${tourIndex+1}</span><b>${esc(item.label)}</b></div><p>${esc(item.text)}</p><p style="margin-top:10px"><strong>Suggerimento:</strong> premi “Apri modulo” per vedere la schermata reale mentre la guida resta attiva.</p>`;$('#v116GuideProgress').style.width=`${Math.round((tourIndex+1)/tourItems.length*100)}%`;$('#v116GuidePrev').disabled=tourIndex===0;const next=$('#v116GuideNext');next.textContent=tourIndex===tourItems.length-1?'Termina guida':'Apri modulo e continua'}
+  function nextTour(){const item=tourItems[tourIndex];if(item?.view){try{if(item.view===VIEW){if(typeof navTo==='function')navTo(VIEW)}else if(typeof navTo==='function')navTo(item.view)}catch(_){}}if(tourIndex>=tourItems.length-1){finishTour();return}tourIndex++;setTimeout(renderTour,120)}
+  function prevTour(){if(tourIndex<=0)return;tourIndex--;renderTour()}
+  function closeGuide(){const d=$('#v116GuideDialog');if(d?.open)d.close()}
+  function guideKey(suffix){return `poi_v116_${suffix}_${role()||'guest'}_${currentCompany()||safeCompany()}`}
+  function finishTour(){localStorage.setItem(guideKey('tour_done'),'1');closeGuide();try{toast('Guida completata')}catch(_){}}
+  function resetGuide(){for(const k of Object.keys(localStorage)){if(k.startsWith('poi_v116_intro_seen_')||k.startsWith('poi_v116_tour_done_'))localStorage.removeItem(k)}alert('Guida primo accesso ripristinata. Al prossimo accesso verrà proposta di nuovo.')}
+  function dismissIntro(silent=false){localStorage.setItem(guideKey('intro_seen'),'1');$('#v116FirstHelp')?.classList.remove('show');if(!silent)try{toast('La guida resta disponibile dal pulsante “Guida”.')}catch(_){}}
+  function maybeIntro(){ensureGuideUI();if(!role())return;const k=guideKey('intro_seen');if(!localStorage.getItem(k)&&!$('#v116GuideDialog')?.open){$('#v116FirstHelp')?.classList.add('show')}}
+
+  function decorateHelp(){
+    let b=$('#v116HelpBtn');if(!b){b=document.createElement('button');b.id='v116HelpBtn';b.className='v116-help';b.type='button';b.innerHTML='<span class="v116-help-dot">?</span> Guida';b.onclick=()=>startTour(false);const top=$('.topbar');if(top){const profile=$('.profile',top);(profile||top.lastElementChild)?.insertAdjacentElement('beforebegin',b)}else{b.style.position='fixed';b.style.right='14px';b.style.bottom='14px';b.style.zIndex='9000';document.body.appendChild(b)}}b.classList.toggle('show',!!role());
+  }
+  function decorateNomyraAdmin(){
+    const root=$('#poi113Nomyra');if(!root||!root.classList.contains('open')||$('#v116NomyraConfig',root))return;const target=$('#poi113AdminTabs',root)||root.querySelector('.poi113-admin-grid');if(!target)return;const el=document.createElement('div');el.id='v116NomyraConfig';el.className='v116-admin-shortcut';el.innerHTML='<div><b>Configurazione dati azienda</b><span>Import Excel, anagrafica e avvio guidato.</span></div><button type="button" class="btn small">Apri</button>';el.querySelector('button').onclick=()=>{root.classList.remove('open');try{if(typeof setRole==='function')setRole('admin');if(typeof navTo==='function')navTo(VIEW)}catch(_){alert('Apri l’area Amministrazione e seleziona “Configurazione azienda”.')}};target.insertAdjacentElement('afterend',el);
+  }
+
+  function patchRender(){
+    try{const old=window.renderCurrent||renderCurrent;if(typeof old==='function'&&!old.__v116){const w=function(){if(typeof currentView!=='undefined'&&currentView===VIEW){renderConfig();decorateHelp();return}const out=old.apply(this,arguments);setTimeout(decorateHelp,0);return out};w.__v116=true;window.renderCurrent=w;renderCurrent=w}}catch(e){console.warn('[V11.6] render patch',e)}
+    try{const oldNav=window.renderNav||renderNav;if(typeof oldNav==='function'&&!oldNav.__v116){const w=function(){const out=oldNav.apply(this,arguments);setTimeout(decorateHelp,0);return out};w.__v116=true;window.renderNav=w;renderNav=w}}catch(e){console.warn('[V11.6] nav patch',e)}
+  }
+  function version(){document.body.dataset.deliveryBuild='PIATTAFORMA-GRUPPO-V11.6';$$('.version-badge').forEach(x=>x.textContent=VERSION)}
+  function boot(){ensureData();injectStyles();ensureView();ensureGuideUI();addNav();patchRender();version();try{if(typeof renderNav==='function')renderNav()}catch(_){}decorateHelp();setTimeout(()=>{addNav();decorateHelp();decorateNomyraAdmin();maybeIntro();version()},900);setInterval(()=>{decorateHelp();decorateNomyraAdmin();if(role())maybeIntro()},1800)}
+
+  window.SPDeliveryV116={render:renderConfig,setCompany,saveCompany,previewExcel,applyImport,restoreImport,exportExcel,downloadTemplate,startTour,nextTour,prevTour,closeGuide,resetGuide,dismissIntro};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();

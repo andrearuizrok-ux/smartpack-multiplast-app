@@ -1,5 +1,5 @@
-const CACHE='spmp-v115-static-17';
-const STATIC=['./','./index.html','./smartpack-v11.js','./access-v11.5.js','./planner-v11.5.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='spmp-v116-static-18';
+const STATIC=['./','./index.html','./smartpack-v11.js','./access-v11.5.js','./planner-v11.5.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./IndustrialOS_Modello_Import_Dati_Azienda.xlsx'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)).catch(()=>{}));
