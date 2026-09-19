@@ -1,13 +1,12 @@
-V11.5 - DASHBOARD DINAMICA E LEGGIBILE
+V11.5 - FONT PIÙ LEGGIBILI ORDINI DA E-MAIL
 
-- Tutti i KPI principali sono cliccabili.
-- Ordini aperti -> Registro ordini filtrato su Aperti.
-- Da preparare -> Monitor produzione.
-- Ordini da e-mail da inserire -> bozze Gmail da verificare/approvare.
-- IML critici -> Giacenze IML filtrate su Critico/Esaurito.
-- Ordini IML aperti -> ordini IML non chiusi.
-- Nuova area "Attenzione oggi".
-- Azioni rapide più operative.
-- Font, numeri, descrizioni e pulsanti più grandi e leggibili.
-- Layout responsive.
-- Cache service worker static-9.
+- Aumentati font e spaziatura della sezione Acquisisci ordini da e-mail.
+- Stato bozza più grande.
+- Cliente/codice cliente più leggibili.
+- Prodotto/codice prodotto più leggibili.
+- Testo estratto dalla mail più leggibile.
+- Quantità, oggetto mail e consegna più leggibili.
+- Pulsanti Controlla / Approva / Scarta più grandi.
+- Migliorata anche la finestra Verifica ordine e-mail.
+- Layout mobile ottimizzato.
+- Cache aggiornata a static-10.

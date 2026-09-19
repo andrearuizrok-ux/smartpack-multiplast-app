@@ -962,6 +962,47 @@
 @media(max-width:1280px){.v115-dash-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.v115-dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.v115-dash-secondary{grid-template-columns:1fr}.v115-dashboard-hero h2{font-size:25px!important}}
 @media(max-width:560px){.v115-dash-grid{grid-template-columns:1fr}.v115-dash-card{min-height:145px}.v115-dash-value{font-size:34px}.v115-dashboard-hero p{font-size:12px!important}}
+
+/* V11.5 · leggibilità inbox Gmail / ordini da e-mail */
+#v115OrdersEmailPanel{font-size:13px!important}
+#v115OrdersEmailPanel .v115-orders-email-head h3{font-size:19px!important;line-height:1.2!important}
+#v115OrdersEmailPanel .v115-orders-email-head p{font-size:12px!important;line-height:1.5!important;max-width:900px!important}
+#v115OrdersEmailPanel .v115-orders-email-count{font-size:11px!important;padding:7px 11px!important}
+#v115OrdersEmailPanel .v115-gmail-state b{font-size:12px!important}
+#v115OrdersEmailPanel .v115-gmail-state span{font-size:10.5px!important;line-height:1.45!important}
+#v115OrdersEmailPanel .btn{font-size:12px!important;min-height:42px!important;padding:10px 14px!important}
+
+.v115-email-draft{padding:16px 0!important;min-height:104px!important;align-items:center!important}
+.v115-email-draft>div:first-child{min-width:0!important}
+.v115-email-draft>div:first-child>span{font-size:10.5px!important;font-weight:900!important;letter-spacing:.01em!important}
+.v115-email-draft b.v115-master-row{font-size:14px!important;line-height:1.35!important;margin-top:6px!important}
+.v115-email-draft .v115-inline-client{font-size:14px!important;line-height:1.35!important}
+.v115-email-draft .v115-product-master{font-size:14px!important;line-height:1.35!important}
+.v115-email-draft .v115-master-code{font-size:9.5px!important;padding:4px 7px!important}
+.v115-email-draft .v115-unmatched{font-size:10.5px!important;padding:6px 9px!important}
+.v115-email-draft .v115-mail-suggestion{font-size:10.5px!important;line-height:1.45!important;margin-top:7px!important;color:#647985!important}
+.v115-email-draft p{font-size:11.5px!important;line-height:1.45!important;margin-top:5px!important;color:#4f6570!important}
+.v115-email-draft>div:last-child{display:flex!important;gap:8px!important;align-items:center!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+.v115-email-draft .btn.small{font-size:12px!important;min-height:42px!important;padding:9px 14px!important;border-radius:12px!important}
+.v115-email-draft .v115-waiting-ok{font-size:10px!important;padding:6px 9px!important}
+.v115-master-sep{font-size:14px!important}
+.v115-orders-email-list{margin-top:10px!important}
+
+/* Dialog verifica ordine email */
+#v115EmailDraftDialog .modal-head h3{font-size:24px!important}
+#v115EmailDraftDialog .modal-head p{font-size:13px!important}
+#v115EmailDraftDialog .field{font-size:12px!important}
+#v115EmailDraftDialog .field input,
+#v115EmailDraftDialog .field select{font-size:14px!important;min-height:48px!important}
+#v115EmailDraftDialog #v115EmailDraftSource{font-size:11.5px!important;line-height:1.55!important}
+#v115EmailDraftDialog .modal-actions .btn{font-size:13px!important;min-height:44px!important;padding:10px 16px!important}
+
+@media(max-width:900px){
+  .v115-email-draft{display:grid!important;grid-template-columns:1fr!important;gap:12px!important}
+  .v115-email-draft>div:last-child{justify-content:flex-start!important}
+  .v115-email-draft b.v115-master-row{font-size:13px!important}
+  #v115OrdersEmailPanel .v115-orders-email-head h3{font-size:18px!important}
+}
 @media(max-width:1050px){.v115-kpis{grid-template-columns:repeat(3,1fr)}.v115-machines{grid-template-columns:1fr}}
     @media(max-width:760px){.v115-hero{display:block}.v115-hero-actions{margin-top:12px;justify-content:flex-start}.v115-hero-actions .btn{flex:1}.v115-kpis{grid-template-columns:1fr 1fr}.v115-metrics{grid-template-columns:1fr 1fr}.v115-section-head{display:block}.v115-section-head>div:last-child{margin-top:10px;display:grid;grid-template-columns:1fr 1fr}.v115-email-draft{display:block}.v115-email-draft>div:last-child{margin-top:8px}.v115-run{grid-template-columns:18px 1fr}.v115-run-top{display:block}.v115-badges{justify-content:flex-start;margin-top:5px}.v115-status{display:block}.v115-status span{display:block;margin-top:3px}}
   `;document.head.appendChild(s)}
