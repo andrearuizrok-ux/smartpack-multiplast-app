@@ -1413,3 +1413,398 @@
   window.SPDeliveryV116={render:renderConfig,setCompany,saveCompany,previewExcel,applyImport,restoreImport,exportExcel,downloadTemplate,startTour,nextTour,prevTour,closeGuide,resetGuide,dismissIntro};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+
+
+
+/* ===== Smart Pack · Multiplast — V11.6.2 TRACCIABILITÀ ORIGINE ORDINE =====
+   - Origine ordine: Chiamata / E-mail / Altro
+   - Per ordini Gmail conserva riferimenti al messaggio originale
+   - Link "Apri e-mail originale" quando esiste un riferimento Gmail utilizzabile
+   - Storico origine nella scheda di tracciabilità
+*/
+(()=>{
+  'use strict';
+  if(window.SPOrderSourceV1162)return;
+
+  const VERSION='V11.6.2';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const nowIso=()=>new Date().toISOString();
+  let pendingEmailSource=null;
+  let openWrapped=false;
+
+  function actor(){
+    try{
+      const e=JSON.parse(sessionStorage.getItem('poi_v113_employee')||'null');
+      if(e?.display_name)return e.display_name;
+      if(e?.username)return e.username;
+    }catch(_){}
+    try{
+      const p=window.POICloudV10?.getProfile?.();
+      if(p?.display_name)return p.display_name;
+      if(p?.name)return p.name;
+      if(p?.email)return p.email;
+    }catch(_){}
+    try{
+      const r=typeof currentRole!=='undefined'?currentRole:'';
+      return ({director:'Gestione Smart Pack',manager:'Responsabile Produzione Multiplast',admin:'Amministrazione',worker:'Produzione Smart Pack',mpworker:'Produzione Multiplast'}[r]||r||'Utente piattaforma');
+    }catch(_){return 'Utente piattaforma'}
+  }
+
+  function sourceLabel(v){
+    return ({call:'Chiamata',email:'E-mail',other:'Altro'}[String(v||'').toLowerCase()]||String(v||'Non registrata'));
+  }
+
+  function normalizeRfc(v=''){
+    v=String(v||'').trim();
+    if(!v)return '';
+    return v.startsWith('<')?v:`<${v}>`;
+  }
+
+  function gmailUrl(meta={}){
+    const rfc=normalizeRfc(meta.rfcMessageId||meta.rfc822MessageId||meta.internetMessageId||'');
+    if(rfc){
+      const q=`rfc822msgid:${rfc}`;
+      return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(q)}`;
+    }
+    const thread=String(meta.gmailThreadId||meta.threadId||'').trim();
+    if(thread)return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(thread)}`;
+    const mid=String(meta.gmailMessageId||meta.messageId||'').trim();
+    if(mid)return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(mid)}`;
+
+    const parts=[];
+    if(meta.from)parts.push(`from:${meta.from}`);
+    if(meta.subject)parts.push(`subject:"${String(meta.subject).replace(/"/g,'')}"`);
+    if(parts.length)return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(parts.join(' '))}`;
+    return '';
+  }
+
+  function draftMeta(d){
+    if(!d)return null;
+    const meta={
+      sourceType:'email',
+      sourceLabel:'E-mail',
+      draftId:d.id||'',
+      receivedAt:d.receivedAt||d.internalDate||d.date||'',
+      verifiedAt:d.verifiedAt||'',
+      from:d.from||d.sender||'',
+      subject:d.subject||'',
+      gmailMessageId:d.gmailMessageId||d.messageId||'',
+      gmailThreadId:d.gmailThreadId||d.threadId||'',
+      rfcMessageId:d.rfcMessageId||d.rfc822MessageId||d.internetMessageId||'',
+      gmailAccount:d.gmailAccount||d.google_email||'',
+      sourceText:d.sourceText||'',
+      preparedAt:nowIso()
+    };
+    meta.gmailUrl=gmailUrl(meta);
+    return meta;
+  }
+
+  function ensureSourceDialog(){
+    if($('#v1162OrderSourceDialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="v1162OrderSourceDialog" class="v1162-source-dialog">
+        <div class="modal-head">
+          <div><span class="eyebrow">Tracciabilità ordine</span><h3 id="v1162SourceTitle">Origine ordine</h3><p id="v1162SourceSub"></p></div>
+          <button type="button" class="close" onclick="document.getElementById('v1162OrderSourceDialog').close()">×</button>
+        </div>
+        <div class="modal-body"><div id="v1162SourceBody"></div></div>
+        <div class="modal-actions">
+          <a id="v1162OpenEmail" class="btn primary" target="_blank" rel="noopener" style="display:none">Apri e-mail originale ↗</a>
+          <button type="button" class="btn" onclick="document.getElementById('v1162OrderSourceDialog').close()">Chiudi</button>
+        </div>
+      </dialog>`);
+  }
+
+  function injectStyles(){
+    if($('#v1162SourceStyles'))return;
+    const st=document.createElement('style');
+    st.id='v1162SourceStyles';
+    st.textContent=`
+      .v1162-order-source-field{grid-column:1/-1}
+      .v1162-source-preview{margin-top:8px;padding:10px 12px;border:1px solid #d9e6eb;border-radius:11px;background:#f7fafb;color:#536a75;font-size:9px;line-height:1.5}
+      .v1162-source-preview b{color:#17394a}
+      .v1162-source-preview a{color:#176b8c;font-weight:900;text-decoration:none}
+      .v1162-source-preview a:hover{text-decoration:underline}
+      .v1162-source-strip{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 0;padding:9px 11px;border-radius:11px;background:#f6f9fa;border:1px solid #dfe8eb;font-size:8px;color:#59707b}
+      .v1162-source-strip b{color:#17394a}
+      .v1162-source-strip .mail{color:#176b8c;font-weight:900;text-decoration:none}
+      .v1162-source-chip{display:inline-flex;align-items:center;padding:4px 7px;border-radius:999px;background:#eaf4f7;color:#17617e;font-size:7px;font-weight:950}
+      .v1162-source-dialog{width:min(660px,94vw)}
+      .v1162-source-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      .v1162-source-box{padding:11px 12px;border:1px solid #dce7ea;border-radius:12px;background:#fff}
+      .v1162-source-box.full{grid-column:1/-1}
+      .v1162-source-box span{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:#748a94;font-weight:900}
+      .v1162-source-box b{display:block;margin-top:4px;font-size:10px;color:#17394a;overflow-wrap:anywhere}
+      .v1162-timeline{margin-top:14px;border-top:1px solid #e3eaed;padding-top:10px}
+      .v1162-event{display:grid;grid-template-columns:135px 1fr;gap:10px;padding:7px 0;font-size:8px}
+      .v1162-event time{color:#6d818a}
+      .v1162-event b{color:#17394a}
+      @media(max-width:720px){.v1162-source-grid{grid-template-columns:1fr}.v1162-source-box.full{grid-column:auto}.v1162-event{grid-template-columns:1fr;gap:2px}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function sourceForParent(parent){
+    const rows=(window.state?.orders||[]).filter(o=>String(o.parent)===String(parent));
+    return rows.find(o=>o.orderSourceV1162)?.orderSourceV1162
+      || rows.find(o=>o.sourceTypeV1162)?.sourceTypeV1162 && rows.find(o=>o.sourceTypeV1162)
+      || null;
+  }
+
+  function prettyDate(v){
+    if(!v)return '—';
+    try{return new Intl.DateTimeFormat('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(v))}
+    catch(_){return String(v)}
+  }
+
+  function openSource(parent){
+    ensureSourceDialog();
+    const rows=(window.state?.orders||[]).filter(o=>String(o.parent)===String(parent));
+    const row=rows.find(o=>o.orderSourceV1162)||rows[0];
+    const s=row?.orderSourceV1162||null;
+    $('#v1162SourceTitle').textContent=`Origine · ${parent}`;
+    if(!s){
+      $('#v1162SourceSub').textContent='Per questo ordine storico non è stata registrata l’origine.';
+      $('#v1162SourceBody').innerHTML='<div class="v1162-source-box"><b>Origine non disponibile</b></div>';
+      $('#v1162OpenEmail').style.display='none';
+      $('#v1162OrderSourceDialog').showModal();return;
+    }
+    $('#v1162SourceSub').textContent=`${sourceLabel(s.type)} · registrato ${prettyDate(s.recordedAt)}`;
+    const email=s.email||{};
+    const history=Array.isArray(s.history)?s.history:[];
+    $('#v1162SourceBody').innerHTML=`
+      <div class="v1162-source-grid">
+        <div class="v1162-source-box"><span>Origine</span><b>${esc(sourceLabel(s.type))}</b></div>
+        <div class="v1162-source-box"><span>Registrato da</span><b>${esc(s.recordedBy||'—')}</b></div>
+        <div class="v1162-source-box"><span>Data registrazione</span><b>${esc(prettyDate(s.recordedAt))}</b></div>
+        ${s.type==='email'?`<div class="v1162-source-box"><span>E-mail ricevuta</span><b>${esc(prettyDate(email.receivedAt))}</b></div>
+        <div class="v1162-source-box"><span>Mittente</span><b>${esc(email.from||'—')}</b></div>
+        <div class="v1162-source-box"><span>Verifica bozza</span><b>${esc(prettyDate(email.verifiedAt))}</b></div>
+        <div class="v1162-source-box full"><span>Oggetto</span><b>${esc(email.subject||'—')}</b></div>
+        <div class="v1162-source-box full"><span>Riferimento Gmail</span><b>${esc(email.rfcMessageId||email.gmailThreadId||email.gmailMessageId||'Non disponibile')}</b></div>`:''}
+      </div>
+      ${history.length?`<div class="v1162-timeline">${history.map(h=>`<div class="v1162-event"><time>${esc(prettyDate(h.at))}</time><div><b>${esc(h.action||'Evento')}</b>${h.detail?`<div>${esc(h.detail)}</div>`:''}</div></div>`).join('')}</div>`:''}`;
+    const btn=$('#v1162OpenEmail');
+    const url=s.type==='email'?(email.gmailUrl||gmailUrl(email)):'';
+    if(url){btn.href=url;btn.style.display='inline-flex'}else{btn.style.display='none';btn.removeAttribute('href')}
+    $('#v1162OrderSourceDialog').showModal();
+  }
+
+  function pending(){
+    if(pendingEmailSource)return pendingEmailSource;
+    try{return JSON.parse(sessionStorage.getItem('poi_v1162_pending_order_source')||'null')}catch(_){return null}
+  }
+  function setPending(v){
+    pendingEmailSource=v||null;
+    if(v)sessionStorage.setItem('poi_v1162_pending_order_source',JSON.stringify(v));
+    else sessionStorage.removeItem('poi_v1162_pending_order_source');
+  }
+
+  function patchOrderForm(){
+    const f=$('#orderForm');if(!f)return;
+    if(!f.querySelector('[name="orderSourceTypeV1162"]')){
+      const label=document.createElement('label');
+      label.className='field v1162-order-source-field';
+      label.innerHTML=`Origine ordine
+        <select name="orderSourceTypeV1162" required>
+          <option value="call">Chiamata</option>
+          <option value="email">E-mail</option>
+          <option value="other">Altro</option>
+        </select>
+        <div class="v1162-source-preview" id="v1162OrderSourcePreview">Indica come è stato ricevuto l’ordine.</div>`;
+      const notes=f.elements.notes;
+      const notesLabel=notes?.closest?.('label');
+      (notesLabel?.parentElement||f.querySelector('.form-grid')||f).insertBefore(label,notesLabel||null);
+    }
+
+    const sel=f.elements.orderSourceTypeV1162;
+    const p=pending();
+    if(p?.sourceType==='email'){
+      sel.value='email';
+      const pr=$('#v1162OrderSourcePreview',f);
+      const url=p.gmailUrl||gmailUrl(p);
+      if(pr)pr.innerHTML=`<b>E-mail sincronizzata</b>${p.from?` · ${esc(p.from)}`:''}${p.subject?`<br>${esc(p.subject)}`:''}${url?` · <a href="${esc(url)}" target="_blank" rel="noopener">Apri originale ↗</a>`:''}`;
+    }else{
+      const pr=$('#v1162OrderSourcePreview',f);
+      if(pr&&!pr.dataset.boundText)pr.textContent='Indica se l’ordine è arrivato per chiamata, e-mail o altro canale.';
+    }
+
+    if(!sel.dataset.v1162Bound){
+      sel.dataset.v1162Bound='1';
+      sel.addEventListener('change',()=>{
+        const pr=$('#v1162OrderSourcePreview',f);
+        if(sel.value==='email'){
+          const pm=pending();
+          if(pm){
+            const url=pm.gmailUrl||gmailUrl(pm);
+            pr.innerHTML=`<b>E-mail sincronizzata</b>${pm.from?` · ${esc(pm.from)}`:''}${pm.subject?`<br>${esc(pm.subject)}`:''}${url?` · <a href="${esc(url)}" target="_blank" rel="noopener">Apri originale ↗</a>`:''}`;
+          }else pr.textContent='Ordine ricevuto via e-mail. Nessun collegamento Gmail automatico disponibile per questo inserimento manuale.';
+        }else if(sel.value==='call')pr.textContent='Ordine ricevuto tramite chiamata. Verranno registrati data/ora e utente che crea l’ordine.';
+        else pr.textContent='Ordine ricevuto tramite un altro canale. Verranno registrati data/ora e utente.';
+      });
+    }
+
+    if(!f.dataset.v1162Submit){
+      f.dataset.v1162Submit='1';
+      f.addEventListener('submit',function(){
+        const beforeRefs=new Set(window.state?.orders||[]);
+        const beforeKeys=new Set((window.state?.orders||[]).map(o=>`${o.id||''}|${o.code||''}|${o.parent||''}`));
+        const selected=String(this.elements.orderSourceTypeV1162?.value||'call');
+        const mail=pending();
+        const createdAt=nowIso();
+        const who=actor();
+
+        setTimeout(()=>{
+          const all=window.state?.orders||[];
+          let created=all.filter(o=>!beforeRefs.has(o));
+          if(!created.length){
+            created=all.filter(o=>!beforeKeys.has(`${o.id||''}|${o.code||''}|${o.parent||''}`));
+          }
+          if(!created.length)return;
+
+          const typ=selected==='email'?'email':selected==='other'?'other':'call';
+          const e=typ==='email'&&mail?{
+            receivedAt:mail.receivedAt||'',
+            verifiedAt:mail.verifiedAt||'',
+            from:mail.from||'',
+            subject:mail.subject||'',
+            gmailMessageId:mail.gmailMessageId||'',
+            gmailThreadId:mail.gmailThreadId||'',
+            rfcMessageId:mail.rfcMessageId||'',
+            gmailAccount:mail.gmailAccount||'',
+            gmailUrl:mail.gmailUrl||gmailUrl(mail)
+          }:null;
+          const hist=[];
+          if(e?.receivedAt)hist.push({at:e.receivedAt,action:'E-mail ordine ricevuta',detail:e.from||e.subject||''});
+          if(e?.verifiedAt)hist.push({at:e.verifiedAt,action:'Bozza e-mail verificata',detail:e.subject||''});
+          hist.push({at:createdAt,action:'Ordine registrato in piattaforma',detail:`Origine: ${sourceLabel(typ)} · ${who}`});
+          const source={type:typ,label:sourceLabel(typ),recordedAt:createdAt,recordedBy:who,email:e,history:hist};
+
+          for(const o of created){
+            o.orderSourceV1162=source;
+            o.sourceTypeV1162=typ;
+            o.sourceRecordedAtV1162=createdAt;
+            o.sourceRecordedByV1162=who;
+            if(e){
+              o.sourceEmailFromV1162=e.from;
+              o.sourceEmailSubjectV1162=e.subject;
+              o.sourceEmailReceivedAtV1162=e.receivedAt;
+              o.sourceGmailMessageIdV1162=e.gmailMessageId;
+              o.sourceGmailThreadIdV1162=e.gmailThreadId;
+              o.sourceRfcMessageIdV1162=e.rfcMessageId;
+              o.sourceEmailUrlV1162=e.gmailUrl;
+            }
+          }
+          if(mail?.draftId){
+            const d=(window.state?.emailOrderDraftsV115||[]).find(x=>String(x.id)===String(mail.draftId));
+            if(d){
+              d.linkedOrderParentV1162=created[0]?.parent||'';
+              d.linkedOrderCodeV1162=created[0]?.code||'';
+            }
+          }
+          try{if(typeof save==='function')save()}catch(_){}
+          try{if(typeof toast==='function')toast(`Origine ordine registrata · ${sourceLabel(typ)}`)}catch(_){}
+          setPending(null);
+          setTimeout(decorate,50);
+        },120);
+      },true);
+    }
+  }
+
+  function patchOpenNewOrder(){
+    if(openWrapped)return;
+    const old=window.openNewOrder;
+    if(typeof old!=='function')return;
+    const wrapped=function(){
+      const p=pending();
+      if(!(p&&p.sourceType==='email'&&Date.now()-new Date(p.preparedAt||0).getTime()<120000))setPending(null);
+      const r=old.apply(this,arguments);
+      setTimeout(patchOrderForm,20);
+      return r;
+    };
+    wrapped.__v1162=true;
+    window.openNewOrder=wrapped;
+    try{openNewOrder=wrapped}catch(_){}
+    openWrapped=true;
+  }
+
+  function patchEmailConversion(){
+    const api=window.SPPlannerV115;
+    if(!api||api.__v1162EmailPatched||typeof api.toOrder!=='function')return;
+    const old=api.toOrder;
+    api.toOrder=function(id){
+      const d=(window.state?.emailOrderDraftsV115||[]).find(x=>String(x.id)===String(id));
+      if(d)setPending(draftMeta(d));
+      const r=old.apply(this,arguments);
+      setTimeout(()=>{
+        patchOrderForm();
+        const f=$('#orderForm');
+        if(f?.elements?.orderSourceTypeV1162){
+          f.elements.orderSourceTypeV1162.value='email';
+          f.elements.orderSourceTypeV1162.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+      },130);
+      return r;
+    };
+    api.__v1162EmailPatched=true;
+  }
+
+  function decorateEmailDrafts(){
+    $$('.v115-email-draft').forEach(card=>{
+      if(card.dataset.v1162Trace==='1')return;
+      const b=[...card.querySelectorAll('button')].find(x=>String(x.getAttribute('onclick')||'').includes('editEmail('));
+      const m=String(b?.getAttribute('onclick')||'').match(/editEmail\('([^']+)'\)/);
+      if(!m)return;
+      const d=(window.state?.emailOrderDraftsV115||[]).find(x=>String(x.id)===m[1]);
+      if(!d)return;
+      const url=gmailUrl(d);
+      if(!url)return;
+      card.dataset.v1162Trace='1';
+      const actions=card.lastElementChild;
+      if(actions){
+        const a=document.createElement('a');
+        a.className='btn small';
+        a.target='_blank';a.rel='noopener';a.href=url;a.textContent='Apri e-mail ↗';
+        actions.insertBefore(a,actions.firstChild);
+      }
+    });
+  }
+
+  function decorateOrders(){
+    $$('#ordersCardsV106 .v106-admin-card').forEach(card=>{
+      const over=card.querySelector('.v106-overline');
+      const m=String(over?.textContent||'').match(/ORDINE\s+(.+)/i);
+      if(!m)return;
+      const parent=m[1].trim();
+      const rows=(window.state?.orders||[]).filter(o=>String(o.parent)===parent);
+      const s=rows.find(o=>o.orderSourceV1162)?.orderSourceV1162;
+      const old=card.querySelector('.v1162-source-strip');
+      if(old)old.remove();
+      if(!s)return;
+      const url=s.type==='email'?(s.email?.gmailUrl||gmailUrl(s.email||{})):'';
+      const div=document.createElement('div');
+      div.className='v1162-source-strip';
+      div.innerHTML=`<span class="v1162-source-chip">${esc(sourceLabel(s.type))}</span><b>Origine ordine</b><span>${esc(prettyDate(s.type==='email'?(s.email?.receivedAt||s.recordedAt):s.recordedAt))}</span>${url?`<a class="mail" href="${esc(url)}" target="_blank" rel="noopener">Apri e-mail ↗</a>`:''}<button class="btn small" type="button" onclick="SPOrderSourceV1162.open('${esc(parent)}')">Dettagli origine</button>`;
+      const actions=card.querySelector('.v106-actions');
+      if(actions)card.insertBefore(div,actions);else card.appendChild(div);
+    });
+  }
+
+  function decorate(){
+    injectStyles();ensureSourceDialog();patchOpenNewOrder();patchEmailConversion();patchOrderForm();decorateEmailDrafts();decorateOrders();
+    document.body.dataset.traceability='V11.6.2';
+  }
+
+  function boot(){
+    decorate();
+    setTimeout(decorate,350);
+    setTimeout(decorate,1100);
+    setInterval(decorate,1600);
+  }
+
+  window.SPOrderSourceV1162={open:openSource,gmailUrl,refresh:decorate,version:VERSION};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+

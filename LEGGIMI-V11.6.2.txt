@@ -1,0 +1,35 @@
+SMART PACK · MULTIPLAST — V11.6.2
+TRACCIABILITÀ ORIGINE ORDINE
+
+AGGIUNTO
+- Nel modulo Nuovo ordine: campo obbligatorio "Origine ordine"
+  * Chiamata
+  * E-mail
+  * Altro
+- Per gli ordini Gmail sincronizzati:
+  * origine impostata automaticamente su E-mail
+  * mittente
+  * oggetto
+  * data/ora ricezione
+  * data/ora verifica bozza
+  * Gmail Message ID / Thread ID / RFC Message-ID quando disponibili
+  * collegamento "Apri e-mail originale"
+- Nel registro Ordini compare la provenienza dell'ordine.
+- Pulsante "Dettagli origine" con storico della traccia.
+- Per ordini telefonici vengono registrati automaticamente data/ora e utente che crea l'ordine.
+- Gli ordini storici già presenti senza questi dati restano invariati e mostrano origine non registrata.
+- Il riferimento Gmail usa, in ordine di preferenza:
+  1. RFC Message-ID con ricerca Gmail
+  2. Gmail Thread ID
+  3. Gmail Message ID
+  4. ricerca Gmail per mittente/oggetto come fallback
+
+NOTA
+Il pulsante apre Gmail nel browser. L'utente deve essere autenticato nella casella Gmail autorizzata per visualizzare il messaggio.
+
+FILE DA CARICARE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+static-20
