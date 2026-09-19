@@ -1,8 +1,9 @@
 -- Piattaforma Operativa Integrata · schema cloud base storico
--- La V11.2 è già installata nel progetto Supabase di produzione e aggiunge
--- account preautorizzati, aziende, dipendenti USER+PIN e audit accessi.
+-- La V11.3 è già installata nel progetto Supabase di produzione e aggiunge
+-- accessi separati, PIN di 6 cifre, cambio obbligatorio e recuperi cliente.
 -- Questo file resta come riferimento della struttura dati operativa iniziale;
--- non usarlo per sovrascrivere il database di produzione V11.2.
+-- non usarlo per sovrascrivere il database di produzione V11.3.
+-- La migrazione applicata è documentata in docs/migrations/v11_3_accessi_separati.sql.
 
 create table if not exists public.poi_user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,

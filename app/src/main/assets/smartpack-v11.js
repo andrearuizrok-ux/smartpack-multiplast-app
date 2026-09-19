@@ -78,7 +78,7 @@
 /* ===== Smart Pack · Multiplast — V11.2 ACCOUNT AZIENDA + USER/PIN ===== */
 (()=>{
   'use strict';
-  const BUILD='V11.2', MARKER='PIATTAFORMA-GRUPPO-V11.2', GROUP='smartpack-multiplast';
+  const BUILD='V11.3', MARKER='PIATTAFORMA-GRUPPO-V11.3', GROUP='smartpack-multiplast';
   let selectedCompany=sessionStorage.getItem('poi_v112_company')||'', employee=null, manageCompany='smartpack';
   try{employee=JSON.parse(sessionStorage.getItem('poi_v112_employee')||'null')}catch(_){employee=null}
   const $=(s,r=document)=>r.querySelector(s);
@@ -204,6 +204,7 @@
   async function toggleEmployee(id,active){if(!confirm(active?'Riattivare questo utente?':'Sospendere subito questo utente?'))return;const {error}=await client().rpc('poi_employee_update',{p_employee_id:id,p_active:active,p_group:GROUP});if(error)alert('Aggiornamento non riuscito.');else loadEmployees()}
 
   function boot(){
+    if(window.POIV113)return;
     document.body.dataset.build=MARKER;document.title=document.title.replace(/V11\.\d+/,BUILD);injectStyles();
     [250,700,1500,3000].forEach(ms=>setTimeout(()=>{ensureUI();decorateAuth();decorateCloudMenu();bindPasswordRecovery()},ms));
   }
@@ -912,8 +913,8 @@
 */
 (function(){
   'use strict';
-  const BUILD='V10.8';
-  const MARKER='PIATTAFORMA-GRUPPO-V10.8';
+  const BUILD='V11.3';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.3';
   let repairedOnce=false;
 
   function arr(v){return Array.isArray(v)?v:[];}
@@ -1008,7 +1009,7 @@
 */
 (function(){
   'use strict';
-  const BUILD='V10.9', MARKER='PIATTAFORMA-GRUPPO-V10.9';
+  const BUILD='V11.3', MARKER='PIATTAFORMA-GRUPPO-V11.3';
   function mark(){
     try{document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+BUILD;document.body.dataset.build=MARKER;}catch(_){ }
     document.querySelectorAll('.version-badge').forEach(x=>x.textContent=BUILD);
@@ -1038,7 +1039,7 @@
 */
 (function(){
   'use strict';
-  const BUILD='V10.10', MARKER='PIATTAFORMA-GRUPPO-V10.10';
+  const BUILD='V11.3', MARKER='PIATTAFORMA-GRUPPO-V11.3';
   function mark(){
     try{document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+BUILD;document.body.dataset.build=MARKER;}catch(_){}
     document.querySelectorAll('.version-badge').forEach(x=>x.textContent=BUILD);
@@ -1067,8 +1068,8 @@
 /* ===== Smart Pack · Multiplast — V11.0 FINAL CLEAN ===== */
 (function(){
   'use strict';
-  const BUILD='V11.0';
-  const MARKER='PIATTAFORMA-GRUPPO-V11.0';
+  const BUILD='V11.3';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.3';
 
   function markBuild(){
     try{
@@ -1115,11 +1116,11 @@
 })();
 
 
-/* ===== Smart Pack · Multiplast — V11.2 COMPLIANCE + UI CONSOLIDATION ===== */
+/* ===== Smart Pack · Multiplast — V11.3 COMPLIANCE + UI CONSOLIDATION ===== */
 (function(){
   'use strict';
-  const BUILD='V11.2';
-  const MARKER='PIATTAFORMA-GRUPPO-V11.2';
+  const BUILD='V11.3';
+  const MARKER='PIATTAFORMA-GRUPPO-V11.3';
   const $1=id=>document.getElementById(id);
   const esc1=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const today1=()=>new Date().toISOString().slice(0,10);

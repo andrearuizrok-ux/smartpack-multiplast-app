@@ -1,0 +1,34 @@
+SMART PACK · MULTIPLAST — V11.3
+
+ACCOUNT AZIENDALI
+- NOMYRA: info.nomyra@gmail.com, amministratore piattaforma.
+- Cliente Smart Pack: info@smartpack.srl, amministratore delle aziende Smart Pack e Multiplast.
+- Andrea resta disponibile come amministratore NOMYRA di emergenza, senza comparire al cliente.
+- La pagina pubblica mostra soltanto e-mail, password e recupero password dell’account base.
+- La prima attivazione di un account autorizzato usa il percorso riservato `?attiva=account`.
+
+DIPENDENTI
+- Ogni dipendente ha USER e PIN personale di esattamente 6 cifre, senza e-mail.
+- Il PIN è cifrato nel database e non viene mai mostrato dopo il salvataggio.
+- Solo NOMYRA crea, sospende e riattiva gli USER e assegna il primo PIN.
+- Il primo PIN è temporaneo e deve essere cambiato al primo accesso.
+- Il dipendente può cambiare autonomamente il proprio PIN.
+- Dopo cinque tentativi errati l’accesso viene bloccato per 15 minuti.
+- Accessi, errori e modifiche degli utenti vengono registrati nell’audit.
+
+FLUSSO DI ACCESSO
+- Login con account e-mail aziendale.
+- Scelta dell’azienda Smart Pack o Multiplast.
+- Accesso del dipendente con USER + PIN di 6 cifre.
+- Recupero USER/PIN inviato all’account base del cliente.
+- Il cliente può associare la richiesta allo USER e assegnare un nuovo PIN temporaneo.
+- Recupero della password e-mail disponibile dalla schermata iniziale.
+
+CONTINUITA
+- Tutte le funzioni V11.1, compreso Scadenze & Compliance, restano incluse.
+
+BUILD GITHUB
+- Workflow aggiornato per i runner GitHub 2026.
+- Rimosso il pacchetto Android SDK obsoleto "tools".
+- Installazione esplicita di platform-tools, Android 35 e Build Tools 35.0.0.
+- Verifica sintattica JavaScript prima della compilazione APK.
