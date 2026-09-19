@@ -101,6 +101,10 @@
       let added=0;
       for(const raw of (data.drafts||[])){
         const d={...raw,dueDate:normalizeDueDate(raw.dueDate||raw.dueDateRaw||''),status:raw.status||'Da verificare'};
+        const masterClient=findClientV115(d.clientCode||d.client);
+        const masterProduct=findProductV115(d.productCode||d.product);
+        if(masterClient){d.clientCode=masterClient.code;d.client=masterClient.name;d.newClient=false}
+        if(masterProduct){d.productCode=masterProduct.code;d.product=masterProduct.name}
         const key=d.id||`${d.gmailMessageId||''}_${d.gmailItemIndex||1}`;
         if(existing.has(key))continue;
         state.emailOrderDraftsV115.unshift(d);existing.add(key);added++;
@@ -279,7 +283,33 @@
   }
 
   function rulesChips(){const r=rules();return `<div class="v115-rules"><span>Cambio stampo ${esc(r.moldChangeStart)}–${esc(r.moldChangeEnd)}</span><span>${esc(r.moldChangeTechnician)}</span><span>Coperchi ven/sab</span><span>Urgenza ≤ ${r.urgencyDays} gg</span><span>Roberto prevale sempre</span></div>`}
-  function emailDraftCard(d){const verified=d.status==='Verificata',cc=d.clientCode||orderClientCodeV115(d.client);return `<article class="v115-email-draft"><div><span>${esc(d.status||'Bozza')}</span><b>${d.client?`<button type="button" class="v115-inline-client" onclick="SPPlannerV115.client('${esc(cc||d.client)}')">${cc?esc(cc)+' · ':''}${esc(d.client)}</button>`:'Cliente da verificare'} · ${esc(d.product||'Prodotto da verificare')}</b><p>${fmt(d.qty)} pz${d.dueDate?' · consegna '+esc(d.dueDate):''}${d.subject?' · '+esc(d.subject):''}</p></div><div><button class="btn small" onclick="SPPlannerV115.editEmail('${esc(d.id)}')">${verified?'Modifica':'Controlla'}</button>${verified?`<button class="btn small primary" onclick="SPPlannerV115.toOrder('${esc(d.id)}')">Approva e crea ordine</button>`:'<span class="v115-waiting-ok">Da approvare</span>'}<button class="btn small danger" type="button" onclick="SPPlannerV115.discardEmail('${esc(d.id)}')">Scarta</button></div></article>`}
+  function emailDraftCard(d){
+    const verified=d.status==='Verificata';
+    const clientMaster=findClientV115(d.clientCode||d.client);
+    const productMaster=findProductV115(d.productCode||d.product);
+    const clientOfficial=clientMaster
+      ? `<button type="button" class="v115-inline-client" onclick="SPPlannerV115.client('${esc(clientMaster.code)}')"><span class="v115-master-code">${esc(clientMaster.code)}</span> ${esc(clientMaster.name)}</button>`
+      : `<span class="v115-unmatched">Cliente da associare</span>`;
+    const productOfficial=productMaster
+      ? `<span class="v115-product-master"><span class="v115-master-code">${esc(productMaster.code)}</span> ${esc(productMaster.name)}</span>`
+      : `<span class="v115-unmatched">Prodotto da associare</span>`;
+    const suggestions=[];
+    if(!clientMaster&&d.client)suggestions.push(`cliente letto: ${esc(d.client)}`);
+    if(!productMaster&&d.product)suggestions.push(`prodotto letto: ${esc(d.product)}`);
+    return `<article class="v115-email-draft">
+      <div>
+        <span>${esc(d.status||'Bozza')}</span>
+        <b class="v115-master-row">${clientOfficial}<span class="v115-master-sep">·</span>${productOfficial}</b>
+        ${suggestions.length?`<div class="v115-mail-suggestion">Dalla e-mail: ${suggestions.join(' · ')}</div>`:''}
+        <p>${fmt(d.qty)} pz${d.dueDate?' · consegna '+esc(d.dueDate):''}${d.subject?' · '+esc(d.subject):''}</p>
+      </div>
+      <div>
+        <button class="btn small" onclick="SPPlannerV115.editEmail('${esc(d.id)}')">${verified?'Modifica':'Controlla'}</button>
+        ${verified?`<button class="btn small primary" onclick="SPPlannerV115.toOrder('${esc(d.id)}')">Approva e crea ordine</button>`:'<span class="v115-waiting-ok">Da approvare</span>'}
+        <button class="btn small danger" type="button" onclick="SPPlannerV115.discardEmail('${esc(d.id)}')">Scarta</button>
+      </div>
+    </article>`;
+  }
 
   function renderPlanner(){
     ensureState();const v=$('#plannerView');if(!v)return;
@@ -361,13 +391,24 @@
   function saveRules(e){e.preventDefault();const f=e.currentTarget;state.plannerRulesV115={...rules(),moldChangeStart:f.elements.start.value||'06:00',moldChangeEnd:f.elements.end.value||'12:00',moldChangeTechnician:f.elements.technician.value.trim()||'Saverio',urgencyDays:Math.max(0,n(f.elements.urgency.value)),lidDays:[f.elements.friday.checked?5:null,f.elements.saturday.checked?6:null].filter(x=>x!=null),preferInstalledMold:f.elements.preferInstalled.checked,preferLidsWeekend:f.elements.preferLids.checked};audit('Regole pianificazione aggiornate','V11.5',changeWindowLabel());saveNow('Regole salvate');$('#v115RulesDialog').close();renderPlanner()}
 
 
+  const KNOWN_CLIENT_CODES_V115={
+    'ALPAZOO':'CLI-001','CIDERPLAST':'CLI-002','DECORA':'CLI-003','DIMARIA':'CLI-004',
+    'DITAN COLOR':'CLI-005','EKOS':'CLI-006','FLAMINGO':'CLI-007','GIPSOS':'CLI-008',
+    'IDEAL COLOR':'CLI-009','IIVELA':'CLI-010','MARMOPLAST':'CLI-011','NEWMAIER':'CLI-012',
+    'PLASTIMUR':'CLI-013','SALETTA':'CLI-014','SEGI':'CLI-015','SPIVER':'CLI-016',
+    'TIZIANO COLORI':'CLI-017'
+  };
+
   function clientDirectoryV115(){
-    const arr=Array.isArray(state.clientDirectory)?state.clientDirectory:[];
-    return arr.map((x,i)=>{
-      if(typeof x==='string') return {name:x,code:`CLI-${String(i+1).padStart(3,'0')}`,reference:`CLI-${String(i+1).padStart(3,'0')}`};
-      const code=x.code||x.reference||`CLI-${String(i+1).padStart(3,'0')}`;
-      return {...x,code,reference:x.reference||code};
-    }).filter(x=>x.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),'it'));
+    const primary=Array.isArray(state.clientDirectory)&&state.clientDirectory.length?state.clientDirectory:
+      (Array.isArray(state.clients)?state.clients:[]);
+    return primary.map((x,i)=>{
+      const name=typeof x==='string'?x:String(x?.name||'');
+      if(!name)return null;
+      const stable=KNOWN_CLIENT_CODES_V115[String(name).trim().toUpperCase()]||'';
+      const code=typeof x==='object'?(x.code||x.reference||stable||`CLI-${String(i+1).padStart(3,'0')}`):(stable||`CLI-${String(i+1).padStart(3,'0')}`);
+      return typeof x==='object'?{...x,name,code,reference:x.reference||code}:{name,code,reference:code};
+    }).filter(Boolean).sort((a,b)=>String(a.name).localeCompare(String(b.name),'it'));
   }
   function productDirectoryV115(){
     const arr=Array.isArray(state.products)?state.products:[];
@@ -377,12 +418,22 @@
     }).filter(x=>x.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),'it'));
   }
   function findClientV115(codeOrName){
-    const v=String(codeOrName||'').trim().toLowerCase();
-    return clientDirectoryV115().find(x=>String(x.code).toLowerCase()===v||String(x.name).toLowerCase()===v)||null;
+    const raw=String(codeOrName||'').trim();
+    const v=raw.toLowerCase().replace(/\s+/g,' ');
+    return clientDirectoryV115().find(x=>{
+      const code=String(x.code||'').toLowerCase();
+      const name=String(x.name||'').trim().toLowerCase().replace(/\s+/g,' ');
+      return code===v||name===v;
+    })||null;
   }
   function findProductV115(codeOrName){
-    const v=String(codeOrName||'').trim().toLowerCase();
-    return productDirectoryV115().find(x=>String(x.code).toLowerCase()===v||String(x.name).toLowerCase()===v)||null;
+    const raw=String(codeOrName||'').trim();
+    const v=raw.toLowerCase().replace(/\s+/g,' ');
+    return productDirectoryV115().find(x=>{
+      const code=String(x.code||'').toLowerCase();
+      const name=String(x.name||'').trim().toLowerCase().replace(/\s+/g,' ');
+      return code===v||name===v;
+    })||null;
   }
   function optionHtmlV115(list,currentCode,currentName,placeholder){
     const cc=String(currentCode||''),cn=String(currentName||'').toLowerCase();
@@ -496,6 +547,320 @@
     }
   }
 
+
+  function registerClientCellV115(g,a,director,closed,cancel){
+    const current=findClientV115(a.clientCode||a.client);
+    const disabled=!(director&&!closed&&!cancel);
+    const options=optionHtmlV115(clientDirectoryV115(),current?.code||a.clientCode||'',current?.name||a.client||'','Seleziona cliente');
+    const code=current?.code||a.clientCode||'';
+    return `<div class="v115-register-master">
+      <select class="v115-reg-select" id="reg54Client_${esc(g.parent)}" ${disabled?'disabled':''}>${options}</select>
+      ${code?`<button type="button" class="v115-reg-client-open" onclick="SPPlannerV115.client('${esc(code)}')">Apri ${esc(code)} · ${esc(current?.name||a.client||'cliente')}</button>`:'<span class="v115-reg-unmatched">Cliente da associare</span>'}
+    </div>`;
+  }
+
+  function registerProductCellV115(g,a,director,closed,cancel){
+    const current=findProductV115(a.productCode||a.product);
+    const disabled=!(director&&!closed&&!cancel);
+    const options=optionHtmlV115(productDirectoryV115(),current?.code||a.productCode||'',current?.name||a.product||'','Seleziona prodotto');
+    return `<div class="v115-register-master">
+      <select class="v115-reg-select v115-reg-product-select" id="reg54Product_${esc(g.parent)}" ${disabled?'disabled':''}>${options}</select>
+      ${current?`<span class="v115-reg-code">${esc(current.code)}</span>`:'<span class="v115-reg-unmatched">Prodotto da associare</span>'}
+    </div>`;
+  }
+
+  function patchOrdersRegisterV115(){
+    if(typeof window.renderOrdersRegisterV53!=='function')return;
+    const enhanced=function(){
+      const all=groupOrders();
+      const view=$('#ordersRegisterView');if(!view)return;
+      view.innerHTML=`<div class="hero"><div><h2>Registro ordini operativo</h2><p>Cliente e prodotto sono collegati alle anagrafiche ufficiali. Roberto può correggere ordine, riferimenti e consegne mantenendo codici univoci per la tracciabilità.</p></div><div class="hero-actions">${currentRole==='director'?'<button class="btn primary" onclick="openNewOrder()">+ Nuovo ordine</button>':''}<button class="btn" onclick="navTo('reports')">Analisi periodo</button></div></div>
+      <div class="register-toolbar-v54">
+        <label class="field search">Cerca<input id="regSearchV54" placeholder="Ordine, rif., codice cliente, cliente, prodotto, DDT..."></label>
+        <label class="field">Stato<select id="regStatusV54"><option value="all">Tutti</option><option value="open">Aperti</option><option value="closed">Chiusi</option><option value="cancelled">Annullati</option></select></label>
+        ${currentRole==='director'?`<button class="btn" id="showDeletedV54">Archivio eliminati (${state.deletedOrders?.length||0})</button>`:''}
+      </div>
+      <div class="panel"><div class="table-wrap"><table class="data-table register-table-v54"><thead><tr>
+        <th>Ordine</th><th>Data ordine</th><th>Rif. ordine</th><th>Cliente</th><th>Q.tà</th><th>Prodotto</th><th>Foglio</th><th>Consegna prevista</th><th>Data consegna</th><th>Materiale/Miscela</th><th>DDT</th><th>Stato</th><th>Azioni</th>
+      </tr></thead><tbody id="regBodyV54"></tbody></table></div></div><div class="deleted-archive-v54" id="deletedArchiveV54"></div>`;
+
+      function row(g){
+        const a=g.main,s=v54StatusName(g),sh=(state.productionSheets||[]).find(x=>String(x.parent)===String(g.parent)),
+          mat=v54MaterialText(g.parent),director=currentRole==='director',admin=currentRole==='admin',
+          lockedQty=v54HasProduction(g.parent),cancel=s==='Annullato',closed=s==='Chiuso';
+        const clientCell=registerClientCellV115(g,a,director,closed,cancel);
+        const productCell=registerProductCellV115(g,a,director,closed,cancel);
+        return `<tr class="${closed?'closed-row':cancel?'cancelled-row':''}">
+          <td><b>${esc(g.parent)}</b></td>
+          <td><input type="date" id="reg54Date_${esc(g.parent)}" value="${esc(v54ISO(v54Date(a.date)))}" ${director?'':'disabled'}></td>
+          <td><input id="reg54Ref_${esc(g.parent)}" value="${esc(a.orderRef||'')}" ${director||admin?'':'disabled'}></td>
+          <td>${clientCell}</td>
+          <td><input class="reg-qty" type="number" min="1" id="reg54Qty_${esc(g.parent)}" value="${Number(a.qty||0)}" ${director&&!closed&&!cancel&&!lockedQty?'':'disabled'}></td>
+          <td>${productCell}</td>
+          <td>${sh?`<a href="#" onclick="openSheet('${sh.id}');return false">Foglio ${esc(sh.sheetNo)}</a>`:'—'}</td>
+          <td><input type="date" id="reg54Due_${esc(g.parent)}" value="${esc(v54ISO(v54Date(a.dueDate)))}" ${closed?'disabled':''}></td>
+          <td>${dmy(a.deliveryDate)||'—'}</td>
+          <td>${esc(mat||'—')}</td>
+          <td>${a.ddtRef?`<span class="ddt-pill">${esc(a.ddtRef)}</span>`:'—'}</td>
+          <td><span class="status ${statusClass(s)}">${esc(s)}</span></td>
+          <td><div class="card-actions">
+            <button class="btn small primary" onclick="v54SaveRegister('${esc(g.parent)}')">Salva</button>
+            ${director?`<button class="btn small" onclick="v53OpenEditOrder('${esc(g.parent)}')">Modifica completa</button>${!closed&&!cancel?`<button class="btn small danger" onclick="v53CancelOrder('${esc(g.parent)}')">Annulla</button>`:''}${v54CanDelete(g.parent)?`<button class="btn small danger" onclick="v54OpenDelete('${esc(g.parent)}')">Elimina</button>`:''}`:''}
+            ${admin&&!a.ddtRef&&!cancel?`<button class="btn small" onclick="v53OpenDDT('${esc(g.parent)}')">DDT</button>`:''}
+          </div></td>
+        </tr>`;
+      }
+
+      function draw(){
+        const q=String($('#regSearchV54')?.value||'').toLowerCase(),f=$('#regStatusV54')?.value||'all';
+        const arr=all.filter(g=>{
+          const s=v54StatusName(g),client=findClientV115(g.main.clientCode||g.main.client),product=findProductV115(g.main.productCode||g.main.product);
+          const okStatus=f==='all'||(f==='open'&&!['Chiuso','Annullato'].includes(s))||(f==='closed'&&s==='Chiuso')||(f==='cancelled'&&s==='Annullato');
+          const hay=[g.parent,g.main.orderRef,client?.code,g.main.client,product?.code,g.main.product,g.main.ddtRef].join(' ').toLowerCase();
+          return okStatus&&(!q||hay.includes(q));
+        });
+        $('#regBodyV54').innerHTML=arr.map(row).join('')||'<tr><td colspan="13"><div class="empty"><b>Nessun ordine</b>Nessun risultato per i filtri scelti.</div></td></tr>';
+      }
+
+      $('#regSearchV54').oninput=draw;
+      $('#regStatusV54').onchange=draw;
+      draw();
+      if($('#showDeletedV54')&&typeof v54ToggleDeleted==='function')$('#showDeletedV54').onclick=v54ToggleDeleted;
+    };
+    enhanced.__v115master=true;
+    window.renderOrdersRegisterV53=enhanced;
+    try{renderOrdersRegisterV53=enhanced}catch(_){}
+  }
+
+  function patchRegisterSaveV115(){
+    const saveRegister=function(parent){
+      if(!['director','admin'].includes(currentRole))return;
+      const g=groupOrders().find(x=>String(x.parent)===String(parent));if(!g)return;
+      const a=g.main,lines=g.lines,d=$(`#reg54Date_${CSS.escape(String(parent))}`)?.value||'',
+        ref=$(`#reg54Ref_${CSS.escape(String(parent))}`)?.value||'',
+        due=$(`#reg54Due_${CSS.escape(String(parent))}`)?.value||'';
+      if(currentRole==='director'){
+        const clientCode=String($(`#reg54Client_${CSS.escape(String(parent))}`)?.value||a.clientCode||'');
+        const productCode=String($(`#reg54Product_${CSS.escape(String(parent))}`)?.value||a.productCode||'');
+        const client=findClientV115(clientCode),product=findProductV115(productCode),
+          qty=Number($(`#reg54Qty_${CSS.escape(String(parent))}`)?.value||a.qty);
+        if(!client){alert('Seleziona il cliente dall’anagrafica prima di salvare.');return}
+        if(!product){alert('Seleziona il prodotto dall’anagrafica prima di salvare.');return}
+        if(!qty){alert('La quantità è obbligatoria.');return}
+        if(qty!==Number(a.qty||0)&&v54HasProduction(parent)){
+          alert('La quantità non può essere modificata perché esistono già dati di produzione. Puoi correggere gli altri campi.');return;
+        }
+        if(qty!==Number(a.qty||0)&&a.imlCode&&!v54Cancelled(g)){
+          const iml=getIML(a.imlCode);if(iml)iml.reserved=Math.max(0,Number(iml.reserved||0)+(qty-Number(a.qty||0)));
+        }
+        for(const o of lines){
+          o.client=client.name;o.clientCode=client.code;
+          if(d)o.date=d;o.orderRef=ref.trim();o.dueDate=due;o.qty=qty;
+          if(!v54HasProduction(parent))o.remaining=qty;
+        }
+        a.product=product.name;a.productCode=product.code;
+        if(Array.isArray(state.clients)&&!state.clients.includes(client.name))state.clients.push(client.name);
+        for(const j of state.productionRuns||[]){
+          if(String(j.parent)===String(parent)){
+            j.client=client.name;j.clientCode=client.code;
+            if(!v54HasProduction(parent))j.qty=Number((state.orders.find(o=>o.code===j.orderCode)||a).qty||qty);
+            if(String(j.orderCode).endsWith('A')){j.product=product.name;j.productCode=product.code}
+          }
+        }
+      }else{
+        for(const o of lines){o.orderRef=ref.trim();o.dueDate=due}
+      }
+      addAudit('Registro ordine modificato',parent,`${currentRole} · rif ${ref||'—'} · consegna ${due||'—'}`);
+      save();renderCurrent();toast(`Ordine ${parent} aggiornato`);
+    };
+    window.v54SaveRegister=saveRegister;
+    try{v54SaveRegister=saveRegister}catch(_){}
+  }
+
+
+
+  function dashboardCountsV115(){
+    const groups=typeof groupOrders==='function'?groupOrders():[];
+    const statusOf=g=>{
+      try{
+        if(typeof v54StatusName==='function')return String(v54StatusName(g)||'');
+        if(typeof normalizeOrderStatus==='function')return String(normalizeOrderStatus(g.status||g.main?.status)||'');
+      }catch(_){}
+      return String(g.main?.status||g.status||'');
+    };
+    const open=groups.filter(g=>!['Chiuso','Annullato','Completato','Completata','Soddisfatta'].includes(statusOf(g))).length;
+    const toPrep=groups.filter(g=>/da preparare/i.test(statusOf(g))).length;
+    const imls=Array.isArray(state?.imls)?state.imls:[];
+    const critical=imls.filter(i=>{
+      if(!i)return false;
+      try{return typeof available==='function'?available(i)<=Number(i.minStock||0):Number(i.physical||0)-Number(i.reserved||0)<=Number(i.minStock||0)}
+      catch(_){return false}
+    }).length;
+    const poOpen=(Array.isArray(state?.imlPurchaseOrders)?state.imlPurchaseOrders:[]).filter(x=>x&&!['Ricevuto','Chiuso','Annullato'].includes(String(x.status||''))).length;
+    const emailDrafts=(Array.isArray(state?.emailOrderDraftsV115)?state.emailOrderDraftsV115:[]).filter(d=>
+      (!d.companyCode||d.companyCode==='smartpack') &&
+      !['Convertita','Scartata','Eliminata'].includes(String(d.status||''))
+    ).length;
+    const urgent=groups.filter(g=>{
+      const p=String(g.main?.priority||g.priority||'');
+      return !['Chiuso','Annullato','Completato','Completata','Soddisfatta'].includes(statusOf(g)) && /urgent/i.test(p);
+    }).length;
+    return {groups,open,toPrep,critical,poOpen,emailDrafts,urgent};
+  }
+
+  function dashboardCardV115({kind,label,value,desc,icon,attention=false}){
+    return `<button type="button" class="v115-dash-card ${attention?'attention':''}" onclick="SPPlannerV115.dashboardGo('${esc(kind)}')">
+      <div class="v115-dash-card-top">
+        <span class="v115-dash-icon">${icon}</span>
+        <span class="v115-dash-open">Apri →</span>
+      </div>
+      <span class="v115-dash-label">${esc(label)}</span>
+      <b class="v115-dash-value">${fmt(value)}</b>
+      <small>${esc(desc)}</small>
+    </button>`;
+  }
+
+  function dashboardGoV115(kind){
+    const later=fn=>setTimeout(fn,60);
+    if(kind==='open'){
+      navTo('ordersRegister');
+      later(()=>{
+        const s=$('#regStatusV54');
+        if(s){s.value='open';s.dispatchEvent(new Event('change',{bubbles:true}))}
+        $('#ordersRegisterView')?.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      return;
+    }
+    if(kind==='prep'){
+      navTo('production');
+      later(()=>$('#productionView')?.scrollIntoView({behavior:'smooth',block:'start'}));
+      return;
+    }
+    if(kind==='iml'){
+      navTo('iml');
+      later(()=>{
+        const body=$('#imlBody');
+        if(body){
+          $$('#imlBody tr').forEach(r=>{
+            const t=(r.textContent||'').toLowerCase();
+            r.style.display=(t.includes('critico')||t.includes('esaurito'))?'':'none';
+          });
+          const view=$('#imlView');
+          if(view&&!$('#v115CriticalFilterNote')){
+            view.insertAdjacentHTML('afterbegin',`<div id="v115CriticalFilterNote" class="v115-filter-note"><b>Filtro attivo:</b> solo IML critici o esauriti. <button type="button" onclick="navTo('iml')">Mostra tutti</button></div>`);
+          }
+        }
+      });
+      return;
+    }
+    if(kind==='imlOrders'){
+      navTo('imlOrders');
+      later(()=>{
+        const body=$('#imlOrdersView tbody');
+        if(body){
+          [...body.querySelectorAll('tr')].forEach(r=>{
+            const t=(r.textContent||'').toLowerCase();
+            r.style.display=(t.includes('chiuso')||t.includes('annullato'))?'none':'';
+          });
+          const view=$('#imlOrdersView');
+          if(view&&!$('#v115IMLOpenFilterNote')){
+            view.insertAdjacentHTML('afterbegin',`<div id="v115IMLOpenFilterNote" class="v115-filter-note"><b>Filtro attivo:</b> solo ordini IML aperti. <button type="button" onclick="navTo('imlOrders')">Mostra tutti</button></div>`);
+          }
+        }
+      });
+      return;
+    }
+    if(kind==='email'){
+      navTo('orders');
+      later(()=>{
+        const p=$('#v115OrdersEmailPanel');
+        if(p){p.classList.add('v115-email-highlight');p.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>p.classList.remove('v115-email-highlight'),1800)}
+      });
+      return;
+    }
+  }
+
+  function renderDashboardV115(){
+    if(typeof currentRole==='undefined'||currentRole!=='director'){
+      try{return window.__v115OriginalDashboard?.apply(this,arguments)}catch(_){return}
+    }
+    ensureState();
+    const d=dashboardCountsV115();
+    const totalAttention=d.toPrep+d.critical+d.poOpen+d.emailDrafts;
+    const view=$('#dashboardView');if(!view)return;
+    view.classList.add('v115-dashboard');
+    view.innerHTML=`
+      <div class="role-banner v115-role-banner">
+        <div class="role-icon">R</div>
+        <div><b>Modalità Direzione</b><span>Roberto registra ordini, organizza la produzione e controlla IML, priorità e avanzamento.</span></div>
+        <div class="right"><strong>${totalAttention}</strong> attività operative da controllare</div>
+      </div>
+
+      <div class="hero v115-dashboard-hero">
+        <div>
+          <span class="v115-eyebrow">SMART PACK · CENTRO OPERATIVO</span>
+          <h2>Situazione operativa in tempo reale</h2>
+          <p>Ogni indicatore è cliccabile: apre direttamente la schermata collegata già pronta per il controllo.</p>
+        </div>
+        <div class="hero-actions">
+          <button class="btn primary" onclick="openNewOrder()">+ Nuovo ordine cliente</button>
+          <button class="btn" onclick="SPPlannerV115.dashboardGo('email')">Ordini da e-mail</button>
+          <button class="btn" onclick="openNewIMLOrder()">+ Ordine IML</button>
+          <button class="btn" onclick="openFinishedGoodsV103()">Magazzino interno</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="v115-dash-grid">
+          ${dashboardCardV115({kind:'open',label:'Ordini aperti',value:d.open,desc:'Ordini cliente ancora da completare',icon:'▤',attention:d.open>0})}
+          ${dashboardCardV115({kind:'prep',label:'Da preparare',value:d.toPrep,desc:'Richiedono attività del reparto',icon:'⚙',attention:d.toPrep>0})}
+          ${dashboardCardV115({kind:'email',label:'Ordini da e-mail da inserire',value:d.emailDrafts,desc:'Bozze Gmail da verificare e approvare',icon:'✉',attention:d.emailDrafts>0})}
+          ${dashboardCardV115({kind:'iml',label:'IML critici',value:d.critical,desc:'Sotto il livello minimo o esauriti',icon:'▧',attention:d.critical>0})}
+          ${dashboardCardV115({kind:'imlOrders',label:'Ordini IML aperti',value:d.poOpen,desc:'Da inviare, ricevere o chiudere',icon:'↗',attention:d.poOpen>0})}
+        </div>
+      </div>
+
+      <div class="section v115-dash-secondary">
+        <div class="panel">
+          <div class="panel-head">
+            <div><h3>Azioni rapide</h3><p>Le attività più frequenti, con accesso diretto.</p></div>
+          </div>
+          <div class="panel-body">
+            <div class="quick-grid v115-quick-grid">
+              <button class="quick" onclick="SPPlannerV115.dashboardGo('open')"><div class="bubble">1</div><b>Controlla ordini aperti</b><span>Vai al Registro già filtrato sugli ordini ancora aperti.</span><em>→</em></button>
+              <button class="quick" onclick="SPPlannerV115.dashboardGo('email')"><div class="bubble">2</div><b>Verifica ordini da Gmail</b><span>Controlla le bozze ricevute e approva solo gli ordini corretti.</span><em>→</em></button>
+              <button class="quick" onclick="navTo('planner')"><div class="bubble">3</div><b>Organizza la coda Roberto</b><span>Rivedi priorità, stampi, urgenze e suggerimenti di pianificazione.</span><em>→</em></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><h3>Attenzione oggi</h3><p>Gli indicatori che meritano un controllo immediato.</p></div>
+          </div>
+          <div class="panel-body">
+            <div class="v115-attention-list">
+              <button onclick="SPPlannerV115.dashboardGo('email')" class="${d.emailDrafts?'hot':''}"><span>Ordini e-mail da verificare</span><b>${d.emailDrafts}</b></button>
+              <button onclick="SPPlannerV115.dashboardGo('iml')" class="${d.critical?'hot':''}"><span>IML critici</span><b>${d.critical}</b></button>
+              <button onclick="SPPlannerV115.dashboardGo('prep')" class="${d.toPrep?'hot':''}"><span>Ordini da preparare</span><b>${d.toPrep}</b></button>
+              <button onclick="SPPlannerV115.dashboardGo('imlOrders')" class="${d.poOpen?'hot':''}"><span>Ordini IML aperti</span><b>${d.poOpen}</b></button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function patchDashboardV115(){
+    try{
+      const original=window.renderDashboard||renderDashboard;
+      if(typeof original!=='function')return;
+      if(!window.__v115OriginalDashboard)window.__v115OriginalDashboard=original;
+      window.renderDashboard=renderDashboardV115;
+      try{renderDashboard=renderDashboardV115}catch(_){}
+    }catch(e){console.warn('[V11.5] dashboard patch',e)}
+  }
+
+
   function parseEmailText(text,subject=''){
     const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);const find=(re)=>{const l=lines.find(x=>re.test(x));return l?l.replace(re,'').replace(/^\s*[:\-]\s*/,'').trim():''};
     const client=find(/^(cliente|customer)\b\s*[:\-]?/i);
@@ -559,7 +924,45 @@
   function injectStyles(){if($('#v115Styles'))return;const s=document.createElement('style');s.id='v115Styles';s.textContent=`
     #plannerView{--v115:#17394a;--v115soft:#f2f8fa}.v115-hero{display:flex;gap:18px;align-items:center;background:linear-gradient(135deg,#fff,#f3faf8);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow)}.v115-hero h2{font-size:25px;margin:2px 0 6px}.v115-hero p{font-size:11px;color:var(--muted);line-height:1.55;margin:0;max-width:760px}.v115-eyebrow,.v115-section-head>div>span,.v115-machine-head>div>span,.v115-over{font-size:8px;font-weight:900;letter-spacing:.11em;color:var(--primary);text-transform:uppercase}.v115-hero-actions{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.v115-rules{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.v115-rules span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 9px;font-size:8px;font-weight:850;color:#4e6671}.v115-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.v115-kpis>div{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px}.v115-kpis span,.v115-kpis small{display:block;font-size:8px;color:var(--muted)}.v115-kpis b{display:block;font-size:22px;margin:4px 0}.v115-status{display:flex;gap:12px;align-items:center;margin:12px 0;border-radius:13px;padding:10px 12px;font-size:9px}.v115-status b{font-size:10px}.v115-status span{color:#5f737d}.v115-status.ok{background:#edf9f4;border:1px solid #c9e8da}.v115-status.warn{background:#fff8ea;border:1px solid #efd9ad}.v115-machines{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.v115-machine{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;min-width:0}.v115-machine-head{display:flex;gap:10px;align-items:flex-start}.v115-machine-head h3{font-size:17px;margin:3px 0}.v115-machine-head p{font-size:9px;color:var(--muted);margin:0}.v115-machine-summary{margin-left:auto;text-align:center;background:var(--soft);border-radius:12px;padding:7px 10px;min-width:62px}.v115-machine-summary b{display:block;font-size:17px}.v115-machine-summary span{font-size:7px;color:var(--muted)}.v115-advice{display:flex;gap:10px;align-items:flex-start;margin:11px 0;border:1px solid #bcded3;background:#f3fbf7;border-radius:13px;padding:11px}.v115-advice>div{flex:1}.v115-advice span{font-size:7px;font-weight:900;color:#26715c;letter-spacing:.08em}.v115-advice b{display:block;font-size:10px;margin-top:3px}.v115-advice p{font-size:8px;color:#4e6f64;line-height:1.45;margin:4px 0 0}.v115-score{font-size:12px!important;background:#fff;border-radius:10px;padding:7px!important;color:#26715c!important}.v115-warning{border:1px solid #efd6a4;background:#fff8e9;border-radius:11px;padding:9px 10px;font-size:8px;color:#735a2d;margin-bottom:9px}.v115-queue{display:grid;gap:8px;min-height:40px}.v115-run{display:grid;grid-template-columns:24px 1fr;gap:8px;border:1px solid #d9e5e9;border-radius:14px;padding:10px;background:#fff;transition:.16s}.v115-run:hover{border-color:#a8c8d3}.v115-run.dragging{opacity:.45}.v115-run.over{border-color:var(--primary);box-shadow:0 0 0 2px rgba(31,94,120,.10)}.v115-grip{display:flex;align-items:center;justify-content:center;color:#91a5ae;cursor:grab;font-weight:900}.v115-run-top{display:flex;gap:8px;align-items:flex-start}.v115-run-top>div:first-child{flex:1}.v115-run h4{font-size:10px;margin:3px 0 0}.v115-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.v115-chip{display:inline-flex;padding:4px 6px;border-radius:999px;background:#edf2f4;color:#5f727c;font-size:6.8px;font-weight:950;white-space:nowrap}.v115-chip.urgent{background:#fdebec;color:#9b3e44}.v115-chip.lid{background:#fff2dc;color:#8a5b17}.v115-chip.change{background:#fff6e8;color:#925e13}.v115-chip.ok{background:#eaf7f1;color:#1d7258}.v115-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}.v115-metrics div{background:#f7fafb;border-radius:8px;padding:6px}.v115-metrics span{display:block;font-size:6.5px;color:var(--muted);text-transform:uppercase}.v115-metrics b{display:block;font-size:8.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis}.v115-reason{font-size:7.8px;line-height:1.45;color:#526a75;margin-top:7px}.v115-run-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.v115-run-actions .btn{font-size:7px!important;min-height:27px!important;padding:5px 7px!important}.v115-empty{padding:20px;text-align:center;color:var(--muted);font-size:9px}.v115-email{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px}.v115-section-head{display:flex;gap:10px;align-items:flex-start}.v115-section-head>div:first-child{flex:1}.v115-section-head h3{font-size:16px;margin:3px 0}.v115-section-head p{font-size:9px;color:var(--muted);margin:0;line-height:1.5}.v115-section-head>div:last-child{display:flex;gap:6px}.v115-email-state{margin:11px 0;background:#f5f9fa;border-radius:11px;padding:9px 10px}.v115-email-state b{display:block;font-size:9px}.v115-email-state span{display:block;font-size:8px;color:var(--muted);margin-top:3px}.v115-email-list{display:grid;gap:7px}.v115-email-draft{display:flex;align-items:center;gap:10px;border-top:1px solid #edf2f3;padding:9px 0}.v115-email-draft>div:first-child{flex:1}.v115-email-draft span{font-size:7px;color:var(--primary);font-weight:900}.v115-email-draft b{display:block;font-size:9px;margin-top:2px}.v115-email-draft p{font-size:8px;color:var(--muted);margin:3px 0}.v115-menu-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #edf2f3}.v115-menu-row label{font-size:10px}.v115-menu-row>div{display:flex;gap:4px}.v115-source{white-space:pre-wrap;background:#f5f8f9;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:160px;overflow:auto;font:9px/1.45 ui-monospace,monospace}.v115-oauth{display:grid;gap:8px}.v115-oauth>div{border:1px solid var(--line);border-radius:12px;padding:11px}.v115-oauth b{font-size:10px}.v115-oauth p{font-size:8px;color:var(--muted);line-height:1.5;margin:4px 0 0}
     .v115-orders-email{margin:12px 0 16px;background:linear-gradient(135deg,#ffffff,#f5fafb);border:1px solid #cfe0e6;border-radius:18px;padding:15px;box-shadow:0 8px 24px rgba(23,57,74,.05)}.v115-orders-email .v115-orders-email-top{display:flex;gap:12px;align-items:flex-start}.v115-orders-email .v115-orders-email-top>div:first-child{flex:1}.v115-orders-email h3{font-size:16px;margin:3px 0}.v115-orders-email p{font-size:9px;color:var(--muted);line-height:1.5;margin:0}.v115-orders-email-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.v115-orders-email .v115-email-state{margin:10px 0}.v115-waiting-ok{display:inline-flex;align-items:center;padding:6px 8px;border-radius:999px;background:#fff3df;color:#8a5b17;font-size:7px;font-weight:900}.v115-email-summary{margin-top:14px}.v115-orders-email-count{display:inline-flex;margin-top:8px;padding:5px 8px;border-radius:999px;background:#e8f5ef;color:#176b57;font-size:8px;font-weight:900}.btn.danger{border-color:#e5b9bd!important;background:#fff5f5!important;color:#a13d46!important}.btn.danger:hover{background:#fdebec!important}.v115-client-link,.v115-inline-client{border:0;background:transparent;padding:0;color:var(--ink);font:inherit;font-weight:900;cursor:pointer;text-align:left}.v115-client-link:hover,.v115-inline-client:hover{color:var(--primary);text-decoration:underline}.v115-client-link small{display:inline-flex;margin-right:7px;padding:3px 6px;border-radius:999px;background:#eaf4f7;color:var(--primary);font-size:9px}.v115-master-warning{display:block;color:#9a5a16;background:#fff8e8;border:1px solid #efdcb6;border-radius:8px;padding:7px 8px;font-size:8px;line-height:1.4}.v115-client-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.v115-client-kpis>div{background:#f5f9fa;border:1px solid var(--line);border-radius:12px;padding:12px}.v115-client-kpis span{display:block;font-size:8px;color:var(--muted)}.v115-client-kpis b{display:block;font-size:22px;margin-top:4px}.v115-client-section{margin-top:14px}.v115-client-section h4{font-size:12px;margin:0 0 8px}.v115-client-order{display:flex;align-items:center;gap:10px;border:1px solid #dbe7eb;border-radius:12px;padding:10px;margin-bottom:7px;background:#fff}.v115-client-order.pending{border-left:4px solid #d8a13b}.v115-client-order.closed{opacity:.78}.v115-client-order>div:first-child{flex:1}.v115-client-order span{font-size:7px;color:var(--muted);font-weight:900}.v115-client-order b{display:block;font-size:10px;margin-top:2px}.v115-client-order p{font-size:8px;color:var(--muted);margin:3px 0 0}.v115-client-order>div:last-child{display:flex;gap:7px;align-items:center}.v115-client-state{padding:5px 7px;border-radius:999px;background:#fff2d8;color:#8a5b17!important}.v115-client-order.closed .v115-client-state{background:#eaf7f1;color:#26715c!important}
-    @media(max-width:1050px){.v115-kpis{grid-template-columns:repeat(3,1fr)}.v115-machines{grid-template-columns:1fr}}
+    .v115-master-row{display:flex!important;align-items:center;gap:7px;flex-wrap:wrap}.v115-master-code{display:inline-flex!important;padding:3px 6px;border-radius:999px;background:#e8f4f7;color:#17617e!important;font-size:7px!important;font-weight:950!important;letter-spacing:.03em}.v115-master-sep{color:#9babb2!important}.v115-product-master{font-size:9px!important;color:var(--ink)!important;font-weight:900!important}.v115-unmatched{display:inline-flex!important;padding:4px 7px;border-radius:999px;background:#fff2dc;color:#8a5b17!important;font-size:7px!important;font-weight:950!important}.v115-mail-suggestion{margin-top:5px;font-size:7.5px;color:#788c95;font-style:italic}.v115-inline-client .v115-master-code{margin-right:4px}.v115-register-master{display:grid;gap:5px;min-width:190px}.v115-reg-select{width:100%;min-width:190px;border:1px solid #cfdee3;background:#fff;border-radius:9px;padding:8px 9px;font-size:9px;color:var(--ink)}.v115-reg-product-select{min-width:240px}.v115-reg-client-open{border:0;background:transparent;color:var(--primary);padding:0;text-align:left;font-size:7.5px;font-weight:900;cursor:pointer}.v115-reg-client-open:hover{text-decoration:underline}.v115-reg-code{font-size:7px;color:var(--muted);font-weight:850}.v115-reg-unmatched{font-size:7px;color:#9a641c;background:#fff4df;border-radius:999px;padding:4px 6px;justify-self:start}
+.v115-dashboard .v115-role-banner{padding:16px 18px!important}
+.v115-dashboard .v115-role-banner b{font-size:14px!important}
+.v115-dashboard .v115-role-banner span{font-size:11px!important;line-height:1.45!important}
+.v115-dashboard .v115-role-banner .right{font-size:11px!important}
+.v115-dashboard .v115-role-banner .right strong{font-size:18px;color:var(--primary);margin-right:4px}
+.v115-dashboard-hero{align-items:flex-start!important}
+.v115-dashboard-hero h2{font-size:29px!important;line-height:1.15!important;margin-top:4px!important}
+.v115-dashboard-hero p{font-size:13px!important;line-height:1.55!important;max-width:760px!important}
+.v115-dashboard-hero .btn{font-size:11px!important;min-height:44px!important;padding:11px 15px!important}
+.v115-dash-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.v115-dash-card{appearance:none;border:1px solid #d8e5e9;background:#fff;border-radius:18px;padding:17px 18px;text-align:left;min-height:166px;box-shadow:0 7px 20px rgba(22,58,72,.05);transition:.18s;position:relative;color:var(--ink)}
+.v115-dash-card:hover{transform:translateY(-2px);border-color:#8db7c7;box-shadow:0 14px 28px rgba(22,58,72,.10)}
+.v115-dash-card.attention{border-top:4px solid var(--primary);padding-top:14px}
+.v115-dash-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.v115-dash-icon{width:38px;height:38px;border-radius:12px;background:#edf6f8;color:var(--primary);display:grid;place-items:center;font-size:18px;font-weight:900}
+.v115-dash-open{font-size:10px;font-weight:900;color:var(--primary)}
+.v115-dash-label{display:block;font-size:13px;font-weight:850;line-height:1.3;color:#536b76}
+.v115-dash-value{display:block;font-size:38px;line-height:1;margin:9px 0 8px;letter-spacing:-.03em}
+.v115-dash-card small{display:block;font-size:10.5px;line-height:1.45;color:#6c8089}
+.v115-dash-secondary{display:grid;grid-template-columns:1.25fr .75fr;gap:14px}
+.v115-dashboard .panel-head h3{font-size:15px!important}
+.v115-dashboard .panel-head p{font-size:10.5px!important}
+.v115-dashboard .quick b{font-size:13px!important}
+.v115-dashboard .quick span{font-size:10.5px!important;line-height:1.5!important}
+.v115-dashboard .quick{min-height:138px!important}
+.v115-attention-list{display:grid;gap:8px}
+.v115-attention-list button{width:100%;border:1px solid #dce6e9;background:#f8fbfc;border-radius:12px;padding:13px 14px;display:flex;align-items:center;justify-content:space-between;text-align:left;color:var(--ink)}
+.v115-attention-list button span{font-size:11px;font-weight:800}
+.v115-attention-list button b{font-size:19px}
+.v115-attention-list button.hot{background:#fff8ea;border-color:#ecd6a9}
+.v115-attention-list button.hot b{color:#9a641c}
+.v115-filter-note{margin-bottom:12px;border:1px solid #b9d8e2;background:#f2fafc;border-radius:12px;padding:10px 12px;font-size:10px;color:#49636e}
+.v115-filter-note button{border:0;background:transparent;color:var(--primary);font-weight:900;cursor:pointer;margin-left:7px}
+.v115-email-highlight{outline:3px solid rgba(31,94,120,.20);box-shadow:0 0 0 7px rgba(31,94,120,.06)!important}
+@media(max-width:1280px){.v115-dash-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.v115-dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.v115-dash-secondary{grid-template-columns:1fr}.v115-dashboard-hero h2{font-size:25px!important}}
+@media(max-width:560px){.v115-dash-grid{grid-template-columns:1fr}.v115-dash-card{min-height:145px}.v115-dash-value{font-size:34px}.v115-dashboard-hero p{font-size:12px!important}}
+@media(max-width:1050px){.v115-kpis{grid-template-columns:repeat(3,1fr)}.v115-machines{grid-template-columns:1fr}}
     @media(max-width:760px){.v115-hero{display:block}.v115-hero-actions{margin-top:12px;justify-content:flex-start}.v115-hero-actions .btn{flex:1}.v115-kpis{grid-template-columns:1fr 1fr}.v115-metrics{grid-template-columns:1fr 1fr}.v115-section-head{display:block}.v115-section-head>div:last-child{margin-top:10px;display:grid;grid-template-columns:1fr 1fr}.v115-email-draft{display:block}.v115-email-draft>div:last-child{margin-top:8px}.v115-run{grid-template-columns:18px 1fr}.v115-run-top{display:block}.v115-badges{justify-content:flex-start;margin-top:5px}.v115-status{display:block}.v115-status span{display:block;margin-top:3px}}
   `;document.head.appendChild(s)}
 
@@ -589,7 +992,7 @@
   function version(){document.title=`Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · ${BUILD}`;document.body.dataset.build=MARKER;$$('.version-badge').forEach(x=>x.textContent=BUILD)}
 
   function boot(){
-    ensureState();injectStyles();ensureView();ensureDialogs();addNav();patchRenderNav();patchRenderCurrent();patchOrdersRender();version();
+    ensureState();injectStyles();ensureView();ensureDialogs();addNav();patchRenderNav();patchRenderCurrent();patchOrdersRender();patchOrdersRegisterV115();patchRegisterSaveV115();patchDashboardV115();version();
     try{renderNav()}catch(_){}applyMenuPrefs();patchOrderMasterDataV115();decorateClientLinksV115();
     const params=new URL(location.href).searchParams;
     if(params.has('gmail')){
@@ -606,6 +1009,7 @@
     importEmail:openImportEmail,editEmail,toOrder,emailSetup,connectGmail,syncGmail,disconnectGmail,refreshOrdersEmail:decorateOrdersEmail,
     cancelEmailEdit,discardEmail:discardEmailDraft,discardEmailDraftCurrent:()=>{if(emailDraftEditing)discardEmailDraft(emailDraftEditing)},
     client:openClientV115,clientOrderDetails:clientOrderDetailsV115,
+    dashboardGo:dashboardGoV115,
     suggest:()=>Object.fromEntries(machineList().map(m=>[m.id,suggestedForMachine(m.id).map(r=>({id:r.id,orderCode:r.orderCode,score:runScore(r).score,reason:reasonText(r,0)}))])),
     rulesData:rules
   };

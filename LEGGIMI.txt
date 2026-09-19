@@ -1,23 +1,13 @@
-V11.5 - ANAGRAFICHE CLIENTI/PRODOTTI + SCHEDA CLIENTE
+V11.5 - DASHBOARD DINAMICA E LEGGIBILE
 
-- Verifica ordine e-mail:
-  * Cliente = selezione obbligatoria CLI-xxx · Nome
-  * Prodotto = selezione obbligatoria PRD-xxx · Descrizione
-  * niente più testo libero
-  * nuovo cliente: deve essere censito prima dell'approvazione
-
-- Nuovo ordine manuale:
-  * cliente e prodotto selezionati dalle stesse anagrafiche
-  * codice cliente/prodotto salvato sugli ordini nuovi
-
-- Scheda cliente:
-  * clic sul nome cliente nella pagina Ordini
-  * mostra codice cliente
-  * ordini pendenti in primo piano
-  * storico ordini sotto
-  * pulsante Dettagli per aprire la tracciabilità dell'ordine
-
-- Corretto anche il caso Gmail con più righe nello stesso messaggio:
-  ogni riga ordine mantiene la propria bozza.
-
-- Cache aggiornata a static-6.
+- Tutti i KPI principali sono cliccabili.
+- Ordini aperti -> Registro ordini filtrato su Aperti.
+- Da preparare -> Monitor produzione.
+- Ordini da e-mail da inserire -> bozze Gmail da verificare/approvare.
+- IML critici -> Giacenze IML filtrate su Critico/Esaurito.
+- Ordini IML aperti -> ordini IML non chiusi.
+- Nuova area "Attenzione oggi".
+- Azioni rapide più operative.
+- Font, numeri, descrizioni e pulsanti più grandi e leggibili.
+- Layout responsive.
+- Cache service worker static-9.
