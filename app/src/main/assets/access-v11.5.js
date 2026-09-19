@@ -257,6 +257,191 @@
       /* uffici: mantiene stile sobrio ma coerente */
       .poi115-office-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important}
 
+
+      /* V11.5.3 · home single-screen desktop/tablet */
+      #poi113CompanyGate{overflow:hidden!important}
+      #poi113CompanyGate .poi113-card{
+        height:100vh!important;
+        min-height:100vh!important;
+        padding:18px 24px 14px!important;
+        box-sizing:border-box!important;
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+      }
+      .poi116-home{
+        width:min(1460px,100%)!important;
+        height:100%!important;
+        min-height:0!important;
+        display:grid!important;
+        grid-template-rows:auto 1fr auto!important;
+        gap:10px!important;
+      }
+      .poi116-top{margin-bottom:0!important}
+      .poi116-brand{gap:14px!important}
+      .poi116-brand img{width:250px!important;max-width:28vw!important}
+      .poi116-brand-copy b{
+        font-size:clamp(23px,2.2vw,31px)!important;
+        line-height:1.04!important;
+        margin-top:2px!important
+      }
+      .poi116-brand-copy span{font-size:11px!important;margin-top:6px!important}
+      .poi116-top-right{padding-top:2px!important}
+      .poi116-top-right b{font-size:10px!important}
+      .poi116-top-right span{font-size:11px!important;margin-top:4px!important}
+      .poi116-top-right i{margin-top:8px!important;width:150px!important}
+
+      .poi116-center{
+        justify-content:center!important;
+        padding-top:2px!important
+      }
+      .poi116-kicker{font-size:9.5px!important;letter-spacing:.22em!important}
+      .poi116-kicker::before,.poi116-kicker::after{width:72px!important}
+      .poi116-title{
+        font-size:clamp(34px,3.3vw,58px)!important;
+        line-height:1.03!important;
+        margin:12px 0 6px!important
+      }
+      .poi116-subtitle{
+        font-size:13px!important;
+        line-height:1.45!important
+      }
+
+      .poi116-cards{
+        max-width:1100px!important;
+        margin:20px auto 0!important;
+        gap:18px!important
+      }
+      .poi116-card{
+        min-height:255px!important;
+        padding:20px 22px 18px!important;
+        border-radius:22px!important
+      }
+      .poi116-card::before{
+        width:10px!important;
+        height:112px!important;
+        border-radius:22px 0 14px 0!important
+      }
+      .poi116-card-logo{
+        max-width:165px!important;
+        height:72px!important
+      }
+      .poi116-chip{
+        padding:8px 15px!important;
+        font-size:11px!important;
+        border-radius:12px!important
+      }
+      .poi116-card h3{
+        font-size:18px!important;
+        margin:16px 0 9px!important
+      }
+      .poi116-card p{
+        font-size:12.5px!important;
+        line-height:1.5!important;
+        min-height:40px!important;
+        max-width:360px!important
+      }
+      .poi116-main-btn{
+        margin-top:20px!important;
+        height:56px!important;
+        border-radius:14px!important;
+        padding:0 18px 0 17px!important;
+        font-size:13px!important
+      }
+      .poi116-main-btn .left{gap:12px!important}
+      .poi116-main-btn .icon{
+        width:25px!important;
+        height:25px!important;
+        font-size:14px!important
+      }
+      .poi116-main-btn .arrow{font-size:24px!important}
+
+      .poi116-office-wrap{
+        max-width:860px!important;
+        margin:18px auto 0!important
+      }
+      .poi116-office-head{
+        gap:12px!important;
+        font-size:9px!important;
+        letter-spacing:.20em!important
+      }
+      .poi116-office-btn{
+        margin-top:12px!important;
+        min-height:58px!important;
+        max-width:420px!important;
+        border-radius:16px!important;
+        gap:14px!important;
+        font-size:14px!important
+      }
+      .poi116-office-btn .lock{
+        width:29px!important;
+        height:29px!important;
+        font-size:15px!important
+      }
+      .poi116-office-btn .arr{
+        font-size:25px!important;
+        margin-left:2px!important
+      }
+
+      .poi116-bottom{
+        padding-top:10px!important;
+        font-size:10px!important
+      }
+
+      @media(max-width:1180px){
+        #poi113CompanyGate .poi113-card{
+          padding:16px 18px 12px!important;
+        }
+        .poi116-home{
+          width:min(1220px,100%)!important;
+          gap:8px!important
+        }
+        .poi116-brand img{width:212px!important;max-width:24vw!important}
+        .poi116-brand-copy b{font-size:25px!important}
+        .poi116-top-right i{width:130px!important}
+        .poi116-title{font-size:clamp(30px,3.5vw,44px)!important}
+        .poi116-cards{max-width:980px!important;gap:14px!important}
+        .poi116-card{min-height:235px!important}
+        .poi116-card-logo{max-width:140px!important;height:62px!important}
+        .poi116-card h3{font-size:16px!important}
+        .poi116-card p{font-size:11.8px!important}
+      }
+
+      @media(max-width:900px){
+        #poi113CompanyGate{overflow:auto!important}
+        #poi113CompanyGate .poi113-card{
+          height:auto!important;
+          min-height:100vh!important;
+          padding:18px 14px 18px!important;
+          align-items:flex-start!important
+        }
+        .poi116-home{
+          height:auto!important;
+          display:flex!important;
+          flex-direction:column!important;
+          gap:14px!important
+        }
+        .poi116-top{flex-direction:column!important;align-items:flex-start!important}
+        .poi116-top-right{text-align:left!important}
+        .poi116-top-right i{width:120px!important}
+        .poi116-brand img{width:220px!important;max-width:56vw!important}
+        .poi116-kicker::before,.poi116-kicker::after{width:32px!important}
+        .poi116-title{font-size:32px!important;line-height:1.08!important}
+        .poi116-cards{
+          grid-template-columns:1fr!important;
+          max-width:680px!important;
+          gap:16px!important;
+          margin-top:18px!important
+        }
+        .poi116-card{min-height:unset!important}
+        .poi116-office-wrap{margin-top:12px!important}
+        .poi116-bottom{
+          flex-direction:column!important;
+          align-items:flex-start!important;
+          gap:6px!important
+        }
+      }
+
       @media(max-width:1180px){
         .poi116-brand img{width:270px}
         .poi116-brand-copy b{font-size:30px}
@@ -380,7 +565,7 @@
     $('#poiCloudLogout')?.click();
   }
 
-  const officeUnlocked=()=>officeUnlockedFlag===true;
+  const officeUnlocked=()=>officeUnlockedFlag===true; // solo dopo verifica password esplicita in questa sessione UI
   const expectedProductionRole=company=>company==='multiplast'?'mpworker':'worker';
 
   function hideLegacyProfileGate(){
@@ -400,7 +585,10 @@
   function showProductionHome(){
     ensureUI();if(!profile())return;
     closeOverlays();hideLegacyProfileGate();
-    officeUnlockedFlag=false;employee=null;pendingEntry=null;sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(OFFICE_ROLE_KEY);
+    officeUnlockedFlag=false;employee=null;pendingEntry=null;
+    sessionStorage.removeItem(EMPLOYEE_KEY);
+    sessionStorage.removeItem(OFFICE_ROLE_KEY);
+    sessionStorage.removeItem('industrialos_role_session');
     const gate=$('#poi113CompanyGate'),body=$('#poi113CompanyBody');
     $('#poi113CompanyLogout').style.display='none';
 
@@ -519,12 +707,22 @@
   }
 
   async function openOfficeLogin(){
-    ensureUI();closeOverlays();hideLegacyProfileGate();
+    ensureUI();
+    // L'accesso uffici richiede SEMPRE una nuova verifica esplicita.
+    // La sessione Supabase già attiva serve alla piattaforma, ma non sblocca gli uffici.
+    officeUnlockedFlag=false;
+    sessionStorage.removeItem(OFFICE_ROLE_KEY);
+    sessionStorage.removeItem('industrialos_role_session');
+    closeOverlays();hideLegacyProfileGate();
     $('#poi113AccessLogo').textContent='UFF';$('#poi113AccessTitle').textContent='Accesso uffici / amministrazione';
     $('#poi113AccessBody').innerHTML=`<form id="poi115OfficeLoginForm"><div class="poi113-form-grid"><label class="field full">E-mail aziendale<input name="email" type="email" required autocomplete="username"></label><label class="field full">Password<input name="password" type="password" required autocomplete="current-password"></label><div class="poi113-error full" id="poi115OfficeLoginError"></div><button class="btn primary full" type="submit">Sblocca accesso uffici</button></div></form>`;
     $('#poi113AccessBack').textContent='Indietro';$('#poi113AccessBack').onclick=showProductionHome;
     try{const {data}=await client().auth.getUser();if(data?.user?.email)$('#poi115OfficeLoginForm [name="email"]').value=data.user.email}catch(_){}
-    $('#poi115OfficeLoginForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,err=$('#poi115OfficeLoginError'),btn=f.querySelector('button[type="submit"]');err.classList.remove('show');btn.disabled=true;btn.textContent='Verifica…';const email=String(f.elements.email.value||'').trim().toLowerCase(),password=String(f.elements.password.value||'');const {error}=await client().auth.signInWithPassword({email,password});btn.disabled=false;btn.textContent='Sblocca accesso uffici';if(error){err.textContent='E-mail o password non corretti.';err.classList.add('show');return}officeUnlockedFlag=true;sessionStorage.removeItem(EMPLOYEE_KEY);employee=null;setTimeout(()=>showOfficeMenu(),120)};
+    $('#poi115OfficeLoginForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,err=$('#poi115OfficeLoginError'),btn=f.querySelector('button[type="submit"]');err.classList.remove('show');btn.disabled=true;btn.textContent='Verifica…';const email=String(f.elements.email.value||'').trim().toLowerCase(),password=String(f.elements.password.value||'');const {error}=await client().auth.signInWithPassword({email,password});btn.disabled=false;btn.textContent='Sblocca accesso uffici';if(error){err.textContent='E-mail o password non corretti.';err.classList.add('show');return}
+      officeUnlockedFlag=true;
+      sessionStorage.removeItem(EMPLOYEE_KEY);
+      employee=null;
+      setTimeout(()=>showOfficeMenu(),160)};
     $('#poi113AccessGate').classList.add('open');setTimeout(()=>$('#poi115OfficeLoginForm [name="password"]')?.focus(),80);
   }
 
@@ -569,8 +767,8 @@
     sb.auth.onAuthStateChange(event=>{
       if(event==='SIGNED_IN'&&activationMode){setTimeout(()=>location.replace(location.origin+location.pathname),500);return}
       if(event==='SIGNED_IN'&&!activationMode){
-        const authVisible=$('#poiCloudAuth')&&getComputedStyle($('#poiCloudAuth')).display!=='none';
-        if(authVisible){officeUnlockedFlag=true;setTimeout(()=>{if(profile())showOfficeMenu();else setTimeout(showCompanyMenu,450)},180)}
+        // IMPORTANTE: una sessione account già valida NON autorizza automaticamente l'area uffici.
+        // L'area uffici viene sbloccata solo da openOfficeLogin() dopo una nuova password corretta.
         return;
       }
       if(event!=='PASSWORD_RECOVERY')return;

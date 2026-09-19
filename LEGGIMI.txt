@@ -1,19 +1,15 @@
-V11.5 - HOME PROFESSIONALE CLIENTE
+V11.5 - FIX SICUREZZA ACCESSO UFFICI
 
-Aggiornata la home della piattaforma con uno stile più professionale, elegante e discreto:
-- titolo principale: "Piattaforma Industriale Integrata"
-- sottotitolo operativo, non commerciale
-- logo combinato Smart Pack + Multiplast nella testata
-- card Produzione Smart Pack e Produzione Multiplast con i rispettivi loghi
-- colori coerenti con i due marchi:
-  * Smart Pack: blu tecnico
-  * Multiplast: rosso/blu
-- accesso uffici/amministrazione separato in basso
-- grafica pulita da app industriale interna
-- rimosso il tono "troppo IA" / troppo marketing
-- cache aggiornata a static-14
+Correzione:
+- clic su "Accesso uffici / amministrazione" mostra SEMPRE prima email + password;
+- la sessione Supabase già aperta NON sblocca più automaticamente gli uffici;
+- Gestione Smart Pack / Responsabile produzione Multiplast / Amministrazione compaiono SOLO dopo password corretta;
+- tornando alla home Produzione l'autorizzazione uffici viene invalidata;
+- dopo reload pagina l'area uffici è nuovamente bloccata;
+- cache aggiornata a static-16.
 
-File da caricare:
-app/src/main/assets/access-v11.5.js
-app/src/main/assets/planner-v11.5.js
-app/src/main/assets/service-worker.js
+Flusso:
+HOME -> ACCESSO UFFICI -> EMAIL/PASSWORD -> MENU UFFICI -> RUOLO
+
+Mai:
+HOME -> MENU UFFICI senza password.
