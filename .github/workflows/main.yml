@@ -38,26 +38,26 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: Verify V11.3 separated access package
+      - name: Verify V11.4 simplified access package
         shell: bash
         run: |
           test -f app/src/main/assets/index.html
           test -f app/src/main/assets/smartpack-v11.js
-          test -f app/src/main/assets/access-v11.3.js
+          test -f app/src/main/assets/access-v11.4.js
           test -f app/src/main/assets/service-worker.js
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/java/com/smartpackmultiplast/operations/MainActivity.java
-          grep -q 'PIATTAFORMA-GRUPPO-V11.3' app/src/main/assets/index.html
-          grep -q 'PIATTAFORMA-GRUPPO-V11.3' app/src/main/assets/access-v11.3.js
+          grep -q 'PIATTAFORMA-GRUPPO-V11.4' app/src/main/assets/index.html
+          grep -q 'PIATTAFORMA-GRUPPO-V11.4' app/src/main/assets/access-v11.4.js
           grep -q 'smartpack-v11.js' app/src/main/assets/index.html
-          grep -q 'access-v11.3.js' app/src/main/assets/index.html
-          grep -q 'versionCode = 113' app/build.gradle.kts
-          grep -q 'versionName = "11.3"' app/build.gradle.kts
+          grep -q 'access-v11.4.js' app/src/main/assets/index.html
+          grep -q 'versionCode = 114' app/build.gradle.kts
+          grep -q 'versionName = "11.4"' app/build.gradle.kts
 
       - name: Verify JavaScript syntax
         run: |
           node --check app/src/main/assets/smartpack-v11.js
-          node --check app/src/main/assets/access-v11.3.js
+          node --check app/src/main/assets/access-v11.4.js
           node --check app/src/main/assets/service-worker.js
 
       - name: Build Android APK
@@ -65,13 +65,12 @@ jobs:
 
       - name: Rename APK
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk \
-             app/build/outputs/apk/debug/SmartPack-Multiplast-V11.3.apk
+          cp app/build/outputs/apk/debug/app-debug.apk              app/build/outputs/apk/debug/SmartPack-Multiplast-V11.4.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmartPack-Multiplast-V11.3-APK
-          path: app/build/outputs/apk/debug/SmartPack-Multiplast-V11.3.apk
+          name: SmartPack-Multiplast-V11.4-APK
+          path: app/build/outputs/apk/debug/SmartPack-Multiplast-V11.4.apk
           if-no-files-found: error
           retention-days: 14
