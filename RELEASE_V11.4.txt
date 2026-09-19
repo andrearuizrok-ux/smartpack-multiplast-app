@@ -1,0 +1,23 @@
+SMART PACK · MULTIPLAST — V11.4
+
+ACCESSO SEMPLIFICATO
+- Unico super-admin piattaforma: info.nomyra@gmail.com
+- Unico account cliente principale: info@smartpack.srl
+- Nessuna registrazione pubblica.
+- Rimosso il recupero password via e-mail dalla schermata di accesso.
+- Gli altri profili amministrativi risultano disattivati.
+
+NOMYRA
+- Dopo il login apre l'Area riservata NOMYRA.
+- Può aprire Smart Pack o Multiplast come amministratore.
+- Può modificare direttamente l'account cliente: e-mail, nome, password e stato attivo/disattivo.
+- Il cambio password cliente avviene lato server tramite Edge Function protetta e non viene salvato nel browser.
+
+CLIENTE
+- Dopo il login sceglie Smart Pack o Multiplast.
+- Entra direttamente nell'area autorizzata senza un secondo USER/PIN.
+- Smart Pack apre la gestione Smart Pack; Multiplast apre la gestione Multiplast.
+
+DATI
+- Nessun dato operativo è stato cancellato o ricreato.
+- Supabase e i segmenti cloud esistenti restano invariati.

@@ -1,5 +1,5 @@
 const CACHE='spmp-v113-static-1';
-const STATIC=['./','./index.html','./smartpack-v11.js','./access-v11.3.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const STATIC=['./','./index.html','./smartpack-v11.js','./access-v11.4.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)).catch(()=>{}));
