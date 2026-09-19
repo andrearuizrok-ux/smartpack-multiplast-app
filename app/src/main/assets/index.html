@@ -8,6 +8,19 @@
 <meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#1F5E78">
 <title>Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · V11.5</title>
+<style id="poiBootFix">
+html.poi-booting body{overflow:hidden!important}
+html.poi-booting body>*:not(#poiBootScreen){visibility:hidden!important}
+#poiBootScreen{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#f3f7f8;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#102331}
+#poiBootScreen .poi-boot-card{display:grid;justify-items:center;gap:14px;padding:26px;text-align:center}
+#poiBootScreen .poi-boot-logo{width:64px;height:64px;border-radius:18px;background:linear-gradient(145deg,#102d3c,#1F5E78);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:900;letter-spacing:.04em;box-shadow:0 16px 34px rgba(20,52,67,.20)}
+#poiBootScreen b{font-size:15px}#poiBootScreen span{font-size:10px;color:#6d7f8b}
+#poiBootScreen .poi-boot-line{width:170px;height:4px;border-radius:99px;background:#dce6e9;overflow:hidden}
+#poiBootScreen .poi-boot-line:after{content:"";display:block;width:46%;height:100%;border-radius:99px;background:#1F5E78;animation:poiBootMove 1.05s ease-in-out infinite alternate}
+@keyframes poiBootMove{from{transform:translateX(-12%)}to{transform:translateX(128%)}}
+html:not(.poi-booting) #poiBootScreen{display:none!important}
+</style>
+<script>document.documentElement.classList.add('poi-booting');window.__poiBootSafety=setTimeout(function(){document.documentElement.classList.remove('poi-booting')},7000);</script>
 <style>
 :root{--primary:#1F5E78;--primary2:#17495e;--secondary:#2D9B86;--ink:#102331;--muted:#6d7f8b;--bg:#f3f7f8;--card:#fff;--line:#dce6e9;--soft:#edf4f5;--ok:#238b69;--warn:#d8902f;--danger:#c64f55;--shadow:0 12px 30px rgba(24,56,70,.09);--radius:18px}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -107,6 +120,7 @@ dialog{border:0;padding:0;border-radius:20px;box-shadow:0 30px 80px rgba(7,34,47
 <link rel="apple-touch-icon" href="./icon-192.png">
 </head>
 <body data-build="PIATTAFORMA-GRUPPO-V10.5">
+<div id="poiBootScreen" aria-live="polite" aria-label="Caricamento piattaforma"><div class="poi-boot-card"><div class="poi-boot-logo">SP·MP</div><div><b>Caricamento piattaforma</b><br><span>Sincronizzazione dei dati aziendali…</span></div><div class="poi-boot-line"></div></div></div>
 <div class="access-gate" id="accessGate" style="display:none">
   <div class="access-card">
     <div class="access-brand"><div class="access-logo">SP</div><div><strong>SMART PACK</strong><span style="display:block;color:var(--muted);font-size:10px;margin-top:3px">Piattaforma Operativa Integrata · accesso per ruolo <span class="version-badge">V11.5</span></span></div></div>
@@ -2762,24 +2776,25 @@ function hookSave(){if(typeof save!=='function'||save.__poiCloudHooked)return;co
 function injectMobileSummary(){const content=$c('.content');if(!content||!currentRole)return;let box=$c('#poiMobileSummary');if(!box){box=document.createElement('div');box.id='poiMobileSummary';box.className='poi-mobile-summary';const strip=$c('#poiOnlineStrip');(strip||content.firstChild)?.insertAdjacentElement?.('afterend',box)||content.prepend(box)}let html='';try{if(currentRole==='manager'||currentRole==='mpworker'){const m=state.groupV92?.multiplast||{},tom=(()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)})(),dels=(m.deliveries||[]).filter(d=>d.date===tom&&d.status!=='Chiuso'),active=(m.presses||[]).filter(p=>(m.tasks||[]).some(t=>t.pressId===p.id&&!['Completata','Annullata'].includes(t.status))).length,ready=(m.fgStock||[]).reduce((a,x)=>a+Number(x.qty||0),0),alerts=(m.shifts||[]).slice(-20).filter(s=>typeof shiftAlerts==='function'&&shiftAlerts(s).length).length;html=`<div class="poi-ms-head"><div><h3>Multiplast oggi</h3><p>Vista rapida da telefono</p></div></div><div class="poi-ms-grid"><div class="poi-ms-card"><span>Presse attive</span><b>${active}/4</b><small>Produzione in corso</small></div><div class="poi-ms-card"><span>Consegne domani</span><b>${dels.length}</b><small>Priorità da coprire</small></div><div class="poi-ms-card"><span>Pezzi pronti</span><b>${new Intl.NumberFormat('it-IT').format(ready)}</b><small>Prodotti finiti a magazzino</small></div><div class="poi-ms-card"><span>Alert recenti</span><b>${alerts}</b><small>Efficienza / calo produttività</small></div></div>`}else if(currentRole==='director'){const groups=typeof groupOrders==='function'?groupOrders():[],open=groups.filter(g=>!['Completata','Soddisfatta','Annullata','Chiuso'].includes(g.status)).length,crit=(state.imls||[]).filter(i=>typeof available==='function'&&available(i)<=Number(i.minStock||0)).length,sheets=(state.productionSheets||[]).filter(s=>(s.rows||[]).some(r=>!r.finishAt)).length;html=`<div class="poi-ms-head"><div><h3>Smart Pack oggi</h3><p>Vista rapida da telefono</p></div></div><div class="poi-ms-grid"><div class="poi-ms-card"><span>Ordini aperti</span><b>${open}</b><small>Da seguire</small></div><div class="poi-ms-card"><span>IML critici</span><b>${crit}</b><small>Sotto livello minimo</small></div><div class="poi-ms-card"><span>Fogli attivi</span><b>${sheets}</b><small>Produzioni non concluse</small></div><div class="poi-ms-card"><span>Stato dati</span><b>${cloudUser?'Cloud':'Locale'}</b><small>${cloudUser?'Condivisi tra dispositivi':'Solo questo dispositivo'}</small></div></div>`}else box.innerHTML='';}catch(_){html=''}box.innerHTML=html}
 function hookRenders(){const f=()=>injectMobileSummary();['renderCurrent','navTo','switchCompanyV92'].forEach(name=>{try{const old=window[name];if(typeof old==='function'&&!old.__poiV10){const w=function(){const r=old.apply(this,arguments);setTimeout(f,20);return r};w.__poiV10=true;window[name]=w}}catch(_){}});setTimeout(f,200)}
 function updateBuildLabels(){document.title='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast · '+V10;document.body.dataset.build='PIATTAFORMA-GRUPPO-V11.5';$$c('.version-badge').forEach(x=>x.textContent=V10);const brand=$c('#accessGate .access-brand strong');if(brand)brand.textContent='Piattaforma Operativa Integrata – Gruppo Smart Pack – Multiplast'}
+function finishPlatformBoot(){try{clearTimeout(window.__poiBootSafety)}catch(_){}requestAnimationFrame(()=>requestAnimationFrame(()=>document.documentElement.classList.remove('poi-booting')))}
 async function initCloudV10(){
  ensureCloudUI();updateBuildLabels();hookSave();hookRenders();
- // Mostra sempre l'interfaccia locale prima della rete.
- safeRenderCloudUI();
+ // V11.5 startup fix: non mostrare la vecchia UI locale mentre attendiamo sessione e dati cloud.
  window.addEventListener('online',()=>{if(cloudUser){setCloudStatus('syncing','Riconnessione…');cloudSyncDirty(false);if(!rtChannel)subscribeRealtime()}else setCloudStatus(cloudConfigured()?'offline':'local',cloudConfigured()?'Accesso richiesto':'Demo locale')});
  window.addEventListener('offline',()=>setCloudStatus(cloudConfigured()?'offline':'local',cloudConfigured()?'Offline':'Demo locale'));
- if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
- if(!cloudConfigured()){setCloudStatus('local','Demo locale');return}
+ if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+ if(!cloudConfigured()){setCloudStatus('local','Demo locale');safeRenderCloudUI();finishPlatformBoot();return}
  setCloudStatus('syncing','Connessione…');
  try{
-   if(!await initClient()){showAuth(true);safeRenderCloudUI();return}
+   if(!await initClient()){showAuth(true);safeRenderCloudUI();finishPlatformBoot();return}
    const restored=await restoreCloudSession();
-   if(!restored)showAuth(true);
-   else{showAuth(false);applyRolePermissions();safeRenderCloudUI();setTimeout(()=>window.POIV112?.showCompanyMenu?.(),80)}
+   if(!restored){showAuth(true);safeRenderCloudUI();finishPlatformBoot()}
+   else{showAuth(false);applyRolePermissions();safeRenderCloudUI();setTimeout(()=>{window.POIV112?.showCompanyMenu?.();finishPlatformBoot()},100)}
  }catch(err){
    console.error('[Cloud] init',err);
    setCloudStatus('error','Cloud temporaneamente non disponibile');
    safeRenderCloudUI();
+   finishPlatformBoot();
  }
 }
 window.POICloudV10={setConfig(c){localStorage.setItem(CLOUD_CFG_KEY,JSON.stringify({...c,enabled:true}));location.reload()},clearConfig(){localStorage.removeItem(CLOUD_CFG_KEY);location.reload()},syncNow:()=>cloudSyncDirty(true),showRoles:showRoleGate,approveUser,getClient:()=>sb,getProfile:()=>cloudProfile,getUser:()=>cloudUser,enterRole:cloudEnterRole,isOwner:isOwnerProfile,openLegacyUsers:openUserManager};
