@@ -1,12 +1,8 @@
-V11.5 - Ordini da Gmail
+V11.5 - Gmail SOLO Smart Pack
 
-Caricare su GitHub mantenendo le cartelle.
-Modifiche:
-- Inbox Gmail spostata nella sezione Ordini.
-- Pulsante Collega/Sincronizza Gmail dentro Ordini.
-- Le email entrano come bozze.
-- Prima si controlla e salva la verifica.
-- Solo dopo compare 'Approva e crea ordine'.
-- Conferma ulteriore prima di trasferire i dati al modulo Nuovo ordine.
-- Coda Roberto mostra solo un riepilogo/link alla sezione Ordini.
-- Cache service worker incrementata per evitare la vecchia UI.
+- Gmail collegabile direttamente dall'Account aziendale Smart Pack.
+- Connessione, sincronizzazione e bozze sono associate a company_code=smartpack.
+- In ambiente Multiplast il blocco Gmail non viene mostrato.
+- Gli ordini importati da Gmail sono solo Smart Pack.
+- Nessun ordine viene creato senza verifica e approvazione.
+- Cache aggiornata a static-4.
