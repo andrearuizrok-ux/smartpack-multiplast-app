@@ -1068,7 +1068,7 @@
   if(window.SPDeliveryV116) return;
 
   const VIEW='companySettings';
-  const VERSION='V11.6.1';
+  const VERSION='V11.6.3';
   const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -1237,7 +1237,7 @@
       out.sections.company=obj;out.counts.company=Object.values(obj).filter(Boolean).length;
     }
     const clRows=rowsOf(wb,['CLIENTI','CLIENTS','ANAGRAFICA CLIENTI']);
-    if(clRows){const existing=state.clientDirectory||state.clients||[];let tmp=[...existing];out.sections.clients=clRows.map(r=>{let code=txt(val(r,['Codice cliente','Codice','Code','ID']));if(!code){code=nextCode('CLI',tmp);tmp.push({code})}const name=txt(val(r,['Cliente','Ragione sociale','Nome','Name']));if(!name)out.errors.push(`Cliente senza nome (${code})`);return{code,name,vat:txt(val(r,['Partita IVA','PIVA','VAT'])),fiscalCode:txt(val(r,['Codice fiscale','CF'])),email:txt(val(r,['Email','E-mail'])),phone:txt(val(r,['Telefono','Phone'])),address:txt(val(r,['Indirizzo','Address'])),city:txt(val(r,['Citta','Città','City'])),province:txt(val(r,['Provincia','Province'])),cap:txt(val(r,['CAP','ZIP'])),pec:txt(val(r,['PEC'])),sdi:txt(val(r,['SDI','Codice SDI'])),active:bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.name);out.counts.clients=out.sections.clients.length}
+    if(clRows){const existing=state.clientDirectory||state.clients||[];let tmp=[...existing];out.sections.clients=clRows.map(r=>{let code=txt(val(r,['Codice cliente SPRING','Codice SPRING','Codice cliente','Codice','Code','ID']));if(!code){code=nextCode('CLI',tmp);tmp.push({code})}const name=txt(val(r,['Cliente','Ragione sociale','Nome','Name']));if(!name)out.errors.push(`Cliente senza nome (${code})`);return{code,name,vat:txt(val(r,['Partita IVA','PIVA','VAT'])),fiscalCode:txt(val(r,['Codice fiscale','CF'])),email:txt(val(r,['Email','E-mail'])),phone:txt(val(r,['Telefono','Phone'])),address:txt(val(r,['Indirizzo','Address'])),city:txt(val(r,['Citta','Città','City'])),province:txt(val(r,['Provincia','Province'])),cap:txt(val(r,['CAP','ZIP'])),pec:txt(val(r,['PEC'])),sdi:txt(val(r,['SDI','Codice SDI'])),active:bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.name);out.counts.clients=out.sections.clients.length}
     const prRows=rowsOf(wb,['PRODOTTI','PRODUCTS','ARTICOLI']);
     if(prRows){const existing=state.productDirectory||state.products||[];let tmp=[...existing];out.sections.products=prRows.map(r=>{let code=txt(val(r,['Codice prodotto','Codice articolo','Codice','Code','ID']));if(!code){code=nextCode('PRD',tmp);tmp.push({code})}const name=txt(val(r,['Prodotto','Articolo','Descrizione','Nome','Name']));if(!name)out.errors.push(`Prodotto senza nome (${code})`);return{code,name,family:txt(val(r,['Famiglia','Categoria','Family'])),liters:txt(val(r,['Formato','Litri','Liters'])),color:txt(val(r,['Colore','Color'])),unit:txt(val(r,['UM','Unita','Unità','Unit']))||'PZ',notes:txt(val(r,['Note','Notes'])),active:bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.name);out.counts.products=out.sections.products.length}
     const maRows=rowsOf(wb,['MACCHINE','MACHINES','PRESSE']);
@@ -1245,7 +1245,9 @@
     const moRows=rowsOf(wb,['STAMPI','MOLDS']);
     if(moRows){let tmp=[...(state.molds||[])];out.sections.molds=moRows.map(r=>{let id=txt(val(r,['ID stampo','Codice stampo','ID','Codice','Code']));if(!id){id=nextCode('MLD',tmp,'id');tmp.push({id})}const cyc=num(val(r,['Tempo ciclo sec','Cycle seconds','Ciclo secondi'])),rate=num(val(r,['Pezzi ora','Pz ora','Rate']));return{id,name:txt(val(r,['Stampo','Nome','Name']))||id,machineId:txt(val(r,['ID macchina','Macchina','Machine'])),kind:txt(val(r,['Tipo','Kind'])),cycleSeconds:cyc,rate:rate||(cyc?3600/cyc:0),notes:txt(val(r,['Note','Notes'])),companyCode:c}});out.counts.molds=out.sections.molds.length}
     const imlRows=rowsOf(wb,['IML','ETICHETTE','LABELS']);
-    if(imlRows){let tmp=[...(state.imls||[])];out.sections.imls=imlRows.map(r=>{let code=txt(val(r,['Codice IML','IML','Codice','Code','ID']));if(!code){code=nextCode('IML',tmp);tmp.push({code})}return{code,id:code,productCode:txt(val(r,['Codice prodotto','Product code'])),clientCode:txt(val(r,['Codice cliente','Client code'])),description:txt(val(r,['Descrizione','Description']))||code,physical:num(val(r,['Giacenza fisica','Fisico','Physical','Quantita','Quantità'])),reserved:num(val(r,['Riservato','Reserved'])),minimum:num(val(r,['Scorta minima','Minimo','Minimum'])),status:txt(val(r,['Stato','Status'])),notes:txt(val(r,['Note','Notes'])),companyCode:c}});out.counts.imls=out.sections.imls.length}
+    if(imlRows){let tmp=[...(state.imls||[])];out.sections.imls=imlRows.map(r=>{let code=txt(val(r,['Codice IML aziendale','Codice IML','IML','Codice','Code','ID']));if(!code){code=nextCode('IML',tmp);tmp.push({code})}return{code,id:code,productCode:txt(val(r,['Codice prodotto','Product code'])),clientCode:txt(val(r,['Codice cliente','Client code'])),description:txt(val(r,['Descrizione','Description']))||code,physical:num(val(r,['Giacenza fisica','Fisico','Physical','Quantita','Quantità'])),reserved:num(val(r,['Riservato','Reserved'])),minimum:num(val(r,['Scorta minima','Minimo','Minimum'])),status:txt(val(r,['Stato','Status'])),notes:txt(val(r,['Note','Notes'])),companyCode:c}});out.counts.imls=out.sections.imls.length}
+    const suRows=rowsOf(wb,['FORNITORI','SUPPLIERS','ANAGRAFICA FORNITORI']);
+    if(suRows){let tmp=[...(state.supplierDirectory||[])];out.sections.suppliers=suRows.map(r=>{let code=txt(val(r,['Codice fornitore','Codice','Code','ID']));if(!code){code=nextCode('FOR',tmp);tmp.push({code})}const name=txt(val(r,['Fornitore','Ragione sociale','Nome','Name']));if(!name)out.errors.push(`Fornitore senza nome (${code})`);return{code,reference:code,name,email:txt(val(r,['Email','E-mail'])).toLowerCase(),phone:txt(val(r,['Telefono','Phone'])),category:txt(val(r,['Tipo','Categoria','Category']))||'',active:bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.name);out.counts.suppliers=out.sections.suppliers.length}
     const orRows=rowsOf(wb,['ORDINI','ORDERS','ORDINI APERTI']);
     if(orRows){let seq=0;out.sections.orders=orRows.map(r=>{seq++;let code=txt(val(r,['Codice ordine','Codice riga','Code','ID']));if(!code)code=`ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(seq).padStart(3,'0')}`;let parent=txt(val(r,['Ordine padre','Parent','Rif interno']))||code;const cc=txt(val(r,['Codice cliente','Client code'])),pc=txt(val(r,['Codice prodotto','Product code']));const cm=(out.sections.clients||state.clientDirectory||state.clients||[]).find(x=>String(x.code)===cc),pm=(out.sections.products||state.productDirectory||state.products||[]).find(x=>String(x.code)===pc);return{code,parent,orderRef:txt(val(r,['Riferimento ordine','Ordine cliente','Order ref'])),clientCode:cc,client:txt(val(r,['Cliente','Client']))||cm?.name||'',productCode:pc,product:txt(val(r,['Prodotto','Product']))||pm?.name||'',qty:num(val(r,['Quantita','Quantità','Qty','Qta'])),dueDate:date(val(r,['Data consegna','Consegna','Due date'])),priority:txt(val(r,['Priorita','Priorità','Priority']))||'Normale',imlCode:txt(val(r,['Codice IML','IML'])),status:txt(val(r,['Stato','Status']))||'Aperto',notes:txt(val(r,['Note','Notes'])),cancelled:!bool(val(r,['Attivo','Active']),true),companyCode:c}}).filter(x=>x.qty||x.client||x.product);out.counts.orders=out.sections.orders.length}
     const opRows=rowsOf(wb,['OPERATORI','OPERATORS','DIPENDENTI']);
@@ -1261,7 +1263,7 @@
   }
   function renderImportPreview(){
     const box=$('#v116ImportPreview'),btn=$('#v116ApplyImport');if(!box)return;if(!pendingImport){box.innerHTML='';if(btn)btn.disabled=true;return}
-    const labels={company:'Dati azienda',clients:'Clienti',products:'Prodotti',machines:'Macchine',molds:'Stampi',imls:'IML',orders:'Ordini',operators:'Operatori',compliance:'Scadenze'};
+    const labels={company:'Dati azienda',clients:'Clienti',products:'Prodotti',suppliers:'Fornitori',machines:'Macchine',molds:'Stampi',imls:'IML',orders:'Ordini',operators:'Operatori',compliance:'Scadenze'};
     const entries=Object.entries(pendingImport.counts||{}).filter(([,n])=>n>0);box.innerHTML=entries.length?entries.map(([k,n])=>`<div class="v116-preview-row"><span>${labels[k]||k}</span><b class="v116-good">${n} ${k==='company'?'campi':'righe'}</b></div>`).join(''):'<div class="v116-preview-row"><span>Nessuna sezione riconosciuta</span><b class="v116-warn">Controlla i nomi dei fogli</b></div>';
     if(pendingImport.errors?.length)box.innerHTML+=`<div class="v116-preview-row"><span>Avvisi</span><b class="v116-warn">${pendingImport.errors.length}</b></div>`;
     if(btn)btn.disabled=!entries.length;
@@ -1275,17 +1277,25 @@
     for(const x of inc){const k=String(x?.[key]||'').toLowerCase();if(k&&map.has(k))map.set(k,{...map.get(k),...x});else map.set(k||'__'+Math.random(),x)}
     return [...other,...map.values()];
   }
-  function snapshot(){ensureData();return{companyProfilesV116:state.companyProfilesV116,clientDirectory:state.clientDirectory,clients:state.clients,productDirectory:state.productDirectory,products:state.products,machines:state.machines,molds:state.molds,imls:state.imls,orders:state.orders,operators:state.operators,operatorsByCompanyV116:state.operatorsByCompanyV116,complianceRecords:state.complianceRecords,importHistoryV116:state.importHistoryV116}}
+  function snapshot(){ensureData();return{companyProfilesV116:state.companyProfilesV116,clientDirectory:state.clientDirectory,clients:state.clients,productDirectory:state.productDirectory,products:state.products,supplierDirectory:state.supplierDirectory,machines:state.machines,molds:state.molds,imls:state.imls,orders:state.orders,operators:state.operators,operatorsByCompanyV116:state.operatorsByCompanyV116,complianceRecords:state.complianceRecords,importHistoryV116:state.importHistoryV116}}
   function applyImport(){
     if(!pendingImport||!canConfigure())return;const mode=importMode(),c=safeCompany(),sec=pendingImport.sections||{};if(!confirm(`Importare i dati di “${pendingImport.file}” in ${companyName(c)}?\nModalità: ${mode==='replace'?'Sostituisci le sezioni presenti':'Unisci / aggiorna'}.`))return;
     try{localStorage.setItem('poi_v116_last_import_backup',JSON.stringify({at:iso(),company:c,data:snapshot()}))}catch(_){ }
     ensureData();
     if(sec.company)state.companyProfilesV116[c]={...profileData(c),...Object.fromEntries(Object.entries(sec.company).filter(([,v])=>txt(v)!=='')),updatedAt:iso()};
-    if(sec.clients){state.clientDirectory=mergeObjects(state.clientDirectory||state.clients,sec.clients,'code',c,mode);state.clients=state.clientDirectory.map(x=>({...x}))}
+    if(sec.clients){
+      // I codici importati (es. SPRING) sono autorevoli. In modalità merge sostituiamo l'eventuale codice provvisorio del cliente con lo stesso nome.
+      if(mode==='merge'){const names=new Map(sec.clients.map(x=>[norm(x.name),x]));state.clientDirectory=(state.clientDirectory||state.clients||[]).filter(x=>!names.has(norm(x?.name||''))||String(names.get(norm(x?.name||''))?.code||'').toLowerCase()===String(x?.code||'').toLowerCase())}
+      state.clientDirectory=mergeObjects(state.clientDirectory||state.clients,sec.clients,'code',c,mode);state.clients=state.clientDirectory.map(x=>({...x}))
+    }
     if(sec.products){state.productDirectory=mergeObjects(state.productDirectory||state.products,sec.products,'code',c,mode);state.products=state.productDirectory.map(x=>({...x}))}
+    if(sec.suppliers)state.supplierDirectory=mergeObjects(state.supplierDirectory,sec.suppliers,'code',c,mode);
     if(sec.machines)state.machines=mergeObjects(state.machines,sec.machines,'id',c,mode);
     if(sec.molds)state.molds=mergeObjects(state.molds,sec.molds,'id',c,mode);
-    if(sec.imls)state.imls=mergeObjects(state.imls,sec.imls,'code',c,mode);
+    if(sec.imls){
+      if(mode==='merge'){for(const incoming of sec.imls){state.imls=(state.imls||[]).filter(old=>{if(String(old?.code||'').toLowerCase()===String(incoming.code||'').toLowerCase())return true;const sameMaster=incoming.clientCode&&incoming.productCode&&String(old?.clientCode||'')===String(incoming.clientCode)&&String(old?.productCode||'')===String(incoming.productCode);const sameDesc=incoming.description&&norm(old?.description||'')===norm(incoming.description);return !(sameMaster||sameDesc)})}}
+      state.imls=mergeObjects(state.imls,sec.imls,'code',c,mode)
+    }
     if(sec.orders)state.orders=mergeObjects(state.orders,sec.orders,'code',c,mode);
     if(sec.operators){state.operatorsByCompanyV116[c]=mode==='replace'?[...new Set(sec.operators)]:[...new Set([...(state.operatorsByCompanyV116[c]||[]),...sec.operators])];state.operators=[...new Set([...(state.operators||[]),...state.operatorsByCompanyV116[c]])]}
     if(sec.compliance)state.complianceRecords=mergeObjects(state.complianceRecords,sec.compliance,'id',c,mode);
@@ -1296,24 +1306,25 @@
   function restoreImport(){
     if(!canConfigure())return;let b;try{b=JSON.parse(localStorage.getItem('poi_v116_last_import_backup')||'null')}catch(_){b=null}if(!b?.data){alert('Nessun backup di importazione disponibile.');return}if(!confirm(`Ripristinare la situazione precedente all'ultimo import (${new Date(b.at).toLocaleString('it-IT')})?`))return;Object.assign(state,b.data);audit('Ripristino importazione',companyName(b.company||safeCompany()),'Ripristinato backup precedente');saveState('Backup ripristinato');localStorage.removeItem('poi_v116_last_import_backup');renderConfig();
   }
-  function summaryText(c){const labels={clients:'clienti',products:'prodotti',machines:'macchine',molds:'stampi',imls:'IML',orders:'ordini',operators:'operatori',compliance:'scadenze'};return Object.entries(c||{}).filter(([k,n])=>n>0&&k!=='company').map(([k,n])=>`${n} ${labels[k]||k}`).join(' · ')||'dati azienda'}
+  function summaryText(c){const labels={clients:'clienti',products:'prodotti',suppliers:'fornitori',machines:'macchine',molds:'stampi',imls:'IML',orders:'ordini',operators:'operatori',compliance:'scadenze'};return Object.entries(c||{}).filter(([k,n])=>n>0&&k!=='company').map(([k,n])=>`${n} ${labels[k]||k}`).join(' · ')||'dati azienda'}
 
   function sheetRowsForExport(c){
     ensureData();const p=profileData(c),filter=a=>(a||[]).filter(x=>belongs(x,c));const kv=[['Campo','Valore'],['Ragione sociale',p.ragioneSociale||companyName(c)],['Partita IVA',p.partitaIva||''],['Codice fiscale',p.codiceFiscale||''],['Codice SDI',p.codiceSdi||''],['Sede legale',p.sedeLegale||''],['Sede operativa',p.sedeOperativa||''],['PEC',p.pec||''],['Email',p.email||''],['Telefono',p.telefono||''],['Sito web',p.website||''],['Referente',p.referente||''],['Note',p.note||'']];
     const clients=filter(state.clientDirectory||state.clients).map(x=>({'Codice cliente':x.code||'','Cliente':x.name||'','Partita IVA':x.vat||x.partitaIva||'','Codice fiscale':x.fiscalCode||'','Email':x.email||'','Telefono':x.phone||'','Indirizzo':x.address||'','Città':x.city||'','Provincia':x.province||'','CAP':x.cap||'','PEC':x.pec||'','Codice SDI':x.sdi||'','Attivo':x.active!==false?'SI':'NO'}));
     const products=filter(state.productDirectory||state.products).map(x=>({'Codice prodotto':x.code||'','Prodotto':x.name||x.product||'','Famiglia':x.family||'','Formato':x.liters||'','Colore':x.color||'','UM':x.unit||'PZ','Note':x.notes||'','Attivo':x.active!==false?'SI':'NO'}));
+    const suppliers=filter(state.supplierDirectory||[]).map(x=>({'Codice fornitore':x.code||x.reference||'','Fornitore':x.name||'','Email':x.email||'','Telefono':x.phone||'','Tipo':x.category||'','Attivo':x.active!==false?'SI':'NO'}));
     const machines=filter(state.machines).map(x=>({'ID macchina':x.id||'','Macchina':x.name||'','Stato':x.status||'','Stampo installato':x.installedMold||x.moldId||'','Note':x.notes||''}));
     const molds=filter(state.molds).map(x=>({'ID stampo':x.id||'','Stampo':x.name||'','ID macchina':x.machineId||'','Tipo':x.kind||'','Tempo ciclo sec':x.cycleSeconds||'','Pezzi ora':x.rate||'','Note':x.notes||''}));
     const imls=filter(state.imls).map(x=>({'Codice IML':x.code||x.id||'','Codice prodotto':x.productCode||'','Codice cliente':x.clientCode||'','Descrizione':x.description||x.name||'','Giacenza fisica':x.physical??x.qty??'','Riservato':x.reserved??'','Scorta minima':x.minimum??x.minStock??'','Stato':x.status||'','Note':x.notes||''}));
     const orders=filter(state.orders).map(x=>({'Codice ordine':x.code||'','Ordine padre':x.parent||'','Riferimento ordine':x.orderRef||'','Codice cliente':x.clientCode||'','Cliente':x.client||'','Codice prodotto':x.productCode||'','Prodotto':x.product||'','Quantità':x.qty||0,'Data consegna':x.dueDate||'','Priorità':x.priority||'','Codice IML':x.imlCode||'','Stato':x.status||'','Note':x.notes||'','Attivo':x.cancelled?'NO':'SI'}));
     const operators=(state.operatorsByCompanyV116[c]||state.operators||[]).map(x=>({'Nome e cognome':typeof x==='string'?x:(x.name||x.display_name||'')})).filter(x=>x['Nome e cognome']);
     const compliance=filter(state.complianceRecords).map(x=>({'ID':x.id||'','Tipo soggetto':x.subjectType||'','Persona elemento':x.subjectName||'','Categoria':x.category||'','Titolo':x.title||'','Data rilascio':x.issueDate||'','Data scadenza':x.expiryDate||'','Responsabile':x.responsible||'','Email alert':x.alertEmails||'','Riferimento documento':x.documentRef||'','Note':x.notes||'','Attivo':x.active!==false?'SI':'NO'}));
-    return{company:kv,clients,products,machines,molds,imls,orders,operators,compliance};
+    return{company:kv,clients,products,suppliers,machines,molds,imls,orders,operators,compliance};
   }
   async function exportExcel(){
-    if(!canConfigure())return;try{await ensureXLSX();const c=safeCompany(),d=sheetRowsForExport(c),wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,window.XLSX.utils.aoa_to_sheet(d.company),'AZIENDA');for(const [name,key] of [['CLIENTI','clients'],['PRODOTTI','products'],['MACCHINE','machines'],['STAMPI','molds'],['IML','imls'],['ORDINI','orders'],['OPERATORI','operators'],['SCADENZE','compliance']])window.XLSX.utils.book_append_sheet(wb,window.XLSX.utils.json_to_sheet(d[key]),name);window.XLSX.writeFile(wb,`${companyName(c).replace(/\s/g,'_')}_dati_piattaforma_${new Date().toISOString().slice(0,10)}.xlsx`)}catch(e){alert('Esportazione Excel non riuscita: '+String(e?.message||e))}
+    if(!canConfigure())return;try{await ensureXLSX();const c=safeCompany(),d=sheetRowsForExport(c),wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,window.XLSX.utils.aoa_to_sheet(d.company),'AZIENDA');for(const [name,key] of [['CLIENTI','clients'],['PRODOTTI','products'],['FORNITORI','suppliers'],['MACCHINE','machines'],['STAMPI','molds'],['IML','imls'],['ORDINI','orders'],['OPERATORI','operators'],['SCADENZE','compliance']])window.XLSX.utils.book_append_sheet(wb,window.XLSX.utils.json_to_sheet(d[key]),name);window.XLSX.writeFile(wb,`${companyName(c).replace(/\s/g,'_')}_dati_piattaforma_${new Date().toISOString().slice(0,10)}.xlsx`)}catch(e){alert('Esportazione Excel non riuscita: '+String(e?.message||e))}
   }
-  function downloadTemplate(){const a=document.createElement('a');a.href='./IndustrialOS_Modello_Import_Dati_Azienda.xlsx';a.download='IndustrialOS_Modello_Import_Dati_Azienda.xlsx';document.body.appendChild(a);a.click();a.remove()}
+  function downloadTemplate(){const a=document.createElement('a');a.href='./IndustrialOS_Modello_Import_Dati_Azienda_V11.6.3.xlsx';a.download='IndustrialOS_Modello_Import_Dati_Azienda_V11.6.3.xlsx';document.body.appendChild(a);a.click();a.remove()}
 
   const guideText={
     dashboard:['Panoramica','La schermata iniziale riassume ciò che richiede attenzione e collega rapidamente ai flussi principali.','Controlla KPI, ordini aperti, criticità e collegamenti rapidi prima di entrare nei singoli moduli.'],
@@ -1407,7 +1418,7 @@
     try{const old=window.renderCurrent||renderCurrent;if(typeof old==='function'&&!old.__v116){const w=function(){if(typeof currentView!=='undefined'&&currentView===VIEW){renderConfig();decorateHelp();return}const out=old.apply(this,arguments);setTimeout(decorateHelp,0);return out};w.__v116=true;window.renderCurrent=w;renderCurrent=w}}catch(e){console.warn('[V11.6] render patch',e)}
     try{const oldNav=window.renderNav||renderNav;if(typeof oldNav==='function'&&!oldNav.__v116){const w=function(){const out=oldNav.apply(this,arguments);setTimeout(decorateHelp,0);return out};w.__v116=true;window.renderNav=w;renderNav=w}}catch(e){console.warn('[V11.6] nav patch',e)}
   }
-  function version(){document.body.dataset.deliveryBuild='PIATTAFORMA-GRUPPO-V11.6.1';$$('.version-badge').forEach(x=>x.textContent=VERSION)}
+  function version(){document.body.dataset.deliveryBuild='PIATTAFORMA-GRUPPO-V11.6.3';$$('.version-badge').forEach(x=>x.textContent=VERSION)}
   function boot(){ensureData();injectStyles();ensureView();ensureGuideUI();addNav();patchRender();version();try{if(typeof renderNav==='function')renderNav()}catch(_){}decorateHelp();setTimeout(()=>{addNav();decorateHelp();decorateNomyraAdmin();maybeIntro();version()},900);setInterval(()=>{decorateHelp();decorateNomyraAdmin();if(role())maybeIntro()},1800)}
 
   window.SPDeliveryV116={render:renderConfig,setCompany,saveCompany,previewExcel,applyImport,restoreImport,exportExcel,downloadTemplate,startTour,nextTour,prevTour,closeGuide,resetGuide,dismissIntro};
@@ -1808,3 +1819,123 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+
+
+/* ===== Smart Pack · Multiplast — V11.6.3 FLUSSO E-MAIL CORRETTO =====
+   - Accetta ordine Gmail = crea realmente ordine + codice + foglio produzione.
+   - Solo ultimo messaggio del thread tramite backend v8.
+   - Fornitori separati: conferme IML non entrano mai negli ordini cliente.
+   - Codici master importati dall'Excel restano autorevoli (SPRING / IML aziendale).
+*/
+(()=>{
+  'use strict';
+  if(window.SPMailFlowV1163)return;
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const n=v=>Number(v||0),iso=()=>new Date().toISOString(),uid=p=>`${p}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+  const cloud=()=>window.POICloudV10?.getClient?.()||null;
+  const fmt=v=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:0}).format(n(v));
+
+  function gmailSearchUrl(m={}){
+    const rfc=String(m.rfcMessageId||'').trim();
+    if(rfc)return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent('rfc822msgid:'+rfc)}`;
+    const tid=String(m.gmailThreadId||'').trim();if(tid)return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(tid)}`;
+    const mid=String(m.gmailMessageId||'').trim();if(mid)return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(mid)}`;
+    return '';
+  }
+  async function syncGmailV1163(){
+    const sb=cloud();if(!sb){alert('Connessione cloud non disponibile.');return}
+    try{
+      let {data,error}=await sb.functions.invoke('poi-gmail-orders-v8',{body:{action:'sync',company_code:'smartpack'}});
+      if(error||data?.error)throw error||new Error(data?.error||'sync_failed');
+      state.emailOrderDraftsV115=Array.isArray(state.emailOrderDraftsV115)?state.emailOrderDraftsV115:[];
+      state.emailIMLConfirmationsV1163=Array.isArray(state.emailIMLConfirmationsV1163)?state.emailIMLConfirmationsV1163:[];
+      const existing=new Set(state.emailOrderDraftsV115.map(x=>x.id||`${x.gmailMessageId}_${x.gmailItemIndex||1}`));
+      let added=0;
+      for(const raw of data.drafts||[]){
+        const d={...raw,status:raw.status||'Da verificare'};const key=d.id||`${d.gmailMessageId}_${d.gmailItemIndex||1}`;
+        if(d.gmailThreadId)state.emailOrderDraftsV115=state.emailOrderDraftsV115.filter(x=>!(x.gmailThreadId===d.gmailThreadId&&x.gmailMessageId!==d.gmailMessageId&&!x.linkedOrderParentV1163));
+        if(existing.has(key))continue;
+        state.emailOrderDraftsV115.unshift(d);existing.add(key);added++;
+      }
+      const cset=new Set(state.emailIMLConfirmationsV1163.map(x=>x.gmailMessageId||x.id));let cadded=0;
+      for(const raw of data.imlConfirmations||[]){const k=raw.gmailMessageId||raw.id;if(raw.gmailThreadId)state.emailOrderDraftsV115=state.emailOrderDraftsV115.filter(x=>!(x.gmailThreadId===raw.gmailThreadId&&!x.linkedOrderParentV1163));if(cset.has(k))continue;state.emailIMLConfirmationsV1163.unshift(raw);cset.add(k);cadded++}
+      try{addAudit('Gmail sincronizzato','Inbox ordini',`${added} ordini cliente · ${cadded} conferme fornitori IML`)}catch(_){ }
+      try{save()}catch(_){ }
+      try{toast(`${added} ordini cliente · ${cadded} conferme IML nuove`)}catch(_){ }
+      try{window.SPPlannerV115?.refreshOrdersEmail?.()}catch(_){ }
+      decorateSupplierConfirmations();
+      if(typeof currentView!=='undefined'&&currentView==='planner')try{window.SPPlannerV115?.refresh?.()}catch(_){ }
+    }catch(e){alert('Sincronizzazione Gmail non riuscita: '+String(e?.message||e))}
+  }
+
+  function nextParent(){const nums=(state.orders||[]).map(o=>Number(String(o.parent||'').replace(/\D/g,''))).filter(Number.isFinite);return String((nums.length?Math.max(...nums):0)+1)}
+  function exactIML(d){
+    const arr=(state.imls||[]).filter(i=>{
+      const cc=String(i.clientCode||'').trim(),pc=String(i.productCode||'').trim();
+      return cc&&pc&&cc===String(d.clientCode||'')&&pc===String(d.productCode||'');
+    });
+    return arr.length===1?arr[0]:null;
+  }
+  function createSheet(parent,main,d){
+    state.productionSheets=Array.isArray(state.productionSheets)?state.productionSheets:[];
+    const existing=state.productionSheets.find(x=>String(x.parent)===String(parent)&&String(x.orderCode)===String(main.code));if(existing)return existing;
+    const cap=String(main.liters||'').startsWith('3')?725:String(main.liters||'').startsWith('5')?880:400;
+    let left=Math.max(0,n(main.productionRequiredQty!=null?main.productionRequiredQty:main.qty));
+    if(left<=0)left=n(main.qty);
+    const rows=[];let k=1;while(left>0){const pieces=Math.min(cap,left);rows.push({id:uid('row'),orderCode:main.code,imlCode:main.imlCode||'',pieces,packageLabel:'# '+k,lidColor:`${main.color||'BIANCO'} TAPPI`,status:'Da produrre',operatorProduction:'',operatorHandles:'',finishAt:'',notes:''});left-=pieces;k++}
+    const sheet={id:uid('sheet'),sheetNo:1,sheetDate:new Date().toISOString().slice(0,10),productionDate:'',parent,client:main.client,clientCode:main.clientCode||'',product:main.product,productCode:main.productCode||'',imlCode:main.imlCode||'',orderCode:main.code,priority:main.priority||'Normale',packageType:main.packaging||'Cesta',rows,createdAt:iso(),createdBy:'Ordine e-mail',statusV106:'Aperto',sourceEmail:{gmailMessageId:d.gmailMessageId||'',gmailThreadId:d.gmailThreadId||'',rfcMessageId:d.rfcMessageId||'',subject:d.subject||'',from:d.from||'',receivedAt:d.receivedAt||''}};
+    state.productionSheets.unshift(sheet);return sheet;
+  }
+  function attachSource(rows,d,parent,sheet){
+    const src={type:'email',label:'E-mail',recordedAt:iso(),recordedBy:window.POICloudV10?.getProfile?.()?.email||'Utente ufficio',email:{receivedAt:d.receivedAt||'',verifiedAt:d.verifiedAt||'',from:d.from||'',subject:d.subject||'',gmailMessageId:d.gmailMessageId||'',gmailThreadId:d.gmailThreadId||'',rfcMessageId:d.rfcMessageId||'',gmailUrl:gmailSearchUrl(d)},history:[{at:d.receivedAt||iso(),action:'E-mail ordine ricevuta',detail:d.from||''},{at:d.verifiedAt||iso(),action:'Bozza verificata',detail:d.subject||''},{at:iso(),action:'Ordine creato dalla bozza e-mail',detail:`Ordine ${parent} · foglio produzione ${sheet?.id||''}`} ]};
+    for(const o of rows){o.orderSourceV1162=src;o.sourceTypeV1162='email';o.sourceRecordedAtV1162=src.recordedAt;o.sourceRecordedByV1162=src.recordedBy;o.sourceEmailUrlV1162=src.email.gmailUrl}
+  }
+  function acceptEmailOrder(id){
+    const d=(state.emailOrderDraftsV115||[]).find(x=>x.id===id);if(!d)return;
+    if(d.status!=='Verificata'){alert('Prima verifica cliente, prodotto, quantità e consegna e premi “Salva verifica”.');window.SPPlannerV115?.editEmail?.(id);return}
+    if(!d.clientCode||!d.productCode||!d.client||!d.product||!n(d.qty)){alert('Cliente/prodotto/quantità non sono completi.');return}
+    if(d.linkedOrderParentV1163){alert(`Questa e-mail è già collegata all’ordine ${d.linkedOrderParentV1163}.`);return}
+    if(!confirm(`Creare ora l’ordine per ${d.client} · ${fmt(d.qty)} pz?\nVerranno generati automaticamente codice ordine e foglio produzione.`))return;
+    const parent=nextParent(),iml=exactIML(d),code=parent+'A',status=iml&&typeof available==='function'&&available(iml)<n(d.qty)?'In attesa IML':'Da preparare';
+    if(iml)iml.reserved=n(iml.reserved)+n(d.qty);
+    const main={id:code,code,parent,date:new Date().toISOString().slice(0,10),client:String(d.client).toUpperCase(),clientCode:d.clientCode,product:d.product,productCode:d.productCode,liters:d.liters||'',color:d.color||'BIANCO',imlCode:iml?.code||'',qty:n(d.qty),remaining:n(d.qty),delivered:0,status,dueDate:d.dueDate||'',packaging:'Cesta',notes:`Ordine creato da Gmail${d.orderRef?' · Rif. '+d.orderRef:''}`,priority:d.priority||'Normale',orderRef:d.orderRef||'',createdBy:'E-mail verificata',companyCode:'smartpack'};
+    state.orders.push(main);
+    const sheet=createSheet(parent,main,d);attachSource([main],d,parent,sheet);
+    d.status='Convertita';d.convertedAt=iso();d.linkedOrderParentV1163=parent;d.linkedOrderCodeV1163=code;d.productionSheetIdV1163=sheet.id;
+    try{addAudit('Ordine creato da Gmail',parent,`${d.clientCode} · ${d.productCode} · ${d.qty} pz`)}catch(_){ }
+    try{save()}catch(_){ }
+    try{toast(`Ordine ${parent} creato · foglio produzione generato`)}catch(_){ }
+    try{if(typeof navTo==='function')navTo('orders')}catch(_){ }
+    setTimeout(()=>{try{renderCurrent()}catch(_){ }try{window.SPOrderSourceV1162?.refresh?.()}catch(_){ }},80);
+  }
+
+  function ensureSupplierDialog(){
+    if($('#v1163SupplierDialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`<dialog id="v1163SupplierDialog"><form id="v1163SupplierForm"><div class="modal-head"><div><span class="eyebrow">Gmail · fornitore</span><h3>Associa conferma a ordine IML</h3><p id="v1163SupplierInfo"></p></div><button type="button" class="close" onclick="document.getElementById('v1163SupplierDialog').close()">×</button></div><div class="modal-body"><label class="field">Ordine IML<select name="poId" required></select></label></div><div class="modal-actions"><button type="button" class="btn" onclick="document.getElementById('v1163SupplierDialog').close()">Annulla</button><button class="btn primary" type="submit">Associa conferma</button></div></form></dialog>`);
+    $('#v1163SupplierForm').onsubmit=e=>{e.preventDefault();const id=e.currentTarget.dataset.confirmation,poId=e.currentTarget.elements.poId.value,c=(state.emailIMLConfirmationsV1163||[]).find(x=>x.id===id),po=(state.imlPurchaseOrders||[]).find(x=>x.id===poId);if(!c||!po)return;const url=gmailSearchUrl(c);po.supplierConfirmedAt=c.receivedAt||iso();po.supplierConfirmationSubject=c.subject||'';po.supplierConfirmationEmailLink=url;po.supplierConfirmationGmailMessageId=c.gmailMessageId||'';po.supplierConfirmationThreadId=c.gmailThreadId||'';po.supplierConfirmationRfcMessageId=c.rfcMessageId||'';po.supplierConfirmationStatus='Confermato dal fornitore';if(po.status==='Bozza')po.status='Inviato';c.status='Associata';c.linkedIMLOrderId=po.id;c.linkedAt=iso();try{addAudit('Conferma fornitore IML associata',po.id,c.subject||c.supplierName||'')}catch(_){ }try{save()}catch(_){ }$('#v1163SupplierDialog').close();decorateSupplierConfirmations();try{renderCurrent()}catch(_){ }};
+  }
+  function openAssociate(id){ensureSupplierDialog();const c=(state.emailIMLConfirmationsV1163||[]).find(x=>x.id===id);if(!c)return;const open=(state.imlPurchaseOrders||[]).filter(po=>!['Chiuso','Ricevuto','Annullato'].includes(String(po.status||'')));const same=open.filter(po=>String(po.supplier||'').toLowerCase().includes(String(c.supplierName||'').toLowerCase())||String(c.supplierName||'').toLowerCase().includes(String(po.supplier||'').toLowerCase()));const list=same.length?same:open;$('#v1163SupplierInfo').textContent=`${c.supplierName||c.from||'Fornitore'} · ${c.subject||''}`;const f=$('#v1163SupplierForm');f.dataset.confirmation=id;f.elements.poId.innerHTML='<option value="">Seleziona...</option>'+list.map(po=>`<option value="${esc(po.id)}">${esc(po.id)} · ${esc(po.supplier||'')} · ${esc(po.status||'')}</option>`).join('');$('#v1163SupplierDialog').showModal()}
+  function discardSupplier(id){const c=(state.emailIMLConfirmationsV1163||[]).find(x=>x.id===id);if(!c)return;if(!confirm('Scartare questa conferma fornitore?'))return;c.status='Scartata';try{save()}catch(_){ }decorateSupplierConfirmations()}
+  function decorateSupplierConfirmations(){
+    const host=$('#v115OrdersEmailPanel');if(!host)return;let sec=$('#v1163SupplierConfirmations');if(sec)sec.remove();const arr=(state.emailIMLConfirmationsV1163||[]).filter(x=>!['Associata','Scartata'].includes(x.status));sec=document.createElement('section');sec.id='v1163SupplierConfirmations';sec.className='v115-orders-email';sec.style.marginTop='12px';sec.innerHTML=`<div class="v115-orders-email-top"><div><span class="v115-eyebrow">CONFERME FORNITORI · IML</span><h3>Messaggi fornitori separati dagli ordini cliente</h3><p>Qui arrivano esclusivamente conferme o aggiornamenti dei fornitori IML. Non possono essere trasformati in ordini cliente.</p><span class="v115-orders-email-count">${arr.length} da associare</span></div></div><div class="v115-email-list">${arr.map(c=>{const url=gmailSearchUrl(c);return `<article class="v115-email-draft"><div><span class="v115-over">FORNITORE · ${esc(c.supplierName||'Da verificare')}</span><h4>${esc(c.subject||'Conferma ordine IML')}</h4><p>${esc(c.from||'')} · ${c.receivedAt?esc(new Date(c.receivedAt).toLocaleString('it-IT')):''}</p><small>Analizzato solo l’ultimo messaggio della conversazione.</small></div><div class="v115-email-draft-actions">${url?`<a class="btn small" href="${esc(url)}" target="_blank" rel="noopener">Apri e-mail ↗</a>`:''}<button class="btn small primary" type="button" onclick="SPMailFlowV1163.associate('${esc(c.id)}')">Associa ordine IML</button><button class="btn small danger" type="button" onclick="SPMailFlowV1163.discardSupplier('${esc(c.id)}')">Scarta</button></div></article>`}).join('')||'<div class="v115-empty">Nessuna conferma fornitore in attesa.</div>'}</div>`;host.insertAdjacentElement('afterend',sec)
+  }
+
+  async function syncSuppliersCloud(){
+    const sb=cloud();if(!sb||!Array.isArray(state.supplierDirectory))return;
+    try{const uid=window.POICloudV10?.getProfile?.()?.user_id||null;await sb.from('poi_app_segments').upsert({group_code:'smartpack-multiplast',segment_key:'supplierDirectory',data:state.supplierDirectory,updated_by:uid,updated_at:iso()},{onConflict:'group_code,segment_key'})}catch(e){console.warn('[V11.6.3] supplier cloud sync',e)}
+  }
+  function patchDeliveryImport(){
+    const api=window.SPDeliveryV116;if(!api||api.__v1163)return;const old=api.applyImport;if(typeof old==='function'){api.applyImport=function(){const r=old.apply(this,arguments);setTimeout(syncSuppliersCloud,250);return r}}api.__v1163=true;
+  }
+  function repairConvertedDrafts(){for(const d of state.emailOrderDraftsV115||[]){if(d.status==='Convertita'&&!d.linkedOrderParentV1163)d.status='Verificata'}try{save()}catch(_){ }}
+  function boot(){
+    state.emailIMLConfirmationsV1163=Array.isArray(state.emailIMLConfirmationsV1163)?state.emailIMLConfirmationsV1163:[];
+    window.SPMailFlowV1163={sync:syncGmailV1163,accept:acceptEmailOrder,associate:openAssociate,discardSupplier,refresh:decorateSupplierConfirmations};
+    if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=acceptEmailOrder}
+    patchDeliveryImport();repairConvertedDrafts();ensureSupplierDialog();decorateSupplierConfirmations();
+    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=acceptEmailOrder}patchDeliveryImport();decorateSupplierConfirmations()},1600);
+    document.body.dataset.mailFlow='V11.6.3';
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();

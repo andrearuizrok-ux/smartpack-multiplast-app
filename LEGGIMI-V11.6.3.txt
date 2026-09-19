@@ -1,0 +1,57 @@
+SMART PACK · MULTIPLAST — V11.6.3
+FLUSSO ORDINI E-MAIL + FORNITORI + CODICI AZIENDALI
+
+CORREZIONI PRINCIPALI
+1. Accettazione ordine Gmail
+   - "Crea ordine" non apre più soltanto il modulo.
+   - Dopo la verifica crea realmente l'ordine nel registro.
+   - Genera automaticamente il codice ordine interno.
+   - Genera automaticamente il foglio produzione collegato.
+   - Collega ordine, foglio ed e-mail originale nella tracciabilità.
+   - Le vecchie bozze marcate "Convertita" ma senza ordine vengono riportate a "Verificata" per poterle creare correttamente.
+
+2. Gmail: solo ultimo messaggio della conversazione
+   - Nuovo backend poi-gmail-orders-v8 già pubblicato su Supabase.
+   - Raggruppa per thread Gmail e analizza solo il messaggio più recente.
+   - Rimuove dal testo le parti citate dello storico (On ... wrote, Il giorno ... ha scritto, Messaggio originale, righe >, ecc.).
+   - Non usa lo storico della conversazione per ricostruire un nuovo ordine.
+
+3. Clienti e fornitori NON vengono confusi
+   - Il mittente viene prima confrontato con l'anagrafica fornitori.
+   - Una conferma del fornitore IML entra nella sezione separata "CONFERME FORNITORI · IML".
+   - Non può essere trasformata in ordine cliente.
+   - La conferma può essere associata a un ordine IML già aperto.
+   - Per il riconoscimento più affidabile compilare l'e-mail del fornitore nel foglio FORNITORI.
+
+4. Codici reali dell'azienda
+   - CLIENTI: usare "Codice cliente SPRING".
+   - IML: usare "Codice IML aziendale".
+   - I codici importati sono trattati come riferimenti autorevoli.
+   - In modalità Unisci/Aggiorna, se il cliente ha lo stesso nome il codice SPRING sostituisce il riferimento provvisorio.
+   - Per gli IML, una nuova codifica aziendale può sostituire il riferimento provvisorio quando coincide la relazione cliente/prodotto o la descrizione.
+
+5. Excel
+   - Nuovo modello: IndustrialOS_Modello_Import_Dati_Azienda_V11.6.3.xlsx
+   - Aggiunto foglio FORNITORI: Codice fornitore, Fornitore, Email, Telefono, Tipo, Attivo.
+   - Import/export aggiornati anche per i fornitori.
+   - Dopo l'import, la directory fornitori viene sincronizzata nel cloud in modo che Gmail possa riconoscerli.
+
+BACKEND
+- Edge Function poi-gmail-orders-v8: ACTIVE su Supabase produzione.
+- La vecchia poi-gmail-orders resta per OAuth/status/connect/disconnect.
+- Il nuovo sync usa v8 con JWT e classificazione separata cliente/fornitore.
+
+FILE DA CARICARE SU GITHUB / CLOUDFLARE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+app/src/main/assets/IndustrialOS_Modello_Import_Dati_Azienda_V11.6.3.xlsx
+
+CACHE
+spmp-v116-static-21
+
+TEST CONSIGLIATO DOPO DEPLOY
+A. E-mail cliente -> Sincronizza -> Verifica -> Crea ordine.
+   Controllare: Registro ordini + codice + Fogli produzione + origine Gmail.
+B. E-mail fornitore IML -> Sincronizza.
+   Deve apparire solo in "Conferme fornitori · IML", mai tra gli ordini cliente.
+C. Importare CLIENTI con codice SPRING e FORNITORI con e-mail reali.
