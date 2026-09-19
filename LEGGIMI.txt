@@ -1,47 +1,22 @@
-SMART PACK · MULTIPLAST — V11.6 CONSEGNA CLIENTE
+SMART PACK · MULTIPLAST — V11.6.1 MANUALE DINAMICO
 
-FUNZIONI AGGIUNTE
-1. Configurazione azienda
-   - accessibile ai ruoli ufficio autorizzati (Gestione Smart Pack, Responsabile Multiplast, Amministrazione)
-   - dati aziendali modificabili: ragione sociale, P.IVA, CF, SDI, sedi, PEC, email, telefono, sito, referente, note
-   - selezione Smart Pack / Multiplast in base ai permessi dell'account
+NOVITÀ
+- La guida non è più un popup statico.
+- Ogni passaggio apre automaticamente il modulo reale.
+- Il modulo che si sta spiegando viene evidenziato con uno spotlight.
+- Il resto della schermata viene oscurato senza bloccare il modulo.
+- Una barra fissa in basso mostra: titolo, spiegazione, cosa fare, passo corrente e progresso.
+- Pulsanti Indietro / Avanti / Esci.
+- Ultimo passaggio: Completa guida.
+- Guida adattata automaticamente al ruolo e ai moduli realmente disponibili.
+- Pulsante Guida sempre disponibile dopo l'accesso.
+- Nessun dato reale viene creato o modificato dalla guida.
 
-2. Importazione / aggiornamento Excel
-   - file .xlsx, .xls e .csv
-   - anteprima prima dell'importazione
-   - modalità "Unisci / aggiorna" oppure "Sostituisci sezioni"
-   - importa: clienti, prodotti, macchine, stampi, IML, ordini, operatori e scadenze
-   - backup automatico prima dell'importazione e ripristino ultimo import
-   - storico delle importazioni
-   - esportazione dei dati correnti in Excel per modificarli e reimportarli
-   - modello Excel incluso: IndustrialOS_Modello_Import_Dati_Azienda.xlsx
+CACHE
+spmp-v116-static-19
 
-3. Guida interattiva / modalità dimostrazione sicura
-   - proposta al primo accesso per ogni ruolo
-   - pulsante Guida disponibile nella topbar
-   - accompagna l'utente modulo per modulo
-   - usa i moduli realmente disponibili per il ruolo
-   - NON crea dati fittizi e NON modifica dati reali
-   - ripristinabile dalla Configurazione azienda
-
-4. Accesso NOMYRA / cliente
-   - la Configurazione azienda è disponibile agli account amministrativi autorizzati
-   - gli USER + PIN dei dipendenti restano gestiti separatamente per sicurezza
-
-NOTE TECNICHE
-- Parser Excel browser: SheetJS 0.18.5 caricato solo quando serve.
-- Cache aggiornata a: spmp-v116-static-18
-- Il file Excel modello è incluso nella cache PWA.
-
-FILE DA CARICARE
-app/src/main/assets/access-v11.5.js
+FILE DA SOSTITUIRE
 app/src/main/assets/planner-v11.5.js
 app/src/main/assets/service-worker.js
-app/src/main/assets/IndustrialOS_Modello_Import_Dati_Azienda.xlsx
 
-DOPO IL DEPLOY
-1. Attendere il completamento Cloudflare Pages.
-2. Ricaricare la pagina con Ctrl+F5 una volta.
-3. Entrare in un ruolo ufficio autorizzato.
-4. Aprire "Configurazione azienda" dal menu.
-5. Compilare l'anagrafica e/o importare il file Excel.
+Gli altri file della V11.6 restano invariati.
