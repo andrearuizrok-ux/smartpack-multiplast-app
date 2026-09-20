@@ -1,3 +1,44 @@
+/* V11.7.5 · STARTUP PERFORMANCE QUEUE */
+(()=>{
+  if(window.SPBootLater)return;
+  const q=[];
+  let started=false,running=false;
+
+  const schedule=(fn)=>{
+    if('requestIdleCallback' in window){
+      requestIdleCallback(fn,{timeout:900});
+    }else{
+      setTimeout(fn,32);
+    }
+  };
+
+  const drain=()=>{
+    if(running||!q.length)return;
+    running=true;
+    schedule(()=>{
+      const fn=q.shift();
+      try{fn?.()}catch(e){console.warn('[Startup deferred]',e)}
+      running=false;
+      if(q.length)setTimeout(drain,18);
+    });
+  };
+
+  const start=()=>{
+    if(started)return;
+    started=true;
+    // First paint/home gets priority. Add-on initialization follows.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(drain,20)));
+  };
+
+  window.SPBootLater=(fn)=>{
+    if(typeof fn!=='function')return;
+    q.push(fn);
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded',start,{once:true});
+    }else start();
+  };
+})();
+
 /* Smart Pack · Multiplast — V11.5 · Coda Roberto + pianificazione intelligente
    Obiettivi:
    - Roberto mantiene sempre il controllo della coda (drag & drop / su-giu / blocco posizione).
@@ -1057,7 +1098,7 @@
     rulesData:rules
   };
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 /* ===== Smart Pack · Multiplast — V11.6 CONSEGNA CLIENTE =====
    Configurazione azienda + import/export Excel + guida interattiva.
@@ -1419,10 +1460,10 @@
     try{const oldNav=window.renderNav||renderNav;if(typeof oldNav==='function'&&!oldNav.__v116){const w=function(){const out=oldNav.apply(this,arguments);setTimeout(decorateHelp,0);return out};w.__v116=true;window.renderNav=w;renderNav=w}}catch(e){console.warn('[V11.6] nav patch',e)}
   }
   function version(){document.body.dataset.deliveryBuild='PIATTAFORMA-GRUPPO-V11.6.3';$$('.version-badge').forEach(x=>x.textContent=VERSION)}
-  function boot(){ensureData();injectStyles();ensureView();ensureGuideUI();addNav();patchRender();version();try{if(typeof renderNav==='function')renderNav()}catch(_){}decorateHelp();setTimeout(()=>{addNav();decorateHelp();decorateNomyraAdmin();maybeIntro();version()},900);setInterval(()=>{decorateHelp();decorateNomyraAdmin();if(role())maybeIntro()},6000)}
+  function boot(){ensureData();injectStyles();ensureView();ensureGuideUI();addNav();patchRender();version();try{if(typeof renderNav==='function')renderNav()}catch(_){}decorateHelp();setTimeout(()=>{addNav();decorateHelp();decorateNomyraAdmin();maybeIntro();version()},900);setInterval(()=>{decorateHelp();decorateNomyraAdmin();if(role())maybeIntro()},15000)}
 
   window.SPDeliveryV116={render:renderConfig,setCompany,saveCompany,previewExcel,applyImport,restoreImport,exportExcel,downloadTemplate,startTour,nextTour,prevTour,closeGuide,resetGuide,dismissIntro};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -1812,11 +1853,11 @@
     decorate();
     setTimeout(decorate,350);
     setTimeout(decorate,1100);
-    setInterval(decorate,5000);
+    setInterval(decorate,15000);
   }
 
   window.SPOrderSourceV1162={open:openSource,gmailUrl,refresh:decorate,version:VERSION};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -1934,10 +1975,10 @@
     window.SPMailFlowV1163={sync:syncGmailV1163,accept:acceptEmailOrder,associate:openAssociate,discardSupplier,refresh:decorateSupplierConfirmations};
     if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?window.SPMPV1164.accept(id):acceptEmailOrder(id)}
     patchDeliveryImport();repairConvertedDrafts();ensureSupplierDialog();decorateSupplierConfirmations();
-    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?window.SPMPV1164.accept(id):acceptEmailOrder(id)}patchDeliveryImport();decorateSupplierConfirmations()},5000);
+    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?window.SPMPV1164.accept(id):acceptEmailOrder(id)}patchDeliveryImport();decorateSupplierConfirmations()},12000);
     document.body.dataset.mailFlow='V11.6.3';
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 /* ===== V11.6.4 · MULTIPLAST SEPARATA + REGISTRO ORDINI SMART PACK ===== */
@@ -2288,11 +2329,11 @@
         document.body.removeAttribute('data-company-v1164');
         document.body.removeAttribute('data-mp-bridge-v1164');
       }
-    },3000);
+    },8000);
     document.body.dataset.buildFinal='V11.6.4';
   }
   window.SPMPV1164={accept:acceptDraft,reconcile:reconcileEmailOrders,openRegister,openCosts:openMPCosts,bridgeMP,createFromDraft,commitDraft,mainFor,makeSheet,version:VERSION};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -2512,12 +2553,12 @@
   function boot(){
     patch();
     repairDraftLinks();
-    setInterval(patch,5000);
+    setInterval(patch,12000);
     document.body.dataset.registerFix='V11.6.5';
   }
 
   window.SPRegisterV1165={render,refresh:render,open:forceOpen,groups,repairDraftLinks,version:VERSION};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -2953,7 +2994,7 @@
     injectStyles();
     backfillEmailLinks();
     patchGlobalFlows();
-    setInterval(keepRegisterCurrent,2500);
+    setInterval(keepRegisterCurrent,8000);
     const view=$('#ordersRegisterView');
     if(view){
       new MutationObserver(()=>{
@@ -2970,7 +3011,7 @@
     groups:allGroups,gmailMeta,backfillEmailLinks,version:VERSION
   };
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -3505,7 +3546,7 @@
 
   function boot(){
     ensureState();injectStyles();ensureUI();patch();
-    setInterval(patch,3000);
+    setInterval(patch,10000);
     document.body.dataset.loadingFlow='V11.6.7';
   }
 
@@ -3513,7 +3554,7 @@
     openLoading,openDDT,cancel:cancelLoad,renderAdmin,injectWorkerLoading,
     loadable,groups,version:VERSION
   };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -4339,7 +4380,7 @@
 
   function boot(){
     patch();
-    setInterval(patch,2500);
+    setInterval(patch,8000);
     document.body.dataset.release='V11.7.0';
   }
 
@@ -4360,7 +4401,7 @@
     version:VERSION
   };
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -4699,14 +4740,17 @@
 
   function boot(){
     injectStyles();ensureDialog();decorate();
-    const obs=new MutationObserver(()=>decorate());
-    const start=()=>{const v=$('#adminFinanceV1170View');if(v)obs.observe(v,{childList:true,subtree:true})};
-    start();setTimeout(start,500);
-    setInterval(decorate,2500);
+    setTimeout(decorate,700);
+    setInterval(()=>{
+      if(typeof currentRole!=='undefined' && currentRole==='admin' &&
+         document.getElementById('adminFinanceV1170View')?.classList.contains('active')){
+        decorate();
+      }
+    },12000);
   }
 
   window.SPFinanceExplainV1172={open,decorate,version:'V11.7.2'};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -5324,14 +5368,14 @@
       if(typeof currentRole!=='undefined' && currentRole==='admin'){
         patch();
       }
-    },5000);
+    },12000);
   }
 
   window.SPSpringBalanceV1173={
     openImport,preview,applyImport,setCategory,decorateFinance,
     rebuildFromSnapshots,version:VERSION
   };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.SPBootLater(boot);
 })();
 
 
@@ -5402,15 +5446,11 @@
     patch();
     setTimeout(patch,300);
     setTimeout(patch,1000);
-    setInterval(patch,5000);
+    setInterval(patch,12000);
     document.body.dataset.adminNavFix='V11.7.4';
   }
 
   window.SPAdminNavFixV1174={patch,version:'V11.7.4'};
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',boot,{once:true});
-  }else{
-    boot();
-  }
+  window.SPBootLater(boot);
 })();
 

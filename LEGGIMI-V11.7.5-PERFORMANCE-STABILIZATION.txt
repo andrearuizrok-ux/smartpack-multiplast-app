@@ -1,0 +1,38 @@
+SMART PACK · MULTIPLAST — V11.7.5
+PERFORMANCE / STABILIZZAZIONE AVVIO
+
+PROBLEMI TROVATI
+1. Negli aggiornamenti V11.5 → V11.7 si sono accumulati numerosi moduli che
+   partivano tutti insieme al DOMContentLoaded, prima che la home avesse
+   il tempo di essere visualizzata.
+2. Il service worker V11.7.1 usava cache.addAll().
+   Se un solo asset opzionale restituiva 404, l'intera cache iniziale
+   poteva fallire. Questo poteva rendere inutilmente lento anche il secondo accesso.
+3. Alcuni moduli facevano polling ogni 2,5-5 secondi pur senza necessità.
+4. La spiegazione KPI finanziari usava anche un MutationObserver non necessario.
+
+CORREZIONI
+- I moduli aggiuntivi vengono inizializzati uno alla volta DOPO il primo paint.
+- Home/login hanno priorità e diventano visibili prima.
+- Polling legacy molto meno frequente.
+- Rimosso MutationObserver finanziario superfluo.
+- Nuovo service worker static-31.
+- Ogni file viene messo in cache individualmente:
+  se un asset opzionale manca, gli altri vengono comunque memorizzati.
+- JS e loghi restano stale-while-revalidate:
+  apertura rapida dalla cache + aggiornamento in background.
+
+IMPORTANTE
+Il primo caricamento dopo questo deploy deve installare static-31.
+Il vero confronto va fatto dal SECONDO caricamento.
+
+FILE DA CARICARE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+app/src/main/assets/group-logo.webp
+app/src/main/assets/smartpack-logo.webp
+app/src/main/assets/multiplast-logo.webp
+
+NESSUNA FUNZIONE È STATA RIMOSSA.
+Questa patch modifica solo inizializzazione, frequenza dei controlli e cache.
