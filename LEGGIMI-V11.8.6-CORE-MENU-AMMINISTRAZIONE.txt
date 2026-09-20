@@ -1,0 +1,53 @@
+SMART PACK · MULTIPLAST — V11.8.6
+FIX STRUTTURALE MENU AMMINISTRAZIONE
+
+CAUSA REALE TROVATA NEL REPOSITORY
+smartpack-v11.js contiene ancora moduli legacy migrati.
+Il modulo V11.1 / Scadenze & Compliance esegue:
+  addNav111()
+  renderNav()
+
+e lo riesegue dopo:
+  300 ms
+  1000 ms
+  2500 ms
+  5000 ms
+
+Le patch precedenti aggiungevano Panoramica soltanto al DOM.
+Quando il legacy chiamava renderNav(), il menu veniva ricostruito dal NAV
+centrale e la voce custom poteva sparire o Consegne/DDT restare active.
+
+V11.8.6 NON combatte più il problema a livello DOM.
+
+NUOVA LOGICA
+1. Panoramica viene inserita direttamente in NAV.admin come PRIMA voce:
+   ['adminOverviewV1170','home','Panoramica']
+
+2. renderNav() viene avvolto:
+   prima di ogni ricostruzione assicura che NAV.admin contenga Panoramica.
+
+3. navTo() viene avvolto:
+   adminOverviewV1170 apre direttamente la dashboard custom.
+
+4. Una sola voce può essere active:
+   - Panoramica
+   - Consegne/DDT
+   - Economico-finanziario
+   - altre sezioni standard
+
+5. Se i vecchi moduli richiamano renderNav() dopo 5 secondi,
+   Panoramica NON sparisce perché ora fa parte del NAV centrale.
+
+6. F5:
+   viene ricordato il vero modulo Admin aperto e viene ripristinato.
+
+MODIFICA IMPORTANTE
+decorateAdminNav non crea più manualmente Panoramica.
+Usa la voce generata dal NAV centrale.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-42

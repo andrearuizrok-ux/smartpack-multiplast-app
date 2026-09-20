@@ -4651,12 +4651,10 @@
       $('#adminOverviewNavV1170')?.remove();
       return;
     }
-    let overview=$('#adminOverviewNavV1170');
-    if(!overview){
-      overview=document.createElement('button');overview.id='adminOverviewNavV1170';overview.type='button';
-      overview.innerHTML='<span class="icon">⌂</span><span>Panoramica</span>';
+    let overview=$('#adminOverviewNavV1170')||[...nav.querySelectorAll('button')].find(b=>/Panoramica/i.test(String(b.textContent||'')));
+    if(overview){
+      overview.id='adminOverviewNavV1170';
       overview.onclick=openAdminOverview;
-      const first=nav.querySelector('button');first?nav.insertBefore(overview,first):nav.appendChild(overview);
     }
 
     let finance=[...nav.querySelectorAll('button')].find(x=>/Economico-finanziario/i.test(x.textContent||''));
@@ -4676,8 +4674,8 @@
     if(cv==='adminOverviewV1170'||cv==='adminFinanceV1170'){
       [...nav.querySelectorAll('button')].forEach(b=>b.classList.remove('active'));
     }
-    overview.classList.toggle('active',cv==='adminOverviewV1170');
-    finance.classList.toggle('active',cv==='adminFinanceV1170');
+    overview?.classList.toggle('active',cv==='adminOverviewV1170');
+    finance?.classList.toggle('active',cv==='adminFinanceV1170');
   }
 
   function patchAdminDDTLanguage(){
@@ -6703,187 +6701,235 @@
 
 
 /* ========================================================================
-   V11.8.5 · MENU AMMINISTRAZIONE STABILE
-   - Panoramica sempre prima
-   - una sola voce active
-   - restore ultimo modulo su F5
+   V11.8.6 · CORE ADMIN NAV
+   Panoramica entra nel NAV centrale, non viene più aggiunta solo al DOM.
    ======================================================================== */
 (()=>{
   'use strict';
-  if(window.SPAdminNavV1185)return;
+  if(window.SPAdminCoreNavV1186)return;
 
-  const KEY='poi_v1185_admin_last_menu';
+  const KEY='poi_v1186_admin_last_view';
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
-  let observer=null,queued=false,restoring=false,lastClickedAt=0;
+  let wrapping=false;
 
-  const ORDER=[
-    'Panoramica',
-    'Consegne / DDT',
-    'Magazzino interno',
-    'Materie prime',
-    'Clienti e fornitori',
-    'Listini e prezzi',
-    'Economico-finanziario',
-    'Scadenze & Compliance',
-    'Tracciabilità',
-    'Analisi produzione',
-    'Configurazione azienda'
-  ];
+  function normalize(v){return String(v||'').replace(/\s+/g,' ').trim()}
 
-  function norm(v){return String(v||'').replace(/\s+/g,' ').trim()}
-  function nav(){return $('#sideNav')||$('.nav')}
+  function installCoreItem(){
+    try{
+      if(typeof NAV==='undefined'||!NAV)return false;
+      NAV.admin=Array.isArray(NAV.admin)?NAV.admin:[];
 
-  function canonical(text){
-    const t=norm(text);
-    if(/Panoramica/i.test(t))return 'Panoramica';
-    if(/Consegne\s*\/\s*DDT|Consegne.*DDT/i.test(t))return 'Consegne / DDT';
-    if(/Magazzino interno/i.test(t))return 'Magazzino interno';
-    if(/Materie prime/i.test(t))return 'Materie prime';
-    if(/Clienti e fornitori/i.test(t))return 'Clienti e fornitori';
-    if(/Listini e prezzi/i.test(t))return 'Listini e prezzi';
-    if(/Economico-finanziario/i.test(t))return 'Economico-finanziario';
-    if(/Scadenze.*Compliance/i.test(t))return 'Scadenze & Compliance';
-    if(/Tracciabilità/i.test(t))return 'Tracciabilità';
-    if(/Analisi produzione/i.test(t))return 'Analisi produzione';
-    if(/Configurazione azienda/i.test(t))return 'Configurazione azienda';
-    return '';
-  }
+      // Remove any duplicate/dynamic copy first.
+      NAV.admin=NAV.admin.filter(item=>{
+        const id=String(item?.[0]||'');
+        const label=normalize(item?.[2]||'');
+        return id!=='adminOverviewV1170' && !/^Panoramica$/i.test(label);
+      });
 
-  function buttons(){return $$('.nav button,#sideNav button').filter((b,i,a)=>a.indexOf(b)===i)}
-  function find(label){return buttons().find(b=>canonical(b.textContent)===label)||null}
+      // This is now an official first item in the core menu.
+      NAV.admin.unshift(['adminOverviewV1170','home','Panoramica']);
 
-  function ensureOverview(){
-    const n=nav();if(!n)return null;
-    let all=buttons().filter(b=>canonical(b.textContent)==='Panoramica');
-    let b=all.shift()||null;
-    all.forEach(x=>x.remove());
-    if(!b){
-      b=document.createElement('button');
-      b.type='button';b.id='adminOverviewNavV1170';
-      b.innerHTML='<span class="icon">⌂</span><span>Panoramica</span>';
-      b.onclick=()=>window.SPReleaseV1170?.openAdminOverview?.();
+      // Keep finance in its normal existing position; do not duplicate it.
+      return true;
+    }catch(e){
+      console.warn('[V11.8.6] install core nav',e);
+      return false;
     }
-    if(b.id!=='adminOverviewNavV1170')b.id='adminOverviewNavV1170';
-    if(n.firstElementChild!==b)n.insertBefore(b,n.firstElementChild);
-    return b;
   }
 
-  function orderMenu(){
-    const n=nav();if(!n)return;
-    ensureOverview();
-    // Muoviamo solo le voci note. Gli eventuali moduli futuri restano in fondo.
-    for(const label of ORDER){
-      const b=find(label);
-      if(b)n.appendChild(b);
+  function exclusiveActive(id){
+    const nav=$('#sideNav')||$('.nav');
+    if(!nav)return;
+    $$('button',nav).forEach(b=>b.classList.remove('active'));
+
+    let target=null;
+    if(id==='adminOverviewV1170'){
+      target=[...nav.querySelectorAll('button')].find(b=>/^\s*⌂?\s*Panoramica\s*$/i.test(normalize(b.textContent)) || /Panoramica/i.test(normalize(b.textContent)));
+    }else if(id==='admin'){
+      target=[...nav.querySelectorAll('button')].find(b=>/Consegne\s*\/\s*DDT/i.test(normalize(b.textContent)));
+    }else if(id==='adminFinanceV1170'){
+      target=[...nav.querySelectorAll('button')].find(b=>/Economico-finanziario/i.test(normalize(b.textContent)));
+    }else{
+      target=[...nav.querySelectorAll('button')].find(b=>{
+        const onclick=String(b.getAttribute('onclick')||'');
+        return onclick.includes(`'${id}'`)||onclick.includes(`"${id}"`);
+      });
     }
-    // dopo l'append in ordine, Panoramica deve tornare esplicitamente all'inizio
-    const overview=find('Panoramica');
-    if(overview&&n.firstElementChild!==overview)n.insertBefore(overview,n.firstElementChild);
-  }
-
-  function visibleLabel(){
-    let cv='';try{cv=String(currentView||'')}catch(_){}
-    if(cv==='adminOverviewV1170')return 'Panoramica';
-    if(cv==='adminFinanceV1170')return 'Economico-finanziario';
-    if(cv==='admin')return 'Consegne / DDT';
-
-    const title=norm($('#pageTitle')?.textContent||'');
-    if(/Panoramica Amministrazione/i.test(title))return 'Panoramica';
-    const c=canonical(title);if(c)return c;
-
-    return localStorage.getItem(KEY)||'Panoramica';
-  }
-
-  function setActive(label){
-    const bs=buttons();
-    bs.forEach(b=>b.classList.remove('active'));
-    const target=find(label);
     if(target)target.classList.add('active');
   }
 
-  function remember(label){
-    if(!label)return;
-    localStorage.setItem(KEY,label);
-    sessionStorage.setItem(KEY,label);
+  function bindOverviewButton(){
+    const nav=$('#sideNav')||$('.nav');
+    if(!nav)return;
+    const candidates=[...nav.querySelectorAll('button')].filter(b=>/Panoramica/i.test(normalize(b.textContent)));
+
+    // Core renderNav should make exactly one. If something legacy duplicated it,
+    // keep the first and remove the others.
+    const first=candidates[0];
+    candidates.slice(1).forEach(x=>x.remove());
+    if(!first)return;
+
+    first.id='adminOverviewNavV1170';
+    if(first.dataset.v1186Bound!=='1'){
+      first.dataset.v1186Bound='1';
+      first.addEventListener('click',e=>{
+        if(typeof currentRole==='undefined'||currentRole!=='admin')return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        localStorage.setItem(KEY,'adminOverviewV1170');
+        sessionStorage.setItem(KEY,'adminOverviewV1170');
+        window.SPReleaseV1170?.openAdminOverview?.();
+        requestAnimationFrame(()=>exclusiveActive('adminOverviewV1170'));
+        setTimeout(()=>exclusiveActive('adminOverviewV1170'),50);
+      },true);
+    }
   }
 
-  function stabilize(){
-    if(typeof currentRole==='undefined'||currentRole!=='admin')return;
-    const n=nav();if(!n)return;
-    orderMenu();
+  function renderAndBind(){
+    installCoreItem();
+    bindOverviewButton();
 
-    let label=visibleLabel();
-    // Subito dopo un click, la scelta dell'utente vince sul vecchio pageTitle
-    // finché la nuova vista non ha terminato il rendering.
-    const recent=sessionStorage.getItem(KEY)||localStorage.getItem(KEY)||'';
-    if(Date.now()-lastClickedAt<900 && recent)label=recent;
-    setActive(label);
+    let cv='';
+    try{cv=String(currentView||'')}catch(_){}
+    if(cv==='adminOverviewV1170')exclusiveActive('adminOverviewV1170');
+    else if(cv==='adminFinanceV1170')exclusiveActive('adminFinanceV1170');
   }
 
-  function queue(){
-    if(queued)return;queued=true;
-    requestAnimationFrame(()=>{queued=false;stabilize()});
+  function wrapRenderNav(){
+    if(wrapping)return;
+    wrapping=true;
+    try{
+      const old=window.renderNav || (typeof renderNav!=='undefined'?renderNav:null);
+      if(typeof old==='function' && !old.__v1186){
+        const wrapped=function(){
+          installCoreItem();
+          const result=old.apply(this,arguments);
+          bindOverviewButton();
+
+          let cv='';
+          try{cv=String(currentView||'')}catch(_){}
+          if(cv==='adminOverviewV1170')exclusiveActive('adminOverviewV1170');
+          else if(cv==='adminFinanceV1170')exclusiveActive('adminFinanceV1170');
+          return result;
+        };
+        wrapped.__v1186=true;
+        window.renderNav=wrapped;
+        try{renderNav=wrapped}catch(_){}
+      }
+    }finally{
+      wrapping=false;
+    }
   }
 
-  function bindClicks(){
-    const n=nav();if(!n||n.dataset.v1185Bound==='1')return;
-    n.dataset.v1185Bound='1';
-    n.addEventListener('click',e=>{
-      const b=e.target.closest('button');if(!b||!n.contains(b))return;
-      const label=canonical(b.textContent);if(!label)return;
-      remember(label);lastClickedAt=Date.now();
-      // feedback visivo immediato: nessuna vecchia selezione resta evidenziata
-      setActive(label);
-      setTimeout(stabilize,0);setTimeout(stabilize,80);setTimeout(stabilize,350);
-    },true);
+  function wrapNavTo(){
+    try{
+      const old=window.navTo || (typeof navTo!=='undefined'?navTo:null);
+      if(typeof old==='function' && !old.__v1186){
+        const wrapped=function(view){
+          if(typeof currentRole!=='undefined'&&currentRole==='admin'&&view==='adminOverviewV1170'){
+            localStorage.setItem(KEY,'adminOverviewV1170');
+            sessionStorage.setItem(KEY,'adminOverviewV1170');
+            window.SPReleaseV1170?.openAdminOverview?.();
+            exclusiveActive('adminOverviewV1170');
+            return;
+          }
+
+          // Save real admin module for refresh restoration.
+          if(typeof currentRole!=='undefined'&&currentRole==='admin'&&typeof view==='string'){
+            localStorage.setItem(KEY,view);
+            sessionStorage.setItem(KEY,view);
+          }
+
+          const result=old.apply(this,arguments);
+          setTimeout(()=>{
+            if(typeof currentRole==='undefined'||currentRole!=='admin')return;
+            if(view==='admin')exclusiveActive('admin');
+            else if(view==='adminFinanceV1170')exclusiveActive('adminFinanceV1170');
+            else exclusiveActive(view);
+          },0);
+          return result;
+        };
+        wrapped.__v1186=true;
+        window.navTo=wrapped;
+        try{navTo=wrapped}catch(_){}
+      }
+    }catch(e){console.warn('[V11.8.6] navTo wrapper',e)}
   }
 
-  function observe(){
-    const n=nav();if(!n)return;
-    if(observer)observer.disconnect();
-    observer=new MutationObserver(()=>queue());
-    // Solo il menu: nessun observer sulle view/contenuti.
-    observer.observe(n,{childList:true,subtree:true});
+  function patchOpenCustom(){
+    // openAdminOverview/openFinance use custom views outside legacy navTo.
+    const api=window.SPReleaseV1170;
+    if(!api||api.__nav1186)return;
+    api.__nav1186=true;
+
+    const oldOverview=api.openAdminOverview;
+    if(typeof oldOverview==='function'){
+      api.openAdminOverview=function(){
+        localStorage.setItem(KEY,'adminOverviewV1170');
+        sessionStorage.setItem(KEY,'adminOverviewV1170');
+        const r=oldOverview.apply(this,arguments);
+        requestAnimationFrame(()=>exclusiveActive('adminOverviewV1170'));
+        setTimeout(()=>exclusiveActive('adminOverviewV1170'),40);
+        return r;
+      };
+    }
+
+    const oldFinance=api.openFinance;
+    if(typeof oldFinance==='function'){
+      api.openFinance=async function(){
+        localStorage.setItem(KEY,'adminFinanceV1170');
+        sessionStorage.setItem(KEY,'adminFinanceV1170');
+        const r=await oldFinance.apply(this,arguments);
+        exclusiveActive('adminFinanceV1170');
+        return r;
+      };
+    }
   }
 
   function restore(){
-    if(restoring||typeof currentRole==='undefined'||currentRole!=='admin')return;
-    const n=nav();if(!n)return;
-    restoring=true;
-    stabilize();bindClicks();observe();
+    if(typeof currentRole==='undefined'||currentRole!=='admin')return;
+    const wanted=sessionStorage.getItem(KEY)||localStorage.getItem(KEY)||'adminOverviewV1170';
 
-    let wanted=sessionStorage.getItem(KEY)||localStorage.getItem(KEY)||'';
-    if(!wanted)wanted='Panoramica';
-
-    // Se la vista corrente è già quella corretta, non generiamo un secondo click.
-    const visible=visibleLabel();
-    if(visible!==wanted){
-      const b=find(wanted)||find('Panoramica');
-      if(b)setTimeout(()=>b.click(),60);
-    }else{
-      setActive(wanted);
+    if(wanted==='adminOverviewV1170'){
+      window.SPReleaseV1170?.openAdminOverview?.();
+      exclusiveActive('adminOverviewV1170');
+      return;
     }
-    restoring=false;
+    if(wanted==='adminFinanceV1170'){
+      window.SPReleaseV1170?.openFinance?.();
+      exclusiveActive('adminFinanceV1170');
+      return;
+    }
+
+    if(typeof window.navTo==='function')window.navTo(wanted);
   }
 
   function patch(){
     if(typeof currentRole==='undefined'||currentRole!=='admin')return;
-    ensureOverview();orderMenu();bindClicks();
-    if(!observer)observe();
-    stabilize();
+    installCoreItem();
+    wrapRenderNav();
+    wrapNavTo();
+    patchOpenCustom();
+
+    // If any old module calls renderNav at 300/1000/2500/5000 ms,
+    // it will now render from NAV.admin that already contains Panoramica.
+    renderAndBind();
   }
 
   function boot(){
     patch();
-    setTimeout(restore,180);
-    setTimeout(patch,700);
-    setInterval(patch,6000);
+    [50,250,600,1200,2700,5200].forEach(ms=>setTimeout(patch,ms));
+    setTimeout(restore,350);
   }
 
-  window.SPAdminNavV1185={patch,restore,setActive,version:'V11.8.5'};
+  window.SPAdminCoreNavV1186={
+    patch,restore,exclusiveActive,version:'V11.8.6'
+  };
+
   if(window.SPBootLater)window.SPBootLater(boot);
   else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
 })();
+
 

@@ -1,5 +1,5 @@
-/* V11.8.5 ADMIN NAV STABLE · static-41 */
-const CACHE='spmp-v118-static-41';
+/* V11.8.6 CORE ADMIN NAV · static-42 */
+const CACHE='spmp-v118-static-42';
 
 const CORE_STATIC=[
   './access-v11.5.js',
