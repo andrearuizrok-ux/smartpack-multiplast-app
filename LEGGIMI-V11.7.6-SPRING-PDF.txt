@@ -1,0 +1,103 @@
+SMART PACK · MULTIPLAST — V11.7.6
+IMPORT PDF REALE SPRING + BASELINE ANNUALE
+
+PROBLEMA RISOLTO
+Il Bilancio SPRING fornito da Multiplast è un PDF "Bilancio di verifica rettificato"
+a 4 sezioni. La V11.7.3 accettava solo xlsx/xls/csv.
+
+ORA SONO SUPPORTATI
+- PDF SPRING
+- XLSX
+- XLS
+- CSV
+
+PDF TESTATO COME STRUTTURA
+MULTIPLAST S.R.L. · Esercizio 2025
+Stato patrimoniale + Conto economico su 5 pagine.
+
+RICONOSCIMENTO AUTOMATICO PDF
+- Azienda: Multiplast / Smart Pack
+- Esercizio
+- Stato Patrimoniale: Attività / Passività
+- Conto Economico: Costi / Ricavi
+- Codice conto
+- Partitario
+- Descrizione
+- Saldo rettificato
+- Totale costi
+- Totale ricavi
+- Utile / perdita
+
+IMPORTANTE: DOPPI CONTEGGI
+Il PDF SPRING contiene conti gerarchici (totale, sottoconto, partitario).
+Il parser utilizza SOLO le righe di dettaglio/foglia:
+- se esistono partitari, usa i partitari;
+- se esistono sottoconti, non somma anche il conto padre.
+Questo evita di contare lo stesso saldo due o tre volte.
+
+MODALITÀ PERIODO
+1. Esercizio completo / bilancio annuale
+   - es. questo PDF 2025
+   - può essere marcato BASELINE
+   - nessuna differenza con periodi precedenti
+
+2. Progressivo da inizio esercizio al periodo
+   - es. bilancio al 31/03/2026
+   - MOVIMENTO PERIODO = progressivo corrente - progressivo precedente
+   - il confronto avviene SOLO nello stesso esercizio
+
+3. Solo mese / periodo
+   - il file contiene già il movimento del periodo
+   - nessuna sottrazione automatica
+
+GRANDEZZE PATRIMONIALI
+Crediti, debiti, liquidità e rimanenze restano saldi alla data:
+NON vengono sottratti mese contro mese.
+
+MAPPATURA AUTOMATICA SPRING
+Sono riconosciuti per codice/descrizione:
+- 70 / 71 / 73 → Ricavi e proventi operativi
+- 72 / 75 → Materie/acquisti + variazione iniziale rimanenze
+- 76 trasporti → Trasporti
+- 76 energia/acqua/gas → Energia
+- 77/78/79/80/83 → Altri costi operativi
+- 81 → Personale
+- 90 → Ammortamenti
+- 86 → Oneri finanziari
+- 87 → Proventi non operativi/straordinari
+- 93 → Imposte
+- 23.01 / 23.03 → Crediti clienti
+- 57 → Debiti fornitori
+- 31 → Liquidità
+- 21 → Rimanenze
+
+RICONCILIAZIONE
+Dopo l'import la schermata mostra:
+- EBITDA operativo
+- EBIT operativo
+- Proventi non operativi
+- Oneri finanziari
+- Imposte
+- Risultato ricostruito
+- Risultato ufficiale SPRING
+- Quadratura OK / eventuale scostamento
+
+PER IL PDF MULTIPLAST 2025
+Il documento riporta:
+- Totale costi: 2.098.849,91 €
+- Totale ricavi: 2.127.106,32 €
+- Utile: 28.256,41 €
+
+PRESTAZIONI
+PDF.js viene caricato SOLO quando l'utente seleziona un PDF.
+Non rallenta l'apertura normale della piattaforma.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+MANTENERE I FILE PERFORMANCE V11.7.5
+access-v11.5.js e i tre loghi WebP.
+
+CACHE
+spmp-v117-static-32

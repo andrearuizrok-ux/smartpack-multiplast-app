@@ -4030,7 +4030,7 @@
   function financeRecord(company,period,create=false){
     ensureFinanceState();
     let r=state.adminFinanceV1170.records.find(x=>x.company===company&&x.period===period);
-    if(!r&&create){r={company,period,revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,receivables:0,payables:0,cash:0,notes:''};state.adminFinanceV1170.records.push(r)}
+    if(!r&&create){r={company,period,revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,extraordinaryIncome:0,financialCharges:0,taxes:0,receivables:0,payables:0,cash:0,inventory:0,notes:''};state.adminFinanceV1170.records.push(r)}
     return r||null;
   }
   function calcFinance(r){
@@ -4790,23 +4790,28 @@
   const monthNow=()=>new Date().toISOString().slice(0,7);
   const now=()=>new Date().toISOString();
 
-  const FLOW=new Set(['revenue','materials','personnel','energy','transport','otherOpex','depreciation']);
-  const STOCK=new Set(['receivables','payables','cash']);
+  const FLOW=new Set(['revenue','materials','personnel','energy','transport','otherOpex','depreciation','extraordinaryIncome','financialCharges','taxes']);
+  const STOCK=new Set(['receivables','payables','cash','inventory']);
   const CAT=[
     ['','Da classificare / ignora'],
-    ['revenue','Ricavi'],
-    ['materials','Materie / acquisti'],
+    ['revenue','Ricavi e proventi operativi'],
+    ['materials','Materie / acquisti / variazione iniziale rimanenze'],
     ['personnel','Personale'],
     ['energy','Energia / utenze produttive'],
     ['transport','Trasporti / spedizioni'],
     ['otherOpex','Altri costi operativi'],
     ['depreciation','Ammortamenti'],
+    ['extraordinaryIncome','Proventi non operativi / straordinari'],
+    ['financialCharges','Oneri finanziari'],
+    ['taxes','Imposte di esercizio'],
     ['receivables','Crediti clienti'],
     ['payables','Debiti fornitori'],
-    ['cash','Liquidità / banche / cassa']
+    ['cash','Liquidità / banche / cassa'],
+    ['inventory','Rimanenze']
   ];
 
   let pending=null;
+  const keyOf=a=>String(a?.mapKey || (a?.partitario?`${a.code}|${a.partitario}`:a?.code||''));
 
   function ensureState(){
     state.financeSpringV1173=state.financeSpringV1173&&typeof state.financeSpringV1173==='object'
@@ -4836,23 +4841,54 @@
   function companyName(c){return c==='smartpack'?'Smart Pack':'Multiplast'}
   function mapping(company){ensureState();return state.financeSpringV1173.mappings[company]||{}}
 
-  function autoCategory(description,code=''){
-    const d=norm(description),c=compact(code);
+  function autoCategory(description,code='',section=''){
+    const d=norm(description),c=String(code||'').trim(),sec=String(section||'');
     const has=(...xs)=>xs.some(x=>d.includes(norm(x)));
+    const starts=(...xs)=>xs.some(x=>c===x||c.startsWith(x+'.'));
 
+    // PDF SPRING reale: il codice conto è più affidabile della sola descrizione.
+    if(sec==='revenue'){
+      if(starts('70','71','73'))return 'revenue';
+      if(starts('87'))return 'extraordinaryIncome';
+    }
+    if(sec==='cost'){
+      if(starts('72','75'))return 'materials';
+      if(starts('81'))return 'personnel';
+      if(starts('90'))return 'depreciation';
+      if(starts('86'))return 'financialCharges';
+      if(starts('93'))return 'taxes';
+      if(starts('76')){
+        if(starts('76.03','76.05')||has('trasporti','trasporto','spedizione'))return 'transport';
+        if(has('energia elettrica','acqua potabile','gas','metano'))return 'energy';
+        return 'otherOpex';
+      }
+      if(starts('77','78','79','80','83'))return 'otherOpex';
+    }
+    if(sec==='asset'){
+      if(starts('23.01','23.03'))return 'receivables';
+      if(starts('31'))return 'cash';
+      if(starts('21'))return 'inventory';
+    }
+    if(sec==='liability'){
+      if(starts('57'))return 'payables';
+    }
+
+    // Fallback per file Excel/CSV o piani dei conti con descrizioni diverse.
     if(has('ricavi','vendite','vendita prodotti','corrispettivi','prestazioni','fatturato'))return 'revenue';
-    if(has('ammortamento','ammortamenti'))return 'depreciation';
+    if(has('ammortamento','ammortamenti','amm.to'))return 'depreciation';
     if(has('salari','stipendi','retribuzioni','personale','contributi inps','contributi previdenziali','inail','tfr','trattamento fine rapporto'))return 'personnel';
     if(has('energia elettrica','energia','enel','gas metano','metano','utenza elettrica'))return 'energy';
     if(has('trasporti','trasporto','spedizioni','spedizione','corriere','corrieri','autotrasporto','autotrasporti'))return 'transport';
     if(has('materie prime','materia prima','acquisti merci','acquisti materie','merci c acquisti','imballaggi','granulo','polipropilene','polietilene','masterbatch'))return 'materials';
     if(has('crediti verso clienti','crediti v clienti','clienti c crediti','clienti nazionali'))return 'receivables';
-    if(has('debiti verso fornitori','debiti v fornitori','fornitori c debiti','fornitori nazionali'))return 'payables';
+    if(has('debiti verso fornitori','debiti v fornitori','fornitori c debiti','fornitori nazionali','fatture da ricevere'))return 'payables';
     if(has('cassa contanti','cassa','banca c c attivo','banche c c attivi','depositi bancari','conto corrente attivo'))return 'cash';
+    if(has('rimanenze di magazzino','rimanenze prodotti','rimanenze materie'))return 'inventory';
+    if(has('interessi passivi','oneri finanziari','commissioni bancarie'))return 'financialCharges';
+    if(has('proventi straordinari','sopravvenienze attive non imponibili'))return 'extraordinaryIncome';
+    if(has('imposte dell esercizio','irap corrente','ires differita'))return 'taxes';
     if(has('consulenze','telefonia','telefono','internet','assicurazioni','manutenzioni','manutenzione','affitti','locazioni','servizi','cancelleria','software','commercialista','compensi professionali'))return 'otherOpex';
 
-    // Codici palesemente non economici non vengono forzati in categorie KPI.
-    if(/^1|^2|^3/.test(c) && !has('clienti','fornitori','cassa','banca'))return '';
     return '';
   }
 
@@ -4973,8 +5009,170 @@
     return {fileName,accounts};
   }
 
+
+  const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  const PDFJS_WORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  function ensurePDFJS(){
+    if(window.pdfjsLib){
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
+      return Promise.resolve(window.pdfjsLib);
+    }
+    if(window.__springPdfJsPromise)return window.__springPdfJsPromise;
+    window.__springPdfJsPromise=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src=PDFJS_URL;s.async=true;s.referrerPolicy='no-referrer';
+      s.onload=()=>{
+        if(!window.pdfjsLib){reject(new Error('Lettore PDF non disponibile'));return}
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
+        resolve(window.pdfjsLib);
+      };
+      s.onerror=()=>reject(new Error('Impossibile caricare il lettore PDF'));
+      document.head.appendChild(s);
+    });
+    return window.__springPdfJsPromise;
+  }
+
+  function pdfMoney(text){
+    let s=String(text||'').trim().replace(/\s/g,'');
+    if(!/^-?\d{1,3}(?:\.\d{3})*,\d{2}-?$|^-?\d+,\d{2}-?$/.test(s))return null;
+    const negative=s.endsWith('-');
+    if(negative)s=s.slice(0,-1);
+    const v=Number(s.replace(/\./g,'').replace(',','.'));
+    return Number.isFinite(v)?(negative?-v:v):null;
+  }
+
+  function pdfAccountCode(text){
+    return /^\d{1,3}(?:\.\d{1,2}){0,3}$/.test(String(text||'').trim());
+  }
+
+  function groupPdfItems(items,xStart,xEnd){
+    const arr=items
+      .map(i=>({x:Number(i.transform?.[4]||0),y:Number(i.transform?.[5]||0),text:String(i.str||'').trim()}))
+      .filter(i=>i.text && i.x>=xStart && i.x<xEnd)
+      .sort((a,b)=>b.y-a.y||a.x-b.x);
+    const groups=[];
+    for(const it of arr){
+      let g=groups.find(x=>Math.abs(x.y-it.y)<=1.7);
+      if(!g){g={y:it.y,items:[]};groups.push(g)}
+      g.items.push(it);
+    }
+    return groups.sort((a,b)=>b.y-a.y);
+  }
+
+  function parsePdfSide(items,xStart,xEnd,section,pageNo){
+    const out=[];
+    for(const line of groupPdfItems(items,xStart,xEnd)){
+      const rel=line.items.sort((a,b)=>a.x-b.x).map(i=>({x:i.x-xStart,text:i.text}));
+      const codeItem=rel.find(i=>i.x<48&&pdfAccountCode(i.text));
+      if(!codeItem)continue;
+
+      const amountItem=[...rel].reverse().find(i=>i.x>220&&pdfMoney(i.text)!==null);
+      if(!amountItem)continue;
+
+      const partItem=rel.find(i=>i.x>=45&&i.x<95&&/^\d{1,4}$/.test(i.text));
+      const description=rel
+        .filter(i=>i.x>=95&&i.x<235&&pdfMoney(i.text)===null)
+        .map(i=>i.text).join(' ').replace(/\s+/g,' ').trim();
+      if(!description)continue;
+
+      const signedAmount=pdfMoney(amountItem.text);
+      out.push({
+        code:codeItem.text,
+        partitario:partItem?.text||'',
+        description,
+        debit:0,credit:0,balance:signedAmount,
+        signedAmount,
+        section,
+        page:pageNo,
+        sourceType:'pdf'
+      });
+    }
+    return out;
+  }
+
+  function keepPdfLeafRows(rows){
+    const bySection=new Map();
+    for(const a of rows){
+      if(!bySection.has(a.section))bySection.set(a.section,[]);
+      bySection.get(a.section).push(a);
+    }
+    const out=[];
+    for(const a of rows){
+      const sec=bySection.get(a.section)||[];
+      const sameCodeHasPart=sec.some(b=>b.code===a.code&&b.partitario);
+      const hasChild=sec.some(b=>b.code!==a.code&&String(b.code).startsWith(String(a.code)+'.'));
+      if(a.partitario || (!sameCodeHasPart&&!hasChild)){
+        a.mapKey=a.partitario?`${a.code}|${a.partitario}`:a.code;
+        out.push(a);
+      }
+    }
+    return out;
+  }
+
+  function detectPdfTotal(text,label){
+    const clean=String(text||'').replace(/\s+/g,' ');
+    const re=new RegExp(label+'\\s+([\\d.]+,\\d{2}-?)','i');
+    const m=clean.match(re);
+    return m?pdfMoney(m[1]):null;
+  }
+
+  async function parseSpringPDF(file){
+    const pdfjs=await ensurePDFJS();
+    const data=new Uint8Array(await file.arrayBuffer());
+    const pdf=await pdfjs.getDocument({data}).promise;
+    let accounts=[],allText='';
+
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const viewport=page.getViewport({scale:1});
+      const content=await page.getTextContent();
+      const pageText=content.items.map(i=>String(i.str||'')).join(' ');
+      allText+=' '+pageText;
+
+      const upper=pageText.toUpperCase();
+      const mid=viewport.width/2;
+      if(upper.includes('STATO PATRIMONIALE')){
+        accounts.push(...parsePdfSide(content.items,0,mid,'asset',p));
+        accounts.push(...parsePdfSide(content.items,mid,viewport.width,'liability',p));
+      }else if(upper.includes('CONTO ECONOMICO')){
+        accounts.push(...parsePdfSide(content.items,0,mid,'cost',p));
+        accounts.push(...parsePdfSide(content.items,mid,viewport.width,'revenue',p));
+      }
+    }
+
+    accounts=keepPdfLeafRows(accounts);
+
+    let detectedCompany='';
+    const up=allText.toUpperCase();
+    if(up.includes('MULTIPLAST S.R.L'))detectedCompany='multiplast';
+    else if(up.includes('SMART PACK'))detectedCompany='smartpack';
+
+    const year=(allText.match(/Esercizio\s+(\d{4})/i)||[])[1]||'';
+    const totals={
+      totalCosts:detectPdfTotal(allText,'Totale costi'),
+      totalRevenue:detectPdfTotal(allText,'Totale ricavi'),
+      profit:detectPdfTotal(allText,'UTILE'),
+      loss:detectPdfTotal(allText,'PERDITA'),
+      totalAssets:detectPdfTotal(allText,'Totale attivit[aà]'),
+      totalLiabilities:detectPdfTotal(allText,'Totale passivit[aà]')
+    };
+
+    return {
+      fileName:file.name,
+      sourceType:'pdf',
+      detectedCompany,
+      detectedYear:year,
+      detectedReport:'Bilancio di verifica rettificato · 4 sezioni',
+      accounts,
+      totals,
+      pages:pdf.numPages
+    };
+  }
+
   function amountForCategory(account,cat){
     if(!cat)return 0;
+    if(Number.isFinite(Number(account?.signedAmount)))return Number(account.signedAmount);
     if(account.debit||account.credit){
       if(cat==='revenue'||cat==='payables'){
         const v=account.credit-account.debit;
@@ -4988,30 +5186,35 @@
 
   function previousSnapshot(company,period){
     ensureState();
+    const year=String(period||'').slice(0,4);
     return state.financeSpringV1173.snapshots
-      .filter(x=>x.company===company&&x.period<period)
+      .filter(x=>x.company===company&&x.period<period&&String(x.period||'').slice(0,4)===year&&x.mode==='cumulative')
       .sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0]||null;
   }
 
   function snapshotAccountMap(snap){
     const m=new Map();
-    for(const a of snap?.accounts||[])m.set(String(a.code),a);
+    for(const a of snap?.accounts||[])m.set(keyOf(a),a);
     return m;
   }
 
   function aggregate(snapshot,prev,mappings){
-    const values={revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,receivables:0,payables:0,cash:0};
+    const values={
+      revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,
+      extraordinaryIncome:0,financialCharges:0,taxes:0,
+      receivables:0,payables:0,cash:0,inventory:0
+    };
     const prevMap=snapshotAccountMap(prev);
     const mode=snapshot.mode;
 
     for(const a of snapshot.accounts){
-      const cat=mappings[String(a.code)]||a.category||'';
+      const cat=mappings[keyOf(a)]||a.category||'';
       if(!cat)continue;
       const curr=amountForCategory(a,cat);
       if(FLOW.has(cat)){
         let value=curr;
         if(mode==='cumulative' && prev){
-          const pa=prevMap.get(String(a.code));
+          const pa=prevMap.get(keyOf(a));
           const old=pa?amountForCategory(pa,cat):0;
           value=curr-old;
         }
@@ -5027,7 +5230,7 @@
     ensureState();
     let r=state.adminFinanceV1170.records.find(x=>x.company===company&&x.period===period);
     if(!r&&create){
-      r={company,period,revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,receivables:0,payables:0,cash:0,notes:''};
+      r={company,period,revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,extraordinaryIncome:0,financialCharges:0,taxes:0,receivables:0,payables:0,cash:0,inventory:0,notes:''};
       state.adminFinanceV1170.records.push(r);
     }
     return r;
@@ -5042,7 +5245,10 @@
       sourceFile:snapshot.fileName,
       sourceImportedAt:snapshot.importedAt,
       sourceMode:snapshot.mode,
+      sourceType:snapshot.sourceType||'spreadsheet',
       sourceBaseline:!!snapshot.baseline,
+      sourceReport:snapshot.detectedReport||'',
+      sourceTotals:snapshot.totals||null,
       springSnapshotId:snapshot.id,
       notes:r.notes||''
     });
@@ -5075,16 +5281,17 @@
             </label>
             <label class="field">Tipo valori
               <select id="springModeV1173">
-                <option value="cumulative">Progressivo da inizio esercizio</option>
-                <option value="month">Solo movimento del mese</option>
+                <option value="annual">Esercizio completo / bilancio annuale</option>
+                <option value="cumulative">Progressivo da inizio esercizio al periodo</option>
+                <option value="month">Solo mese / periodo</option>
               </select>
             </label>
             <label class="v1173-check"><input id="springBaselineV1173" type="checkbox"><span><b>Bilancio di partenza / baseline</b><small>Usalo per il primo periodo storico che vuoi conservare come punto iniziale.</small></span></label>
           </div>
           <label class="v1173-upload">
-            <b>Bilancio SPRING (.xlsx, .xls o .csv)</b>
-            <span>Carica il Bilancio a 4 sezioni esportato da SPRING.</span>
-            <input id="springFileV1173" type="file" accept=".xlsx,.xls,.csv">
+            <b>Bilancio SPRING (.pdf, .xlsx, .xls o .csv)</b>
+            <span>Carica il Bilancio a 4 sezioni esportato da SPRING. Il PDF viene letto solo quando lo selezioni.</span>
+            <input id="springFileV1173" type="file" accept=".pdf,.xlsx,.xls,.csv,application/pdf">
           </label>
           <div id="springPreviewV1173" class="v1173-preview">
             <div class="empty"><b>Nessun file selezionato</b>Seleziona il bilancio del periodo.</div>
@@ -5104,19 +5311,43 @@
     if(!file)return;
     ensureDialog();
     const box=$('#springPreviewV1173');
-    box.innerHTML='<div class="v1173-reading"><b>Lettura del bilancio…</b><span>Analisi fogli, colonne e piano dei conti.</span></div>';
+    box.innerHTML='<div class="v1173-reading"><b>Lettura del bilancio…</b><span>Analisi sezioni, conti e saldi SPRING.</span></div>';
     $('#springApplyV1173').disabled=true;
     try{
-      await ensureXLSX();
-      const wb=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
-      const parsed=parseWorkbook(wb,file.name);
-      if(!parsed.accounts.length)throw new Error('Non sono riuscito a individuare righe conto con saldi. Il formato potrebbe richiedere una mappatura specifica.');
+      const isPdf=String(file.type||'').toLowerCase()==='application/pdf'||/\.pdf$/i.test(file.name||'');
+      let parsed;
+      if(isPdf){
+        parsed=await parseSpringPDF(file);
+      }else{
+        await ensureXLSX();
+        const wb=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+        parsed=parseWorkbook(wb,file.name);
+        parsed.sourceType='spreadsheet';
+      }
+      if(!parsed.accounts.length)throw new Error('Non sono riuscito a individuare righe conto con saldi.');
+
       pending=parsed;
+
+      // Sul PDF SPRING reale rileviamo automaticamente azienda/esercizio.
+      if(parsed.detectedCompany)$('#springCompanyV1173').value=parsed.detectedCompany;
+      if(parsed.detectedYear){
+        $('#springPeriodV1173').value=`${parsed.detectedYear}-12`;
+        if(isPdf)$('#springModeV1173').value='annual';
+      }
+      if(isPdf){
+        const sameAnnual=state.financeSpringV1173?.snapshots?.some(x=>
+          x.company===$('#springCompanyV1173').value &&
+          String(x.period||'').startsWith(String(parsed.detectedYear||'')) &&
+          x.mode==='annual'
+        );
+        $('#springBaselineV1173').checked=!sameAnnual;
+      }
+
       renderPreview();
       $('#springApplyV1173').disabled=false;
     }catch(e){
       pending=null;
-      box.innerHTML=`<div class="v1173-error"><b>File non riconosciuto automaticamente</b><span>${esc(e?.message||e)}</span><small>Se il Bilancio SPRING ha un layout particolare, potremo adattare il parser sul file reale senza modificare la logica finanziaria.</small></div>`;
+      box.innerHTML=`<div class="v1173-error"><b>File non riconosciuto automaticamente</b><span>${esc(e?.message||e)}</span><small>Il parser PDF è stato adattato al Bilancio di verifica rettificato SPRING a 4 sezioni. Se un altro export usa un layout diverso, resterà disponibile la mappatura manuale.</small></div>`;
     }
   }
 
@@ -5126,7 +5357,7 @@
     const mp=mapping(company);
     const accounts=pending.accounts.map(a=>({
       ...a,
-      category:mp[String(a.code)] ?? autoCategory(a.description,a.code)
+      category:mp[keyOf(a)] ?? autoCategory(a.description,a.code,a.section)
     }));
     pending.accounts=accounts;
 
@@ -5141,6 +5372,13 @@
         <div><span>Già classificati</span><b>${auto}</b></div>
         <div><span>Da verificare / ignorati</span><b>${unmapped}</b></div>
       </div>
+      ${pending.sourceType==='pdf'?`<div class="v1176-pdf-detected">
+        <div><span>Formato rilevato</span><b>${esc(pending.detectedReport||'PDF SPRING')}</b></div>
+        <div><span>Azienda</span><b>${esc(pending.detectedCompany==='multiplast'?'Multiplast':pending.detectedCompany==='smartpack'?'Smart Pack':'Da verificare')}</b></div>
+        <div><span>Esercizio</span><b>${esc(pending.detectedYear||'Da verificare')}</b></div>
+        <div><span>Pagine</span><b>${esc(pending.pages||'—')}</b></div>
+      </div>
+      ${pending.totals?.profit!==null&&pending.totals?.profit!==undefined?`<div class="v1176-quadratura"><b>Controllo documento:</b> utile/perdita rilevato nel PDF: <strong>${money(pending.totals.profit ?? -Math.abs(pending.totals.loss||0))}</strong>${pending.totals.totalCosts!=null?` · Totale costi ${money(pending.totals.totalCosts)}`:''}${pending.totals.totalRevenue!=null?` · Totale ricavi ${money(pending.totals.totalRevenue)}`:''}</div>`:''}`:''}
       <div class="v1173-help">
         <b>Prima importazione:</b> controlla la categoria dei conti che alimentano i KPI.
         I conti lasciati su “Da classificare / ignora” non entrano nei calcoli.
@@ -5163,11 +5401,11 @@
   }
 
   function mapRow(a,i){
-    const saldo=(a.debit||a.credit)?Math.abs(a.debit-a.credit):Math.abs(a.balance);
-    return `<div class="v1173-tr" data-index="${i}" data-search="${esc(norm(a.code+' '+a.description))}">
-      <span><b>${esc(a.code)}</b><small>${esc(a.sheet||'')}</small></span>
+    const saldo=Number.isFinite(Number(a.signedAmount))?Number(a.signedAmount):((a.debit||a.credit)?Math.abs(a.debit-a.credit):Math.abs(a.balance));
+    return `<div class="v1173-tr" data-index="${i}" data-search="${esc(norm(a.code+' '+(a.partitario||'')+' '+a.description))}">
+      <span><b>${esc(a.code)}</b><small>${a.partitario?`Part. ${esc(a.partitario)} · `:''}${esc(a.section||a.sheet||'')}</small></span>
       <span>${esc(a.description)}</span>
-      <span>${money(saldo)}</span>
+      <span class="${saldo<0?'loss':''}">${money(saldo)}</span>
       <span><select onchange="SPSpringBalanceV1173.setCategory(${i},this.value)">${selectOptions(a.category||'')}</select></span>
     </div>`;
   }
@@ -5212,16 +5450,21 @@
     if(!period){alert('Seleziona il periodo del bilancio.');return}
 
     const mp=mapping(company);
-    for(const a of pending.accounts)mp[String(a.code)]=a.category||'';
+    for(const a of pending.accounts)mp[keyOf(a)]=a.category||'';
 
     const snapshot={
       id:`spring_${company}_${period}_${Date.now()}`,
       company,period,mode,baseline,
       fileName:pending.fileName,
       importedAt:now(),
+      sourceType:pending.sourceType||'spreadsheet',
+      detectedReport:pending.detectedReport||'',
+      totals:pending.totals||null,
       accounts:pending.accounts.map(a=>({
-        code:a.code,description:a.description,debit:n(a.debit),credit:n(a.credit),balance:n(a.balance),
-        category:a.category||'',sheet:a.sheet||''
+        code:a.code,partitario:a.partitario||'',mapKey:keyOf(a),description:a.description,
+        debit:n(a.debit),credit:n(a.credit),balance:n(a.balance),
+        signedAmount:Number.isFinite(Number(a.signedAmount))?Number(a.signedAmount):undefined,
+        category:a.category||'',section:a.section||'',sheet:a.sheet||''
       }))
     };
 
@@ -5232,13 +5475,13 @@
 
     const result=applySnapshotToFinance(snapshot);
     state.financeSpringV1173.imports.unshift({
-      id:snapshot.id,company,period,mode,baseline,fileName:snapshot.fileName,
+      id:snapshot.id,company,period,mode,baseline,fileName:snapshot.fileName,sourceType:snapshot.sourceType||'spreadsheet',
       importedAt:snapshot.importedAt,accounts:snapshot.accounts.length,
       previousPeriod:result.prev?.period||''
     });
     state.financeSpringV1173.imports=state.financeSpringV1173.imports.slice(0,60);
 
-    try{addAudit('Bilancio SPRING importato',companyName(company),`${period} · ${snapshot.fileName} · ${mode==='cumulative'?'progressivo':'solo mese'}`)}catch(_){}
+    try{addAudit('Bilancio SPRING importato',companyName(company),`${period} · ${snapshot.fileName} · ${mode==='annual'?'annuale':mode==='cumulative'?'progressivo':'mese/periodo'}`)}catch(_){}
     try{save()}catch(_){}
 
     $('#springBalanceV1173Dialog').close();
@@ -5267,7 +5510,7 @@
     return `<div class="v1173-history">
       ${rows.map(x=>`<div class="v1173-history-row">
         <div><b>${esc(companyName(x.company))} · ${esc(x.period)}</b><span>${esc(x.fileName)}</span></div>
-        <div><span>${x.mode==='cumulative'?'Progressivo YTD':'Solo mese'}${x.baseline?' · BASELINE':''}</span><small>${x.previousPeriod?'Differenza da '+esc(x.previousPeriod):'Primo periodo disponibile'}</small></div>
+        <div><span>${x.mode==='annual'?'Esercizio completo':x.mode==='cumulative'?'Progressivo YTD':'Mese / periodo'}${x.baseline?' · BASELINE':''}</span><small>${x.previousPeriod?'Differenza da '+esc(x.previousPeriod):'Primo periodo disponibile'}</small></div>
         <div><b>${x.accounts} conti</b><span>${esc(new Date(x.importedAt).toLocaleString('it-IT'))}</span></div>
       </div>`).join('')||'<div class="empty"><b>Nessun bilancio SPRING importato</b></div>'}
     </div>`;
@@ -5286,9 +5529,9 @@
     </div>`;
     return `<div class="v1173-source-banner">
       <div><b>Fonte dati · SPRING Bilancio 4 sezioni</b><span>
-        ${sp?`Smart Pack: ${esc(sp.fileName)} · ${sp.mode==='cumulative'?'progressivo':'mese'}`:'Smart Pack: non importato'}
+        ${sp?`Smart Pack: ${esc(sp.fileName)} · ${sp.mode==='annual'?'annuale':sp.mode==='cumulative'?'progressivo':'mese/periodo'}`:'Smart Pack: non importato'}
         &nbsp; | &nbsp;
-        ${mp?`Multiplast: ${esc(mp.fileName)} · ${mp.mode==='cumulative'?'progressivo':'mese'}`:'Multiplast: non importato'}
+        ${mp?`Multiplast: ${esc(mp.fileName)} · ${mp.mode==='annual'?'annuale':mp.mode==='cumulative'?'progressivo':'mese/periodo'}`:'Multiplast: non importato'}
       </span></div>
       <button class="btn" onclick="SPSpringBalanceV1173.openImport()">Importa / aggiorna</button>
     </div>`;
@@ -5325,6 +5568,29 @@
       view.appendChild(history);
     }
 
+    // Riconciliazione con il conto economico SPRING, quando disponibile.
+    view.querySelector('.v1176-reconciliation')?.remove();
+    const rec=state.adminFinanceV1170.records.find(x=>x.period===p && (x.sourceType==='pdf'||x.sourceType==='spreadsheet'));
+    if(rec && (n(rec.extraordinaryIncome)||n(rec.financialCharges)||n(rec.taxes)||rec.sourceTotals?.profit!=null)){
+      const opex=n(rec.materials)+n(rec.personnel)+n(rec.energy)+n(rec.transport)+n(rec.otherOpex);
+      const ebitda=n(rec.revenue)-opex;
+      const ebit=ebitda-n(rec.depreciation);
+      const result=ebit+n(rec.extraordinaryIncome)-n(rec.financialCharges)-n(rec.taxes);
+      const official=rec.sourceTotals?.profit;
+      const diff=official==null?null:result-n(official);
+      const card=`<div class="v1176-reconciliation">
+        <div><span>EBITDA operativo</span><b>${money(ebitda)}</b></div>
+        <div><span>EBIT operativo</span><b class="${ebit<0?'loss':''}">${money(ebit)}</b></div>
+        <div><span>Proventi non operativi</span><b>${money(rec.extraordinaryIncome)}</b></div>
+        <div><span>Oneri finanziari</span><b>${money(rec.financialCharges)}</b></div>
+        <div><span>Imposte</span><b>${money(rec.taxes)}</b></div>
+        <div><span>Risultato ricostruito</span><b class="${result<0?'loss':''}">${money(result)}</b></div>
+        ${official!=null?`<div class="v1176-official"><span>Risultato indicato da SPRING</span><b>${money(official)}</b><small>${Math.abs(diff||0)<0.02?'Quadratura OK':`Scostamento ${money(diff)}`}</small></div>`:''}
+      </div>`;
+      const banner=view.querySelector('.v1173-source-banner');
+      if(banner)banner.insertAdjacentHTML('afterend',card);
+    }
+
     const hb=$('#springHistoryBodyV1173',view);
     const historySignature=state.financeSpringV1173.imports
       .slice(0,12)
@@ -5350,8 +5616,11 @@
       .v1173-map-toolbar{display:grid;grid-template-columns:1fr 190px;gap:7px;margin-top:9px}.v1173-map-toolbar input,.v1173-map-toolbar select{border:1px solid var(--line);border-radius:9px;padding:8px;font:inherit}
       .v1173-table{margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden}.v1173-th,.v1173-tr{display:grid;grid-template-columns:.65fr 1.8fr .75fr 1.15fr;gap:8px;align-items:center}.v1173-th{padding:8px 10px;background:#f4f8f9;font-size:7px;text-transform:uppercase;color:#70848d;font-weight:950}.v1173-tr{padding:7px 10px;border-top:1px solid #edf2f3;font-size:7.5px}.v1173-tr b,.v1173-tr small{display:block}.v1173-tr small{font-size:6.5px;color:var(--muted);margin-top:2px}.v1173-tr select{width:100%;padding:6px;border:1px solid #d5e1e5;border-radius:8px;background:#fff;font-size:7.5px}.v1173-limit{padding:8px;font-size:7px;color:var(--muted);text-align:center}
       .v1173-source-banner{display:flex;gap:12px;align-items:center;margin-top:10px;padding:10px 12px;border:1px solid #cfe1e7;border-radius:12px;background:#f5fafb}.v1173-source-banner>div{flex:1}.v1173-source-banner b,.v1173-source-banner span{display:block}.v1173-source-banner b{font-size:8.5px}.v1173-source-banner span{font-size:7.5px;color:var(--muted);margin-top:3px}.v1173-source-banner.empty-source{background:#fff9ec;border-color:#efdcaf}
+      .v1176-pdf-detected{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}.v1176-pdf-detected>div{padding:9px 10px;border-radius:10px;background:#eef7fa}.v1176-pdf-detected span{display:block;font-size:6.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.v1176-pdf-detected b{display:block;font-size:8px;margin-top:3px}.v1176-quadratura{margin-top:7px;padding:9px 10px;border:1px solid #c8e5d6;border-radius:10px;background:#eef9f4;font-size:7.5px;color:#41685a}
+      .v1176-reconciliation{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin-top:9px}.v1176-reconciliation>div{padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#fff}.v1176-reconciliation span{display:block;font-size:6.5px;color:var(--muted)}.v1176-reconciliation b{display:block;font-size:9px;margin-top:3px}.v1176-reconciliation .v1176-official{grid-column:1/-1;background:#f0f8f4;border-color:#c7e2d4;display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center}.v1176-reconciliation .v1176-official b,.v1176-reconciliation .v1176-official small{margin:0}.v1176-reconciliation small{font-size:7px;color:#39735c}
+
       .v1173-history-row{display:grid;grid-template-columns:1.5fr 1fr .8fr;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #edf2f3;font-size:8px}.v1173-history-row b,.v1173-history-row span,.v1173-history-row small{display:block}.v1173-history-row span,.v1173-history-row small{font-size:7px;color:var(--muted);margin-top:2px}
-      @media(max-width:850px){.v1173-setup{grid-template-columns:1fr 1fr}.v1173-summary{grid-template-columns:1fr 1fr}.v1173-th{display:none}.v1173-tr{grid-template-columns:1fr 1fr}.v1173-map-toolbar{grid-template-columns:1fr}.v1173-history-row{grid-template-columns:1fr}}
+      @media(max-width:850px){.v1176-pdf-detected{grid-template-columns:1fr 1fr}.v1176-reconciliation{grid-template-columns:1fr 1fr}.v1176-reconciliation .v1176-official{grid-template-columns:1fr}.v1173-setup{grid-template-columns:1fr 1fr}.v1173-summary{grid-template-columns:1fr 1fr}.v1173-th{display:none}.v1173-tr{grid-template-columns:1fr 1fr}.v1173-map-toolbar{grid-template-columns:1fr}.v1173-history-row{grid-template-columns:1fr}}
     `;document.head.appendChild(st);
   }
 
@@ -5373,7 +5642,7 @@
 
   window.SPSpringBalanceV1173={
     openImport,preview,applyImport,setCategory,decorateFinance,
-    rebuildFromSnapshots,version:VERSION
+    rebuildFromSnapshots,parseSpringPDF,version:'V11.7.6'
   };
   window.SPBootLater(boot);
 })();

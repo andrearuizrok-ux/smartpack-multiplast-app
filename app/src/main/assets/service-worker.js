@@ -1,5 +1,5 @@
-/* V11.7.5 STARTUP PERFORMANCE · static-31 */
-const CACHE='spmp-v117-static-31';
+/* V11.7.6 SPRING PDF · static-32 */
+const CACHE='spmp-v117-static-32';
 
 const CORE_STATIC=[
   './access-v11.5.js',
