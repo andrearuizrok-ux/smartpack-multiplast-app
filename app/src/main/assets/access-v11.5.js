@@ -1035,8 +1035,8 @@
       auth.insertAdjacentHTML('afterbegin',`
         <div id="poi1190LoginDecor" aria-hidden="true">
           <div class="poi1190-top-slogan">
-            <span>CLARITY TO OPERATE.</span>
-            <span>INTELLIGENCE TO GROW.</span>
+            <span>SOLUZIONI PER UNA</span>
+            <span>INDUSTRIA PIÙ FORTE</span>
           </div>
           <div class="poi1190-login-footer">
             <b>© ${year} NOMYRA · Tutti i diritti riservati</b>
@@ -1745,22 +1745,11 @@
       -webkit-backdrop-filter:none!important;
 
       background:
-        radial-gradient(circle at -7% 112%,
-          rgba(20,32,51,.99) 0 20%,
-          rgba(20,32,51,0) 20.25%),
-        radial-gradient(circle at -7% 112%,
-          rgba(31,90,93,.78) 0 28%,
-          rgba(31,90,93,0) 28.25%),
-        radial-gradient(circle at -7% 112%,
-          rgba(220,228,225,.86) 0 36%,
-          rgba(220,228,225,0) 36.25%),
-        radial-gradient(circle at 104% -8%,
-          rgba(220,228,225,.66) 0 28%,
-          rgba(220,228,225,0) 28.25%),
-        radial-gradient(circle at 88% 84%,
-          rgba(185,120,80,.065) 0 13%,
-          rgba(185,120,80,0) 31%),
-        linear-gradient(135deg,#f9fbfa 0%,#f4f8f8 46%,#fbfaf7 100%)!important;
+        radial-gradient(52vw 52vw at -6% 104%,rgba(20,32,51,.96) 0 18%,rgba(20,32,51,.82) 18%,rgba(20,32,51,0) 56%),
+        radial-gradient(42vw 42vw at 0% 100%,rgba(31,90,93,.62) 0 20%,rgba(31,90,93,0) 56%),
+        radial-gradient(28vw 28vw at 88% 12%,rgba(220,228,225,.78) 0 28%,rgba(220,228,225,0) 70%),
+        radial-gradient(34vw 34vw at 103% 78%,rgba(185,120,80,.08) 0 16%,rgba(185,120,80,0) 58%),
+        linear-gradient(135deg,#f8fbfb 0%,#f1f6f6 52%,#fbfaf7 100%)!important;
     }
 
     /* Linee Copper sottili che richiamano il visual NOMYRA */
@@ -1782,14 +1771,13 @@
       content:"";
       position:fixed;
       z-index:0;
-      left:-5vw;
-      bottom:13vh;
-      width:36vw;
-      height:1px;
-      background:#b97850;
-      transform:rotate(36deg);
-      transform-origin:left center;
-      opacity:.8;
+      left:-3vw;
+      bottom:10vh;
+      width:32vw;
+      height:32vw;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(31,90,93,.08) 0 34%,rgba(31,90,93,0) 68%);
+      filter:blur(2px);
       pointer-events:none;
     }
 
@@ -1810,12 +1798,12 @@
       right:58px;
       z-index:4;
       display:grid;
-      gap:3px;
+      gap:4px;
       text-align:left;
-      color:#82949e;
+      color:#607882;
       font-size:9px;
-      font-weight:800;
-      letter-spacing:.20em;
+      font-weight:850;
+      letter-spacing:.18em;
       line-height:1.45;
       pointer-events:none;
     }
@@ -1871,8 +1859,8 @@
     #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card{
       position:relative!important;
       z-index:3!important;
-      width:min(720px,calc(100vw - 44px))!important;
-      max-width:720px!important;
+      width:min(780px,calc(100vw - 44px))!important;
+      max-width:780px!important;
       margin:0!important;
       box-sizing:border-box!important;
       padding:40px 46px 34px!important;
@@ -1972,8 +1960,8 @@
 
     #poiCloudAuth.poi1190-login-home #poiCloudLoginForm{
       display:grid!important;
-      grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
-      gap:17px 18px!important;
+      grid-template-columns:minmax(0,1fr)!important;
+      gap:16px!important;
       align-items:end!important;
     }
 
@@ -1984,6 +1972,7 @@
       color:#233d4b!important;
       font-size:10px!important;
       font-weight:850!important;
+      min-width:0!important;
     }
 
     #poiCloudAuth.poi1190-login-home input{
@@ -1995,9 +1984,9 @@
       border-radius:12px!important;
       background-color:#fbfcfc!important;
       color:#17313e!important;
-      font-size:14px!important;
-      font-weight:650!important;
-      padding:0 15px 0 46px!important;
+      font-size:15px!important;
+      font-weight:600!important;
+      padding:0 16px 0 46px!important;
       outline:none!important;
       box-shadow:none!important;
       transition:border-color .18s ease,box-shadow .18s ease,background .18s ease!important;
@@ -2021,9 +2010,15 @@
       box-shadow:0 0 0 3px rgba(31,90,93,.10)!important;
     }
 
+    #poiCloudAuth.poi1190-login-home input[type="email"]{
+      text-overflow:clip!important;
+      white-space:nowrap!important;
+      overflow:hidden!important;
+    }
+
     #poiCloudAuth.poi1190-login-home button[type="submit"]{
       position:relative!important;
-      grid-column:1/-1!important;
+      grid-column:1!important;
       width:100%!important;
       min-height:56px!important;
       margin:5px 0 0!important;
@@ -2112,7 +2107,7 @@
         display:none;
       }
       #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card{
-        width:min(100%,590px)!important;
+        width:min(100%,620px)!important;
         padding:31px 25px 26px!important;
         border-radius:19px!important;
       }

@@ -1,0 +1,9 @@
+V11.9.1 · HOME LOGIN NOMYRA RAFFINATA
+
+Modifiche incluse:
+- Home pre-login rifinita solo per la schermata iniziale della piattaforma.
+- Messaggio hero aggiornato: “SOLUZIONI PER UNA INDUSTRIA PIÙ FORTE”.
+- Footer con diritti riservati NOMYRA mantenuto.
+- Campo e-mail allargato e layout verticale per leggere l’indirizzo completo.
+- Background più morbido e professionale, senza effetto “pixelato”.
+- Nessuna modifica al resto delle schermate operative.
