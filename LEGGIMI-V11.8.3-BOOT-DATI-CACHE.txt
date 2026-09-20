@@ -1,0 +1,48 @@
+SMART PACK · MULTIPLAST — V11.8.3
+CORREZIONE DATI INIZIALI + FLASHBACK BUILD PRECEDENTI
+
+PROBLEMA 1 — PERIODO VUOTO 2026-09
+Il cloud contiene già dati finanziari con ultimo periodo 2025-12,
+ma il browser poteva conservare 2026-09 in sessionStorage/localStorage.
+La vecchia priorità era:
+  periodo browser → periodo dati
+quindi veniva aperta una schermata vuota.
+
+ORA LA PRIORITÀ È:
+  periodo cloud valido → ultimo periodo con dati → periodo browser valido → mese corrente
+
+Un periodo salvato nel browser viene ignorato se non contiene realmente
+né uno snapshot SPRING né un record finanziario.
+
+PROBLEMA 2 — FLASHBACK DI VERSIONI PRECEDENTI
+Il precedente service worker serviva JavaScript dalla cache e poi lo aggiornava
+in background. Dopo un deploy poteva quindi partire per un istante il planner
+della build precedente.
+
+ORA:
+- HTML: network-first
+- JavaScript/CSS applicativi: NETWORK-FIRST
+- cache: solo fallback se la rete non è disponibile
+- loghi/immagini: restano cache-first per velocità
+- tutte le vecchie cache vengono eliminate all'attivazione
+
+BUILD CONSISTENCY
+Da V11.8.3 in avanti, quando un nuovo service worker prende il controllo,
+la pagina fa automaticamente UN refresh. Questo impedisce di mescolare
+access/planner di due build diverse nella stessa sessione.
+
+STATO CLOUD VERIFICATO PRIMA DELLA PATCH
+Il segmento financeStateV1179 esiste e contiene:
+- 1 record finanziario
+- 1 snapshot SPRING
+- 4 registrazioni import
+- ultimo periodo: 2025-12
+Quindi i dati non erano persi: era errata la scelta del periodo iniziale.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-39

@@ -1,3 +1,18 @@
+/* V11.8.3 · BUILD CONSISTENCY */
+(()=>{
+  if(window.__spmpBuildConsistencyV1183)return;
+  window.__spmpBuildConsistencyV1183=true;
+  if(!('serviceWorker' in navigator))return;
+
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(refreshing)return;
+    refreshing=true;
+    // Un solo refresh quando una nuova build prende il controllo.
+    location.reload();
+  });
+})();
+
 /* Smart Pack · Multiplast — V11.5 accessi separati
    - Account cliente: e-mail + password, scelta azienda, richieste di recupero.
    - Dipendenti: USER + PIN personale di 6 cifre.

@@ -4429,6 +4429,8 @@
     try{await window.SPFinanceCloudV1179?.ensureLoaded?.()}catch(_){ }
     const preferred=window.SPFinanceCloudV1179?.preferredPeriod?.(period)||period||monthNow();
     renderFinance(preferred);
+    const periodInput=document.getElementById('financePeriodV1170');
+    if(periodInput && /^\d{4}-\d{2}$/.test(preferred))periodInput.value=preferred;
     setTimeout(()=>window.SPFinanceCloudV1179?.decorate?.(),30);
   }
 
@@ -6427,7 +6429,7 @@
   const n=v=>Number(v||0);
   const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n(v));
   const pct=v=>`${n(v).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}%`;
-  let loaded=false,loading=null,lastCloudSave=0;
+  let loaded=false,loading=null,lastCloudSave=0,cloudLastPeriod='';
 
   const client=()=>window.POICloudV10?.getClient?.()||null;
   const profile=()=>window.POICloudV10?.getProfile?.()||null;
@@ -6464,10 +6466,27 @@
     return [...ps,...rs].sort().reverse()[0]||'';
   }
 
+  function financePeriodExists(period){
+    if(!/^\d{4}-\d{2}$/.test(String(period||'')))return false;
+    ensureLocal();
+    return state.financeSpringV1173.snapshots.some(x=>x.period===period) ||
+           state.adminFinanceV1170.records.some(x=>x.period===period);
+  }
+
   function preferredPeriod(requested=''){
     if(requested && /^\d{4}-\d{2}$/.test(String(requested)))return String(requested);
+
+    // All'apertura la fonte contabile reale ha priorità sul vecchio valore
+    // lasciato nel browser da una schermata precedente.
+    if(cloudLastPeriod && financePeriodExists(cloudLastPeriod))return cloudLastPeriod;
+
+    const latest=latestSnapshotPeriod();
+    if(latest)return latest;
+
     const saved=sessionStorage.getItem('poi_finance_period_v1179')||localStorage.getItem('poi_finance_period_v1179')||'';
-    return saved||latestSnapshotPeriod()||new Date().toISOString().slice(0,7);
+    if(saved && financePeriodExists(saved))return saved;
+
+    return new Date().toISOString().slice(0,7);
   }
 
   async function ensureLoaded(force=false){
@@ -6485,7 +6504,18 @@
         if(cloudHas){
           state.adminFinanceV1170=cloud.adminFinanceV1170||state.adminFinanceV1170;
           state.financeSpringV1173=cloud.financeSpringV1173||state.financeSpringV1173;
-          if(cloud.lastPeriod){localStorage.setItem('poi_finance_period_v1179',cloud.lastPeriod)}
+          cloudLastPeriod=/^\d{4}-\d{2}$/.test(String(cloud.lastPeriod||''))?String(cloud.lastPeriod):latestSnapshotPeriod();
+          if(cloudLastPeriod && financePeriodExists(cloudLastPeriod)){
+            localStorage.setItem('poi_finance_period_v1179',cloudLastPeriod);
+            sessionStorage.setItem('poi_finance_period_v1179',cloudLastPeriod);
+          }else{
+            const latest=latestSnapshotPeriod();
+            if(latest){
+              cloudLastPeriod=latest;
+              localStorage.setItem('poi_finance_period_v1179',latest);
+              sessionStorage.setItem('poi_finance_period_v1179',latest);
+            }
+          }
           try{save()}catch(_){ }
         }else if(hasLocal()){
           await save(preferredPeriod(''));
@@ -6512,6 +6542,7 @@
       const {error}=await sb.rpc('poi_finance_state_save',{p_data:payload(per),p_group:GROUP});
       if(error)throw error;
       lastCloudSave=Date.now();
+      cloudLastPeriod=per;
       return true;
     }catch(e){console.warn('[V11.7.9] finance cloud save',e);return false}
   }
