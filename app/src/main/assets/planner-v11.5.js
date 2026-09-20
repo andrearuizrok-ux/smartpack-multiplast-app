@@ -5257,17 +5257,40 @@
     if(!view||!view.classList.contains('active'))return;
     const p=$('#financePeriodV1170')?.value||monthNow();
 
-    view.querySelector('.v1173-source-banner')?.remove();
     const hero=view.querySelector('.v1170-fin-hero');
-    if(hero)hero.insertAdjacentHTML('afterend',sourceBanner(p));
+    let banner=view.querySelector('.v1173-source-banner');
+    const signature=[
+      p,
+      lastImport('smartpack',p)?.id||'',
+      lastImport('multiplast',p)?.id||''
+    ].join('|');
+
+    if(hero && (!banner || banner.dataset.signature!==signature)){
+      if(banner)banner.remove();
+      hero.insertAdjacentHTML('afterend',sourceBanner(p));
+      banner=view.querySelector('.v1173-source-banner');
+      if(banner)banner.dataset.signature=signature;
+    }
 
     let history=view.querySelector('[data-v1173-history]');
     if(!history){
-      history=document.createElement('section');history.dataset.v1173History='1';history.className='section panel';
+      history=document.createElement('section');
+      history.dataset.v1173History='1';
+      history.className='section panel';
       history.innerHTML=`<div class="panel-head"><div><h3>Importazioni SPRING</h3><p>Storico delle fotografie contabili utilizzate per alimentare l'analisi.</p></div><div class="right"><button class="btn small" onclick="SPSpringBalanceV1173.openImport()">+ Importa</button></div></div><div class="panel-body" id="springHistoryBodyV1173"></div>`;
       view.appendChild(history);
     }
-    const hb=$('#springHistoryBodyV1173',view);if(hb)hb.innerHTML=importHistoryHTML();
+
+    const hb=$('#springHistoryBodyV1173',view);
+    const historySignature=state.financeSpringV1173.imports
+      .slice(0,12)
+      .map(x=>`${x.id}|${x.importedAt}`)
+      .join(';');
+
+    if(hb && hb.dataset.signature!==historySignature){
+      hb.innerHTML=importHistoryHTML();
+      hb.dataset.signature=historySignature;
+    }
   }
 
   function injectStyles(){
@@ -5294,13 +5317,14 @@
 
   function boot(){
     patch();
-    const obs=new MutationObserver(()=>decorateFinance());
-    const start=()=>{
-      const v=$('#adminFinanceV1170View');
-      if(v)obs.observe(v,{childList:true,subtree:true});
-    };
-    start();setTimeout(start,500);
-    setInterval(patch,3000);
+    // Niente MutationObserver ricorsivo: decorateFinance modifica a sua volta
+    // il DOM e in precedenza poteva creare un loop di rendering nell'area Admin.
+    setTimeout(patch,500);
+    setInterval(()=>{
+      if(typeof currentRole!=='undefined' && currentRole==='admin'){
+        patch();
+      }
+    },5000);
   }
 
   window.SPSpringBalanceV1173={
@@ -5308,5 +5332,85 @@
     rebuildFromSnapshots,version:VERSION
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
+
+
+
+/* ========================================================================
+   V11.7.4 · FIX NAVIGAZIONE AMMINISTRAZIONE
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPAdminNavFixV1174)return;
+
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+  function deactivateCustomViews(){
+    ['adminOverviewV1170View','adminFinanceV1170View'].forEach(id=>{
+      document.getElementById(id)?.classList.remove('active');
+    });
+  }
+
+  function bindAdminNav(){
+    if(typeof currentRole==='undefined' || currentRole!=='admin')return;
+    const nav=$('#sideNav')||$('.nav');
+    if(!nav)return;
+
+    $$('button',nav).forEach(btn=>{
+      if(btn.dataset.v1174Bound==='1')return;
+      btn.dataset.v1174Bound='1';
+
+      // Capture phase: before the old handler switches standard views,
+      // remove active state from custom Admin views.
+      btn.addEventListener('click',()=>{
+        const isCustom =
+          btn.id==='adminOverviewNavV1170' ||
+          btn.id==='adminFinanceNavV1170' ||
+          btn.dataset.v1170Finance==='1';
+
+        if(!isCustom){
+          deactivateCustomViews();
+        }
+      },true);
+    });
+  }
+
+  function repairVisibleView(){
+    if(typeof currentRole==='undefined'||currentRole!=='admin')return;
+
+    // Never leave two views active at once.
+    const active=$$('.view.active');
+    if(active.length>1){
+      const custom=active.filter(x=>['adminOverviewV1170View','adminFinanceV1170View'].includes(x.id));
+      const standard=active.filter(x=>!['adminOverviewV1170View','adminFinanceV1170View'].includes(x.id));
+      if(standard.length){
+        custom.forEach(x=>x.classList.remove('active'));
+      }else if(active.length>1){
+        active.slice(0,-1).forEach(x=>x.classList.remove('active'));
+      }
+    }
+  }
+
+  function patch(){
+    bindAdminNav();
+    repairVisibleView();
+  }
+
+  function boot(){
+    patch();
+    setTimeout(patch,300);
+    setTimeout(patch,1000);
+    setInterval(patch,5000);
+    document.body.dataset.adminNavFix='V11.7.4';
+  }
+
+  window.SPAdminNavFixV1174={patch,version:'V11.7.4'};
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',boot,{once:true});
+  }else{
+    boot();
+  }
 })();
 

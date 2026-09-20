@@ -1,0 +1,34 @@
+SMART PACK · MULTIPLAST — V11.7.4
+FIX MENU AMMINISTRAZIONE
+
+PROBLEMA
+Nella V11.7.3 la sezione Economico-finanziaria aveva un MutationObserver
+che osservava la stessa area DOM modificata da decorateFinance().
+Questo poteva innescare un ciclo continuo di rendering e bloccare
+l'interfaccia quando si usava il menu laterale di Amministrazione.
+
+CORREZIONI
+- Rimosso il MutationObserver ricorsivo.
+- decorateFinance ora è idempotente:
+  aggiorna banner e storico solo quando dati/periodo cambiano.
+- Aggiunto un controllo di sicurezza sulla navigazione Admin.
+- Prima di aprire una voce standard del menu vengono disattivate
+  le viste custom Panoramica Amministrazione / Economico-finanziario.
+- Non possono restare due schermate .view attive contemporaneamente.
+- Polling dell'area finanziaria ridotto e attivo solo per il ruolo admin.
+
+TEST DA FARE
+1. Entra in Amministrazione.
+2. Clicca Panoramica.
+3. Clicca Consegne / DDT.
+4. Clicca Clienti e fornitori.
+5. Clicca Economico-finanziario.
+6. Torna a Magazzino interno / Materie prime / Listini.
+Il menu deve rispondere sempre senza freeze.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v117-static-30

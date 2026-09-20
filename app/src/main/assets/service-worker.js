@@ -1,5 +1,5 @@
-/* V11.7.3 SPRING BALANCE · static-29 */
-const CACHE='spmp-v117-static-29';
+/* V11.7.4 ADMIN NAV FIX · static-30 */
+const CACHE='spmp-v117-static-30';
 
 const STATIC=[
   './',
