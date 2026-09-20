@@ -1,0 +1,41 @@
+SMART PACK · MULTIPLAST — V11.7.7
+LEGGIBILITÀ ANALISI + DATI SPRING BLOCCATI
+
+1. ANALISI KPI PIÙ LEGGIBILE
+Aumentate significativamente le dimensioni di:
+- spiegazioni
+- formule
+- interpretazioni
+- composizione costi
+- valori numerici
+- break-even
+- controlli consigliati
+- note/disclaimer
+
+2. DATI IMPORTATI DA SPRING = SOLA LETTURA
+Quando un periodo/azienda è alimentato da Bilancio SPRING:
+- i valori non sono più input modificabili;
+- sono mostrati come dati contabili bloccati;
+- tutti gli importi sono formattati in euro con 2 decimali;
+- compare l'indicazione della fonte file SPRING;
+- non è possibile sovrascrivere manualmente il periodo.
+
+3. MODIFICA DI UN PERIODO IMPORTATO
+Per correggere i dati occorre:
+- importare nuovamente un Bilancio SPRING per la stessa azienda e periodo.
+Il nuovo snapshot sostituisce quello precedente mantenendo la logica di origine.
+
+4. PERIODI SENZA BILANCIO IMPORTATO
+Restano modificabili manualmente.
+I campi indicano esplicitamente "(€)" e mantengono step 0,01.
+
+5. SICUREZZA LOGICA
+Anche se un vecchio bottone prova a chiamare "Salva periodo",
+saveFinanceCompany blocca comunque la modifica se il record proviene da SPRING.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v117-static-33

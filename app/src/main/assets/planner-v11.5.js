@@ -4077,6 +4077,11 @@
   }
 
   function saveFinanceCompany(company,period){
+    const existing=financeRecord(company,period,false);
+    if(existing && (existing.springSnapshotId || String(existing.source||'').includes('SPRING'))){
+      alert('Questo periodo è alimentato da un Bilancio SPRING importato e non può essere modificato manualmente. Reimporta il bilancio per sostituire i dati.');
+      return;
+    }
     const form=$(`#financeForm_${company}`);
     if(!form)return;
     const f=new FormData(form),r=financeRecord(company,period,true);
@@ -4087,9 +4092,59 @@
   }
 
   function financeForm(company,period){
-    const r=financeRecord(company,period,false)||{},z=calcFinance(financeRecord(company,period,false)),st=financeStatus(z);
+    const sourceRecord=financeRecord(company,period,false);
+    const r=sourceRecord||{},z=calcFinance(sourceRecord),st=financeStatus(z);
     const name=company==='smartpack'?'SMART PACK':'MULTIPLAST';
+    const imported=!!(r.springSnapshotId || String(r.source||'').includes('SPRING'));
+    const sourceLabel=imported
+      ? `SPRING · ${r.sourceFile||'Bilancio importato'}`
+      : 'Inserimento manuale';
     const val=k=>r[k]||'';
+
+    if(imported){
+      return `<section class="v1170-fin-company v1177-locked-company">
+        <div class="v1170-fin-company-head">
+          <div><span>${name}</span><h3>${period}</h3></div>
+          <span class="v1170-fin-status ${st.cls}">${st.label}</span>
+        </div>
+
+        <div class="v1177-source-lock">
+          <div>
+            <b>Valori contabili bloccati</b>
+            <span>${esc(sourceLabel)}</span>
+          </div>
+          <span class="v1177-lock-badge">🔒 Sola lettura</span>
+        </div>
+
+        <div class="v1170-fin-mini">
+          <div><span>Ricavi</span><b>${money(r.revenue)}</b></div>
+          <div><span>EBITDA</span><b class="${z.ebitda<0?'loss':''}">${money(z.ebitda)}</b></div>
+          <div><span>EBIT</span><b class="${z.ebit<0?'loss':''}">${money(z.ebit)}</b></div>
+          <div><span>Margine EBITDA</span><b>${pct(z.margin)}</b></div>
+        </div>
+
+        <div class="v1177-readonly-grid">
+          <div><span>Ricavi</span><b>${money(r.revenue)}</b></div>
+          <div><span>Materie / acquisti</span><b>${money(r.materials)}</b></div>
+          <div><span>Personale</span><b>${money(r.personnel)}</b></div>
+          <div><span>Energia</span><b>${money(r.energy)}</b></div>
+          <div><span>Trasporti</span><b>${money(r.transport)}</b></div>
+          <div><span>Altri costi operativi</span><b>${money(r.otherOpex)}</b></div>
+          <div><span>Ammortamenti</span><b>${money(r.depreciation)}</b></div>
+          <div><span>Crediti clienti</span><b>${money(r.receivables)}</b></div>
+          <div><span>Debiti fornitori</span><b>${money(r.payables)}</b></div>
+          <div><span>Liquidità</span><b>${money(r.cash)}</b></div>
+          ${r.inventory!=null?`<div><span>Rimanenze</span><b>${money(r.inventory)}</b></div>`:''}
+          ${r.financialCharges!=null?`<div><span>Oneri finanziari</span><b>${money(r.financialCharges)}</b></div>`:''}
+        </div>
+
+        <div class="v1177-locked-note">
+          Per modificare questi valori devi importare un nuovo Bilancio SPRING per lo stesso periodo.
+          I dati importati non possono essere sovrascritti manualmente.
+        </div>
+      </section>`;
+    }
+
     return `<section class="v1170-fin-company">
       <div class="v1170-fin-company-head">
         <div><span>${name}</span><h3>${period}</h3></div>
@@ -4101,17 +4156,21 @@
         <div><span>EBIT</span><b class="${z.ebit<0?'loss':''}">${r.period?money(z.ebit):'—'}</b></div>
         <div><span>Margine EBITDA</span><b>${r.period?pct(z.margin):'—'}</b></div>
       </div>
+      <div class="v1177-manual-source">
+        <b>Inserimento manuale</b>
+        <span>Nessun Bilancio SPRING importato per questo periodo.</span>
+      </div>
       <form id="financeForm_${company}" class="v1170-fin-form">
-        <label class="field">Ricavi<input name="revenue" type="number" step="0.01" value="${val('revenue')}"></label>
-        <label class="field">Materie / acquisti<input name="materials" type="number" step="0.01" value="${val('materials')}"></label>
-        <label class="field">Personale<input name="personnel" type="number" step="0.01" value="${val('personnel')}"></label>
-        <label class="field">Energia<input name="energy" type="number" step="0.01" value="${val('energy')}"></label>
-        <label class="field">Trasporti<input name="transport" type="number" step="0.01" value="${val('transport')}"></label>
-        <label class="field">Altri costi operativi<input name="otherOpex" type="number" step="0.01" value="${val('otherOpex')}"></label>
-        <label class="field">Ammortamenti<input name="depreciation" type="number" step="0.01" value="${val('depreciation')}"></label>
-        <label class="field">Crediti clienti<input name="receivables" type="number" step="0.01" value="${val('receivables')}"></label>
-        <label class="field">Debiti fornitori<input name="payables" type="number" step="0.01" value="${val('payables')}"></label>
-        <label class="field">Liquidità<input name="cash" type="number" step="0.01" value="${val('cash')}"></label>
+        <label class="field">Ricavi (€)<input name="revenue" type="number" step="0.01" value="${val('revenue')}"></label>
+        <label class="field">Materie / acquisti (€)<input name="materials" type="number" step="0.01" value="${val('materials')}"></label>
+        <label class="field">Personale (€)<input name="personnel" type="number" step="0.01" value="${val('personnel')}"></label>
+        <label class="field">Energia (€)<input name="energy" type="number" step="0.01" value="${val('energy')}"></label>
+        <label class="field">Trasporti (€)<input name="transport" type="number" step="0.01" value="${val('transport')}"></label>
+        <label class="field">Altri costi operativi (€)<input name="otherOpex" type="number" step="0.01" value="${val('otherOpex')}"></label>
+        <label class="field">Ammortamenti (€)<input name="depreciation" type="number" step="0.01" value="${val('depreciation')}"></label>
+        <label class="field">Crediti clienti (€)<input name="receivables" type="number" step="0.01" value="${val('receivables')}"></label>
+        <label class="field">Debiti fornitori (€)<input name="payables" type="number" step="0.01" value="${val('payables')}"></label>
+        <label class="field">Liquidità (€)<input name="cash" type="number" step="0.01" value="${val('cash')}"></label>
         <label class="field full">Note<input name="notes" value="${esc(r.notes||'')}"></label>
         <button type="button" class="btn primary" onclick="SPReleaseV1170.saveFinance('${company}','${period}')">Salva periodo</button>
       </form>
@@ -4347,6 +4406,18 @@
       .v1170-fin-status{display:inline-flex;padding:5px 7px;border-radius:999px;background:#eef3f5;color:#5d717b;font-size:7px;font-weight:950}.v1170-fin-status.loss{background:#fdecee;color:#a53d46}.v1170-fin-status.profit{background:#e9f7f0;color:#1d7357}
       .v1170-fin-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.v1170-fin-mini>div{background:#f7fafb;border-radius:9px;padding:8px}.v1170-fin-mini span{display:block;font-size:6.5px;color:var(--muted)}.v1170-fin-mini b{display:block;font-size:9px;margin-top:3px}
       .v1170-fin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v1170-fin-form .full{grid-column:1/-1}.v1170-fin-history{padding:8px 14px}.v1170-fin-history-row{display:grid;grid-template-columns:.6fr 1.2fr 1.2fr 1fr;gap:10px;padding:9px 0;border-bottom:1px solid #edf2f3;font-size:8px}.v1170-fin-history-row span{color:var(--muted)}
+      
+      .v1177-source-lock{display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;border:1px solid #cfe1e7;border-radius:11px;background:#f3f8fa}
+      .v1177-source-lock>div{flex:1}.v1177-source-lock b{display:block;font-size:9px}.v1177-source-lock span{display:block;font-size:7.5px;color:var(--muted);margin-top:2px}
+      .v1177-lock-badge{display:inline-flex!important;width:max-content;padding:6px 9px!important;border-radius:999px;background:#e7f0f4;color:#355d6e!important;font-size:7.5px!important;font-weight:950!important;margin:0!important}
+      .v1177-readonly-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}
+      .v1177-readonly-grid>div{padding:10px 11px;border:1px solid #e1e9ec;border-radius:10px;background:#fafcfc}
+      .v1177-readonly-grid span{display:block;font-size:7.5px;color:var(--muted);font-weight:800}.v1177-readonly-grid b{display:block;font-size:10px;margin-top:3px;color:var(--ink)}
+      .v1177-locked-note{margin-top:10px;padding:9px 10px;border-radius:9px;background:#fff8ea;color:#7a622f;font-size:7.5px;line-height:1.4}
+      .v1177-manual-source{margin:9px 0;padding:9px 10px;border-radius:9px;background:#f7fafb;border:1px solid var(--line)}
+      .v1177-manual-source b{display:block;font-size:8px}.v1177-manual-source span{display:block;font-size:7px;color:var(--muted);margin-top:2px}
+      @media(max-width:680px){.v1177-readonly-grid{grid-template-columns:1fr}}
+
       @media(max-width:1100px){.v1170-admin-kpis{grid-template-columns:repeat(2,1fr)}.v1170-fin-group{grid-template-columns:repeat(3,1fr)}.v1170-fin-grid{grid-template-columns:1fr}.v1170-load-item{grid-template-columns:1fr 120px}.v1170-load-actions{grid-column:1/-1;justify-content:flex-start}}
       @media(max-width:760px){.v1170-admin-layout,.v1170-admin-layout.lower{grid-template-columns:1fr}.v1170-admin-hero,.v1170-fin-hero{display:block}.v1170-admin-actions{margin-top:12px}.v1170-flow{grid-template-columns:1fr 1fr}.v1170-fin-group{grid-template-columns:1fr 1fr}.v1170-quick-admin{grid-template-columns:1fr}.v1170-edit-head{display:none}.v1170-edit-row{grid-template-columns:1fr 1fr}.v1170-fin-history-row{grid-template-columns:1fr}.v1170-recent>div{grid-template-columns:1fr}}
     `;document.head.appendChild(st);
@@ -4725,14 +4796,14 @@
       .v1172-clickable{cursor:pointer;position:relative;transition:.16s ease}.v1172-clickable:hover{transform:translateY(-1px);border-color:#a9c9d5!important;box-shadow:0 6px 16px rgba(26,72,89,.08)}.v1172-clickable:focus{outline:2px solid rgba(22,145,190,.25);outline-offset:2px}
       .v1172-open-hint{display:block!important;margin-top:5px!important;color:var(--primary)!important;font-size:6.5px!important;font-weight:900!important}
       .v1172-fin-dialog{width:min(820px,95vw);max-height:90vh}
-      .v1172-value-card{padding:16px 18px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(135deg,#fff,#f5faf9)}.v1172-value-card>span{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:950}.v1172-value-card>b{display:block;font-size:30px;margin:4px 0;color:var(--ink)}.v1172-value-card>small{font-size:8px;color:var(--muted)}
-      .v1172-explain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.v1172-explain-grid section{padding:12px;border:1px solid var(--line);border-radius:12px}.v1172-explain-grid section.full{grid-column:1/-1}.v1172-explain-grid section>span{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:950}.v1172-explain-grid p{font-size:8.5px;line-height:1.5;margin:5px 0 0}
-      .v1172-status{margin-top:10px;padding:12px 14px;border-radius:12px;background:#f4f7f8;border:1px solid #dce6e9}.v1172-status b,.v1172-status span{display:block}.v1172-status b{font-size:9px}.v1172-status span{font-size:8px;color:#536a74;margin-top:3px;line-height:1.45}.v1172-status.loss{background:#fff3f4;border-color:#edc5c9}.v1172-status.loss b{color:#a73e47}.v1172-status.warn{background:#fff8e9;border-color:#efdaa9}.v1172-status.warn b{color:#926318}.v1172-status.ok{background:#edf9f3;border-color:#c5e7d5}.v1172-status.ok b{color:#1d7456}
-      .v1172-analysis-section{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:13px}.v1172-section-head b{display:block;font-size:9px}.v1172-section-head span{display:block;font-size:7px;color:var(--muted);margin-top:2px}.v1172-cost-row{display:grid;grid-template-columns:170px 1fr 90px;gap:9px;align-items:center;margin-top:9px}.v1172-cost-row>div:first-child{display:flex;justify-content:space-between;gap:6px;font-size:7.5px}.v1172-cost-row>div:first-child span{color:var(--muted)}.v1172-cost-row>small{font-size:7px;color:var(--muted);text-align:right}.v1172-bar{height:7px;border-radius:99px;background:#edf2f3;overflow:hidden}.v1172-bar i{display:block;height:100%;background:currentColor;color:var(--primary);border-radius:99px}.v1172-top-costs{margin-top:10px;font-size:7.5px;color:var(--muted)}
-      .v1172-number-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.v1172-number-grid>div{padding:10px;border-radius:10px;background:#f7fafb}.v1172-number-grid span{display:block;font-size:7px;color:var(--muted)}.v1172-number-grid b{display:block;font-size:10px;margin-top:3px}
-      .v1172-break-even{margin-top:10px;padding:12px;border:1px solid #efdaa9;background:#fff9ec;border-radius:12px}.v1172-break-even b{display:block;font-size:9px;color:#8f6219}.v1172-break-even span{display:block;font-size:8px;color:#705b37;margin-top:4px;line-height:1.45}
-      .v1172-questions{margin-top:12px}.v1172-questions>b{display:block;font-size:9px;margin-bottom:6px}.v1172-questions>div{display:flex;gap:7px;padding:6px 0;border-bottom:1px solid #edf2f3}.v1172-questions i{font-style:normal;color:#1f7a5c;font-size:8px}.v1172-questions span{font-size:8px;color:#536a74}
-      .v1172-disclaimer{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:7px;color:#83949c}
+      .v1172-value-card{padding:16px 18px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(135deg,#fff,#f5faf9)}.v1172-value-card>span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:950}.v1172-value-card>b{display:block;font-size:34px;margin:4px 0;color:var(--ink)}.v1172-value-card>small{font-size:11px;color:var(--muted)}
+      .v1172-explain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.v1172-explain-grid section{padding:12px;border:1px solid var(--line);border-radius:12px}.v1172-explain-grid section.full{grid-column:1/-1}.v1172-explain-grid section>span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:950}.v1172-explain-grid p{font-size:12px;line-height:1.5;margin:5px 0 0}
+      .v1172-status{margin-top:10px;padding:12px 14px;border-radius:12px;background:#f4f7f8;border:1px solid #dce6e9}.v1172-status b,.v1172-status span{display:block}.v1172-status b{font-size:12px}.v1172-status span{font-size:11px;color:#536a74;margin-top:3px;line-height:1.45}.v1172-status.loss{background:#fff3f4;border-color:#edc5c9}.v1172-status.loss b{color:#a73e47}.v1172-status.warn{background:#fff8e9;border-color:#efdaa9}.v1172-status.warn b{color:#926318}.v1172-status.ok{background:#edf9f3;border-color:#c5e7d5}.v1172-status.ok b{color:#1d7456}
+      .v1172-analysis-section{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:13px}.v1172-section-head b{display:block;font-size:12px}.v1172-section-head span{display:block;font-size:10px;color:var(--muted);margin-top:2px}.v1172-cost-row{display:grid;grid-template-columns:170px 1fr 90px;gap:9px;align-items:center;margin-top:9px}.v1172-cost-row>div:first-child{display:flex;justify-content:space-between;gap:6px;font-size:10.5px}.v1172-cost-row>div:first-child span{color:var(--muted)}.v1172-cost-row>small{font-size:10px;color:var(--muted);text-align:right}.v1172-bar{height:7px;border-radius:99px;background:#edf2f3;overflow:hidden}.v1172-bar i{display:block;height:100%;background:currentColor;color:var(--primary);border-radius:99px}.v1172-top-costs{margin-top:10px;font-size:10.5px;color:var(--muted)}
+      .v1172-number-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.v1172-number-grid>div{padding:10px;border-radius:10px;background:#f7fafb}.v1172-number-grid span{display:block;font-size:10px;color:var(--muted)}.v1172-number-grid b{display:block;font-size:12px;margin-top:3px}
+      .v1172-break-even{margin-top:10px;padding:12px;border:1px solid #efdaa9;background:#fff9ec;border-radius:12px}.v1172-break-even b{display:block;font-size:12px;color:#8f6219}.v1172-break-even span{display:block;font-size:11px;color:#705b37;margin-top:4px;line-height:1.45}
+      .v1172-questions{margin-top:12px}.v1172-questions>b{display:block;font-size:12px;margin-bottom:6px}.v1172-questions>div{display:flex;gap:7px;padding:6px 0;border-bottom:1px solid #edf2f3}.v1172-questions i{font-style:normal;color:#1f7a5c;font-size:11px}.v1172-questions span{font-size:11px;color:#536a74}
+      .v1172-disclaimer{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:10px;color:#83949c}
       .v1172-empty{padding:24px;text-align:center}.v1172-empty b{display:block;font-size:11px}.v1172-empty span{display:block;font-size:8px;color:var(--muted);margin-top:5px}
       @media(max-width:680px){.v1172-explain-grid{grid-template-columns:1fr}.v1172-explain-grid section.full{grid-column:auto}.v1172-number-grid{grid-template-columns:1fr 1fr}.v1172-cost-row{grid-template-columns:1fr}.v1172-cost-row>small{text-align:left}}
     `;document.head.appendChild(st);

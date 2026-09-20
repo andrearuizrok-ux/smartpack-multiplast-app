@@ -1,5 +1,5 @@
-/* V11.7.6 SPRING PDF · static-32 */
-const CACHE='spmp-v117-static-32';
+/* V11.7.7 FINANCE READONLY · static-33 */
+const CACHE='spmp-v117-static-33';
 
 const CORE_STATIC=[
   './access-v11.5.js',
