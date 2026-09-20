@@ -1,5 +1,5 @@
-/* V11.8.1 FINANCE NO FLASH · static-37 */
-const CACHE='spmp-v118-static-37';
+/* V11.8.2 ADMIN DASHBOARD · static-38 */
+const CACHE='spmp-v118-static-38';
 
 const CORE_STATIC=[
   './access-v11.5.js',

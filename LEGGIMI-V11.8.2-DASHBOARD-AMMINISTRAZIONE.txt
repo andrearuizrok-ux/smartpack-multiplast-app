@@ -1,0 +1,54 @@
+SMART PACK · MULTIPLAST — V11.8.2
+DASHBOARD AMMINISTRAZIONE
+
+NUOVA PANORAMICA
+La Panoramica diventa la schermata principale dell'area Amministrazione.
+
+IN ALTO
+- Smart Pack | Multiplast | Gruppo
+- Carichi pronti per DDT
+- Carichi ancora in reparto
+- Scadenze da controllare
+- Anomalie / dati mancanti
+
+AZIONI RAPIDE
+- Registra DDT SPRING
+- Nuovo cliente
+- Nuovo fornitore
+- Importa Bilancio SPRING
+- Importa Excel aziendale
+- Utenti e accessi
+
+ANDAMENTO ECONOMICO
+Usa automaticamente l'ultimo periodo finanziario disponibile:
+- Ricavi
+- EBITDA
+- EBIT
+- Crediti - Debiti
+- stato del risultato
+- stima EBIT fine anno quando esiste un progressivo YTD
+
+ATTENZIONE
+Mostra solo problemi reali presenti nei dati:
+- carichi senza DDT
+- scadenze scadute / prossime
+- anagrafiche incomplete
+- conti SPRING ancora da classificare
+
+SMART PACK / MULTIPLAST
+Confronto sintetico delle due società senza mescolare i dati.
+
+ULTIME ATTIVITÀ
+Cronologia operativa recente con accesso diretto alla Tracciabilità.
+
+RESPONSIVE
+- Desktop: dashboard completa
+- Tablet: KPI 2x2 e moduli adattati
+- Mobile: una colonna
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-38

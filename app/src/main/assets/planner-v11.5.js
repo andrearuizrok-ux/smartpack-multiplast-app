@@ -4450,75 +4450,185 @@
     return false;
   }
 
+  let adminOverviewScope='group';
+
+  function adminFinancePeriod(){
+    try{
+      const p=window.SPFinanceCloudV1179?.preferredPeriod?.('');
+      if(/^\d{4}-\d{2}$/.test(String(p||'')))return p;
+    }catch(_){}
+    const periods=(state.adminFinanceV1170?.records||[]).map(x=>String(x.period||'')).filter(x=>/^\d{4}-\d{2}$/.test(x)).sort().reverse();
+    return periods[0]||monthNow();
+  }
+
+  function adminFinanceSnapshot(scope,period){
+    if(scope==='group')return groupFinance(period);
+    return calcFinance(financeRecord(scope,period,false));
+  }
+
+  function adminComplianceSummary(){
+    const today=new Date();today.setHours(0,0,0,0);
+    const end=new Date(today);end.setDate(end.getDate()+30);
+    const active=(state.complianceRecords||[]).filter(x=>x?.active!==false&&x.expiryDate);
+    const due=active.filter(x=>{const d=new Date(x.expiryDate+'T00:00:00');return !isNaN(d)&&d>=today&&d<=end});
+    const expired=active.filter(x=>{const d=new Date(x.expiryDate+'T00:00:00');return !isNaN(d)&&d<today});
+    return {due,expired,total:due.length+expired.length};
+  }
+
+  function adminUnmappedFinance(period){
+    const spring=state.financeSpringV1173||{};
+    const maps=spring.mappings||{};
+    let count=0;
+    for(const s of (spring.snapshots||[]).filter(x=>x.period===period)){
+      const mp=maps[s.company]||{};
+      for(const a of (s.accounts||[])){
+        const key=String(a.mapKey||(a.partitario?`${a.code}|${a.partitario}`:a.code||''));
+        if(!(mp[key]||a.category))count++;
+      }
+    }
+    return count;
+  }
+
+  function adminIncompleteMasters(){
+    const clients=(state.clientDirectory||state.clients||[]).filter(x=>x?.active!==false);
+    const suppliers=(state.supplierDirectory||[]).filter(x=>x?.active!==false);
+    const incompleteClients=clients.filter(x=>!String(x.code||x.reference||'').trim()||(!x.email&&!x.phone));
+    const incompleteSuppliers=suppliers.filter(x=>!String(x.code||x.reference||'').trim()||(!x.email&&!x.phone));
+    return {clients:incompleteClients.length,suppliers:incompleteSuppliers.length,total:incompleteClients.length+incompleteSuppliers.length};
+  }
+
+  function adminFindButton(regex){
+    const nav=$('#sideNav')||$('.nav');
+    return [...(nav?.querySelectorAll('button')||[])].find(x=>regex.test(String(x.textContent||'')))||null;
+  }
+
+  function adminQuickAction(type){
+    if(type==='ddt'){navTo('admin');return}
+    if(type==='finance'){openFinance();return}
+    if(type==='spring'){window.SPSpringBalanceV1173?.openImport?.();return}
+    if(type==='excel'){openConfig();return}
+    if(type==='users'){window.SPUsersV1178?.open?.();return}
+    if(type==='deadlines'){adminFindButton(/Scadenze|Compliance/i)?.click();return}
+    if(type==='trace'){adminFindButton(/Tracciabilità/i)?.click();return}
+    if(type==='clients'||type==='newClient'||type==='newSupplier'){
+      openClients();
+      if(type==='clients')return;
+      setTimeout(()=>{
+        const view=document.querySelector('.view.active')||document;
+        const rx=type==='newClient'?/Nuovo cliente/i:/Nuovo fornitore/i;
+        const b=[...view.querySelectorAll('button')].find(x=>rx.test(String(x.textContent||'')));
+        b?.click();
+      },120);
+    }
+  }
+
+  function setAdminOverviewScope(scope){
+    if(!['group','smartpack','multiplast'].includes(scope))return;
+    adminOverviewScope=scope;
+    sessionStorage.setItem('poi_admin_overview_scope_v1182',scope);
+    renderAdminOverview();
+  }
+
   function renderAdminOverview(){
     if(currentRole!=='admin')return;
     ensureCustomViews();ensureLoadState();ensureFinanceState();
     const view=$('#adminOverviewV1170View');if(!view)return;
+
+    adminOverviewScope=sessionStorage.getItem('poi_admin_overview_scope_v1182')||adminOverviewScope||'group';
+    const period=adminFinancePeriod();
     const loads=state.loadingSheetsV1167||[];
     const ready=loads.filter(s=>s.status==='Pronto per DDT');
     const preparing=loads.filter(s=>['In preparazione','Caricato'].includes(s.status));
-    const ddtMonth=loads.filter(s=>s.status==='DDT emesso'&&String(s.ddtDate||'').startsWith(monthNow()));
+    const ddtMonth=loads.filter(s=>['DDT emesso','DDT registrato'].includes(String(s.status))&&String(s.ddtDate||'').startsWith(period));
     const openOrders=orderGroups().filter(g=>!isCancelled(g)&&!isClosed(g));
-    const clients=(state.clientDirectory||[]).filter(x=>x?.active!==false);
-    const incomplete=clients.filter(x=>!String(x.code||x.reference||'').trim()||(!x.email&&!x.phone)).length;
-    const f=groupFinance(monthNow()),fs=financeStatus(f);
-    const activity=recentOperationalActivity();
+    const compliance=adminComplianceSummary();
+    const masters=adminIncompleteMasters();
+    const unmapped=adminUnmappedFinance(period);
+    const alerts=ready.length+compliance.total+masters.total+unmapped;
+    const f=adminFinanceSnapshot(adminOverviewScope,period),fs=financeStatus(f);
+    const activity=recentOperationalActivity(7);
+
+    const sp=adminFinanceSnapshot('smartpack',period);
+    const mp=adminFinanceSnapshot('multiplast',period);
+    const forecastScope=adminOverviewScope==='group'?'multiplast':adminOverviewScope;
+    let forecast=null;
+    try{forecast=window.SPFinanceCloudV1179?.forecast?.(forecastScope,period)||null}catch(_){}
+
+    const scopeName=adminOverviewScope==='group'?'Gruppo':adminOverviewScope==='smartpack'?'Smart Pack':'Multiplast';
 
     view.innerHTML=`
-      <div class="v1170-admin-hero">
-        <div><span class="eyebrow">AMMINISTRAZIONE · CENTRO OPERATIVO</span><h2>Panoramica Amministrazione</h2>
-        <p>Quello che richiede attenzione oggi: carichi pronti, DDT da registrare in piattaforma dopo l'emissione in SPRING, anagrafiche e situazione economica.</p></div>
-        <div class="v1170-admin-actions">
-          <button class="btn primary" onclick="navTo('admin')">Consegne / DDT</button>
-          <button class="btn" onclick="SPReleaseV1170.openFinance()">Analisi economica</button>
+      <div class="v1182-admin-hero">
+        <div>
+          <span class="eyebrow">AMMINISTRAZIONE · CENTRO DI CONTROLLO</span>
+          <h2>Panoramica Amministrazione</h2>
+          <p>Priorità operative, DDT SPRING, scadenze e andamento economico in un'unica schermata.</p>
+        </div>
+        <div class="v1182-scope-tabs">
+          <button class="${adminOverviewScope==='smartpack'?'active':''}" onclick="SPReleaseV1170.setAdminOverviewScope('smartpack')">Smart Pack</button>
+          <button class="${adminOverviewScope==='multiplast'?'active':''}" onclick="SPReleaseV1170.setAdminOverviewScope('multiplast')">Multiplast</button>
+          <button class="${adminOverviewScope==='group'?'active':''}" onclick="SPReleaseV1170.setAdminOverviewScope('group')">Gruppo</button>
         </div>
       </div>
 
-      <div class="v1170-admin-kpis">
-        <button onclick="navTo('admin')"><span>Carichi pronti per DDT</span><b>${ready.length}</b><small>${ready.reduce((s,x)=>s+n(x.totalQty),0).toLocaleString('it-IT')} pz</small></button>
+      <div class="v1182-today-grid">
+        <button onclick="SPReleaseV1170.adminQuick('ddt')"><span>Carichi pronti per DDT</span><b>${ready.length}</b><small>${fmt(ready.reduce((s,x)=>s+n(x.totalQty),0))} pz già caricati</small><em>Apri →</em></button>
         <div><span>Carichi ancora in reparto</span><b>${preparing.length}</b><small>In preparazione / caricati</small></div>
-        <div><span>Ordini ancora aperti</span><b>${openOrders.length}</b><small>Smart Pack</small></div>
-        <div><span>DDT registrati questo mese</span><b>${ddtMonth.length}</b><small>Documento emesso in SPRING</small></div>
+        <button onclick="SPReleaseV1170.adminQuick('deadlines')"><span>Scadenze da controllare</span><b>${compliance.total}</b><small>${compliance.expired.length} scadute · ${compliance.due.length} entro 30 gg</small><em>Apri →</em></button>
+        <button onclick="SPReleaseV1170.adminQuick('clients')"><span>Anomalie / dati mancanti</span><b>${masters.total+unmapped}</b><small>${masters.total} anagrafiche · ${unmapped} conti SPRING</small><em>Controlla →</em></button>
       </div>
 
-      <div class="v1170-admin-layout">
-        <section class="panel">
-          <div class="panel-head"><div><h3>Priorità di oggi</h3><p>Azioni che possono bloccare consegne o chiusure.</p></div></div>
-          <div class="v1170-priority-list">
-            ${ready.length?`<button onclick="navTo('admin')"><b>${ready.length} carichi aspettano il numero DDT</b><span>Apri Consegne / DDT e registra il riferimento creato in SPRING.</span></button>`:''}
-            ${preparing.length?`<div><b>${preparing.length} carichi non ancora passati ad Amministrazione</b><span>Il reparto deve completare il carico e inviarlo.</span></div>`:''}
-            ${incomplete?`<button onclick="SPReleaseV1170.openClients()"><b>${incomplete} anagrafiche clienti incomplete</b><span>Codice gestionale o contatti mancanti.</span></button>`:''}
-            ${!ready.length&&!preparing.length&&!incomplete?'<div class="ok"><b>Nessuna criticità amministrativa immediata</b><span>I flussi principali risultano allineati.</span></div>':''}
+      <section class="v1182-quick-section">
+        <div class="v1182-section-title"><div><h3>Azioni rapide</h3><p>Le operazioni amministrative più frequenti senza passare dal menu.</p></div></div>
+        <div class="v1182-quick-actions">
+          <button class="primary" onclick="SPReleaseV1170.adminQuick('ddt')"><b>Registra DDT SPRING</b><span>Chiudi i carichi ricevuti dal reparto.</span></button>
+          <button onclick="SPReleaseV1170.adminQuick('newClient')"><b>+ Nuovo cliente</b><span>Crea anagrafica cliente.</span></button>
+          <button onclick="SPReleaseV1170.adminQuick('newSupplier')"><b>+ Nuovo fornitore</b><span>Crea anagrafica fornitore.</span></button>
+          <button onclick="SPReleaseV1170.adminQuick('spring')"><b>Importa Bilancio SPRING</b><span>Aggiorna il periodo economico.</span></button>
+          <button onclick="SPReleaseV1170.adminQuick('excel')"><b>Importa Excel aziendale</b><span>Aggiorna anagrafiche e dati base.</span></button>
+          <button onclick="SPReleaseV1170.adminQuick('users')"><b>Utenti e accessi</b><span>USER, PIN e operatori.</span></button>
+        </div>
+      </section>
+
+      <div class="v1182-main-grid">
+        <section class="v1182-panel v1182-economic-panel">
+          <div class="v1182-panel-head"><div><span class="eyebrow">ANDAMENTO ECONOMICO · ${esc(period)}</span><h3>${scopeName}</h3></div><button class="btn small" onclick="SPReleaseV1170.adminQuick('finance')">Apri analisi completa</button></div>
+          <div class="v1182-economic-grid">
+            <button onclick="SPReleaseV1170.adminQuick('finance')"><span>Ricavi</span><b>${f.configured?money(f.revenue):'—'}</b></button>
+            <button onclick="SPReleaseV1170.adminQuick('finance')"><span>EBITDA</span><b class="${f.ebitda<0?'loss':''}">${f.configured?money(f.ebitda):'—'}</b></button>
+            <button onclick="SPReleaseV1170.adminQuick('finance')"><span>EBIT</span><b class="${f.ebit<0?'loss':''}">${f.configured?money(f.ebit):'—'}</b></button>
+            <button onclick="SPReleaseV1170.adminQuick('finance')"><span>Crediti − Debiti</span><b class="${f.working<0?'loss':''}">${f.configured?money(f.working):'—'}</b></button>
           </div>
+          <div class="v1182-economic-status ${fs.cls}"><b>${fs.label}</b><span>${f.configured?`Margine EBITDA ${pct(f.margin)}`:'Importa o inserisci i dati del periodo per attivare l’analisi.'}</span></div>
+          ${forecast?.projected?`<div class="v1182-forecast"><span>Stima EBIT fine ${forecast.year}</span><b class="${forecast.projected.ebit<0?'loss':''}">${money(forecast.projected.ebit)}</b><small>Proiezione lineare sul progressivo disponibile.</small></div>`:''}
         </section>
 
-        <section class="panel">
-          <div class="panel-head"><div><h3>Situazione economica · ${monthNow()}</h3><p>Indicatore gestionale, non sostituisce la contabilità ufficiale.</p></div><div class="right"><button class="btn small" onclick="SPReleaseV1170.openFinance()">Apri</button></div></div>
-          <div class="v1170-economic-summary">
-            <span class="v1170-fin-status ${fs.cls}">${fs.label}</span>
-            <div><span>Ricavi gruppo</span><b>${f.configured?money(f.revenue):'Da inserire'}</b></div>
-            <div><span>EBITDA</span><b class="${f.ebitda<0?'loss':''}">${f.configured?money(f.ebitda):'—'}</b></div>
-            <div><span>EBIT</span><b class="${f.ebit<0?'loss':''}">${f.configured?money(f.ebit):'—'}</b></div>
-            <div><span>Crediti - Debiti</span><b class="${f.working<0?'loss':''}">${f.configured?money(f.working):'—'}</b></div>
+        <section class="v1182-panel">
+          <div class="v1182-panel-head"><div><span class="eyebrow">ATTENZIONE</span><h3>Cosa richiede un controllo</h3></div><strong>${alerts}</strong></div>
+          <div class="v1182-attention-list">
+            ${ready.length?`<button onclick="SPReleaseV1170.adminQuick('ddt')"><b>${ready.length} carichi aspettano il DDT SPRING</b><span>Il riferimento DDT chiude e traccia gli ordini caricati.</span></button>`:''}
+            ${compliance.expired.length?`<button onclick="SPReleaseV1170.adminQuick('deadlines')"><b>${compliance.expired.length} scadenze risultano superate</b><span>Verifica documenti, rinnovi e responsabili.</span></button>`:''}
+            ${compliance.due.length?`<button onclick="SPReleaseV1170.adminQuick('deadlines')"><b>${compliance.due.length} scadenze nei prossimi 30 giorni</b><span>Programma per tempo rinnovi e verifiche.</span></button>`:''}
+            ${masters.total?`<button onclick="SPReleaseV1170.adminQuick('clients')"><b>${masters.total} anagrafiche da completare</b><span>Codice gestionale o contatti mancanti.</span></button>`:''}
+            ${unmapped?`<button onclick="SPReleaseV1170.adminQuick('finance')"><b>${unmapped} conti SPRING da classificare</b><span>Servono per rendere corretti i KPI finanziari.</span></button>`:''}
+            ${!alerts?'<div class="ok"><b>Nessuna criticità amministrativa immediata</b><span>I controlli principali risultano allineati.</span></div>':''}
           </div>
         </section>
       </div>
 
-      <div class="v1170-admin-layout lower">
-        <section class="panel">
-          <div class="panel-head"><div><h3>Azioni rapide</h3><p>Accesso diretto alle operazioni amministrative più frequenti.</p></div></div>
-          <div class="v1170-quick-admin">
-            <button onclick="navTo('admin')"><b>Consegne / DDT</b><span>Registra i riferimenti DDT prodotti in SPRING.</span></button>
-            <button onclick="SPReleaseV1170.openClients()"><b>Clienti e fornitori</b><span>Anagrafiche e codici gestionali.</span></button>
-            <button onclick="SPReleaseV1170.openFinance()"><b>Economico-finanziario</b><span>Analizza costi, risultato e circolante.</span></button>
-            <button onclick="SPReleaseV1170.openConfig()"><b>Importa Excel</b><span>Aggiorna i dati reali dell'azienda.</span></button>
+      <div class="v1182-lower-grid">
+        <section class="v1182-panel">
+          <div class="v1182-panel-head"><div><span class="eyebrow">AZIENDE</span><h3>Smart Pack e Multiplast</h3></div></div>
+          <div class="v1182-company-compare">
+            <button onclick="SPReleaseV1170.setAdminOverviewScope('smartpack')"><span>SMART PACK</span><b>${sp.configured?money(sp.ebit):'EBIT —'}</b><small>Ricavi ${sp.configured?money(sp.revenue):'—'} · EBITDA ${sp.configured?money(sp.ebitda):'—'}</small></button>
+            <button onclick="SPReleaseV1170.setAdminOverviewScope('multiplast')"><span>MULTIPLAST</span><b class="${mp.ebit<0?'loss':''}">${mp.configured?money(mp.ebit):'EBIT —'}</b><small>Ricavi ${mp.configured?money(mp.revenue):'—'} · EBITDA ${mp.configured?money(mp.ebitda):'—'}</small></button>
           </div>
+          <div class="v1182-operational-strip"><span>Ordini Smart Pack ancora aperti <b>${openOrders.length}</b></span><span>DDT registrati nel periodo <b>${ddtMonth.length}</b></span></div>
         </section>
 
-        <section class="panel">
-          <div class="panel-head"><div><h3>Ultime attività</h3><p>Movimenti recenti della piattaforma.</p></div></div>
-          <div class="v1170-recent">
-            ${activity.map(x=>`<div><time>${esc(prettyDate(x.at,true))}</time><b>${esc(x.title)}</b><span>${esc(x.detail||'')}</span></div>`).join('')||'<div class="empty">Nessuna attività recente.</div>'}
+        <section class="v1182-panel">
+          <div class="v1182-panel-head"><div><span class="eyebrow">CRONOLOGIA</span><h3>Ultime attività</h3></div><button class="btn small" onclick="SPReleaseV1170.adminQuick('trace')">Tracciabilità</button></div>
+          <div class="v1182-recent">
+            ${activity.map(x=>`<div><time>${esc(prettyDate(x.at,true))}</time><div><b>${esc(x.title)}</b><span>${esc(x.detail||'')}</span></div></div>`).join('')||'<div class="empty">Nessuna attività recente.</div>'}
           </div>
         </section>
       </div>`;
@@ -4674,6 +4784,8 @@
     printLoad,
     renderWorkerLogistics,
     openAdminOverview,
+    setAdminOverviewScope,
+    adminQuick:adminQuickAction,
     openFinance,
     renderFinance,
     saveFinance:saveFinanceCompany,
@@ -6506,5 +6618,28 @@
 
   window.SPFinanceCloudV1179={ensureLoaded,save,preferredPeriod,decorate,forecast,version:'V11.7.9'};
   if(window.SPBootLater)window.SPBootLater(boot);else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
+
+
+
+/* V11.8.2 · DASHBOARD AMMINISTRAZIONE */
+(()=>{
+  if(document.getElementById('v1182AdminDashboardStyles'))return;
+  const s=document.createElement('style');s.id='v1182AdminDashboardStyles';s.textContent=`
+    #adminOverviewV1170View{padding-bottom:28px}
+    .v1182-admin-hero{display:flex;align-items:center;gap:18px;padding:22px 24px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,#fff,#f3f9f8);box-shadow:var(--shadow)}.v1182-admin-hero>div:first-child{flex:1}.v1182-admin-hero h2{margin:3px 0 5px;font-size:28px}.v1182-admin-hero p{margin:0;font-size:12px;color:var(--muted)}
+    .v1182-scope-tabs{display:flex;gap:6px;padding:5px;background:#edf3f5;border-radius:13px}.v1182-scope-tabs button{border:0;background:transparent;border-radius:9px;padding:9px 12px;font-weight:900;color:#657b85;cursor:pointer}.v1182-scope-tabs button.active{background:#fff;color:#087cb5;box-shadow:0 2px 8px rgba(20,62,78,.08)}
+    .v1182-today-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:13px}.v1182-today-grid>div,.v1182-today-grid>button{position:relative;border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px;text-align:left;color:inherit;min-height:112px}.v1182-today-grid>button{cursor:pointer}.v1182-today-grid>button:hover{border-color:#a9c9d5;box-shadow:0 7px 20px rgba(25,64,79,.07)}.v1182-today-grid span{display:block;font-size:10px;color:var(--muted);font-weight:850}.v1182-today-grid b{display:block;font-size:30px;margin:6px 0 3px}.v1182-today-grid small{font-size:9px;color:var(--muted)}.v1182-today-grid em{position:absolute;right:12px;top:12px;font-style:normal;color:var(--primary);font-size:9px;font-weight:950}
+    .v1182-quick-section,.v1182-panel{margin-top:12px;border:1px solid var(--line);border-radius:17px;background:#fff;overflow:hidden}.v1182-section-title,.v1182-panel-head{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #e7eef0}.v1182-section-title>div,.v1182-panel-head>div{flex:1}.v1182-section-title h3,.v1182-panel-head h3{margin:2px 0;font-size:16px}.v1182-section-title p{margin:2px 0 0;font-size:9px;color:var(--muted)}.v1182-panel-head>strong{font-size:22px;color:#a45614}
+    .v1182-quick-actions{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:11px}.v1182-quick-actions button{border:1px solid #dce6ea;border-radius:12px;background:#fff;padding:11px;text-align:left;cursor:pointer;color:#17313e}.v1182-quick-actions button.primary{background:#087fba;color:#fff;border-color:#087fba}.v1182-quick-actions b{display:block;font-size:10px}.v1182-quick-actions span{display:block;font-size:8px;line-height:1.4;margin-top:4px;color:inherit;opacity:.78}
+    .v1182-main-grid,.v1182-lower-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.v1182-economic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:12px}.v1182-economic-grid button{border:1px solid #e0e8eb;border-radius:11px;background:#f8fbfc;padding:11px;text-align:left;cursor:pointer}.v1182-economic-grid span{display:block;font-size:9px;color:var(--muted)}.v1182-economic-grid b{display:block;font-size:19px;margin-top:4px}.v1182-economic-status{margin:0 12px 10px;padding:10px 11px;border-radius:10px;background:#f2f6f7}.v1182-economic-status.loss{background:#fff0f1}.v1182-economic-status.profit{background:#edf9f3}.v1182-economic-status b,.v1182-economic-status span{display:block}.v1182-economic-status b{font-size:10px}.v1182-economic-status span{font-size:9px;color:var(--muted);margin-top:2px}.v1182-forecast{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;margin:0 12px 12px;padding:10px 11px;border-radius:11px;background:#eef7fa}.v1182-forecast span{font-size:9px;color:var(--muted)}.v1182-forecast b{font-size:17px}.v1182-forecast small{grid-column:1/-1;font-size:8px;color:var(--muted)}
+    .v1182-attention-list{padding:8px 13px}.v1182-attention-list>button,.v1182-attention-list>div{display:block;width:100%;border:0;border-bottom:1px solid #edf2f3;background:transparent;padding:10px 0;text-align:left;color:inherit}.v1182-attention-list>button{cursor:pointer}.v1182-attention-list b{display:block;font-size:10px}.v1182-attention-list span{display:block;font-size:9px;color:var(--muted);margin-top:3px;line-height:1.4}.v1182-attention-list .ok b{color:#197453}
+    .v1182-company-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}.v1182-company-compare button{border:1px solid #dfe8eb;border-radius:12px;background:#f9fbfc;padding:12px;text-align:left;cursor:pointer;color:inherit}.v1182-company-compare span{display:block;font-size:9px;font-weight:950;color:var(--primary)}.v1182-company-compare b{display:block;font-size:19px;margin:4px 0}.v1182-company-compare small{font-size:8px;color:var(--muted)}.v1182-operational-strip{display:flex;gap:16px;flex-wrap:wrap;padding:0 12px 12px;font-size:9px;color:var(--muted)}.v1182-operational-strip b{font-size:11px;color:var(--ink)}
+    .v1182-recent{padding:8px 13px}.v1182-recent>div{display:grid;grid-template-columns:112px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #edf2f3}.v1182-recent time{font-size:8px;color:var(--muted)}.v1182-recent b{display:block;font-size:9px}.v1182-recent span{display:block;font-size:8px;color:var(--muted);margin-top:2px}
+    @media(max-width:1200px){.v1182-quick-actions{grid-template-columns:repeat(3,1fr)}.v1182-today-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:850px){.v1182-admin-hero{display:block}.v1182-scope-tabs{margin-top:12px;width:max-content}.v1182-main-grid,.v1182-lower-grid{grid-template-columns:1fr}.v1182-economic-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:600px){.v1182-today-grid,.v1182-quick-actions,.v1182-company-compare{grid-template-columns:1fr}.v1182-recent>div{grid-template-columns:1fr}}
+  `;document.head.appendChild(s);
 })();
 
