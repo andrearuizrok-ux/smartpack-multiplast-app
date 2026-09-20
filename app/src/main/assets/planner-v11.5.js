@@ -1,3 +1,208 @@
+/* V11.8.1 · FINANCE ROUTE GUARD — NO LEGACY FLASH */
+(()=>{
+  'use strict';
+  if(window.SPFinanceRouteGuardV1181)return;
+
+  const LAST_KEY='poi_v1181_last_admin_module';
+  const ROLE_KEY='poi_v1180_office_role';
+  let restoring=false;
+  let mask=null;
+
+  function isAdminRemembered(){
+    const r=
+      localStorage.getItem(ROLE_KEY) ||
+      sessionStorage.getItem('poi_v115_office_role') ||
+      sessionStorage.getItem('industrialos_role_session') ||
+      '';
+    return r==='admin';
+  }
+
+  function isFinanceControl(el){
+    const control=el?.closest?.('button,a,[role="button"]');
+    if(!control)return null;
+    const text=String(control.textContent||'').replace(/\s+/g,' ').trim();
+    return /economico[\s-]*finanziario/i.test(text) ? control : null;
+  }
+
+  function isAdminNavControl(el){
+    const control=el?.closest?.('button,a,[role="button"]');
+    if(!control)return null;
+    const nav=control.closest?.('#sideNav,.nav,.sidebar,aside');
+    return nav?control:null;
+  }
+
+  function ensureMask(){
+    if(mask&&document.body?.contains(mask))return mask;
+    if(!document.body)return null;
+    mask=document.createElement('div');
+    mask.id='v1181FinanceRouteMask';
+    mask.innerHTML=`
+      <div class="v1181-finance-route-card">
+        <div class="v1181-finance-route-spinner"></div>
+        <b>Caricamento analisi economico-finanziaria…</b>
+        <span>Recupero del periodo e dei Bilanci SPRING salvati.</span>
+      </div>`;
+    document.body.appendChild(mask);
+    return mask;
+  }
+
+  function showMask(){
+    document.documentElement.classList.add('v1181-finance-routing');
+    const m=ensureMask();
+    if(m)m.classList.add('show');
+  }
+
+  function hideMask(){
+    document.documentElement.classList.remove('v1181-finance-routing');
+    if(mask)mask.classList.remove('show');
+  }
+
+  function injectStyles(){
+    if(document.getElementById('v1181FinanceRouteStyles'))return;
+    const st=document.createElement('style');
+    st.id='v1181FinanceRouteStyles';
+    st.textContent=`
+      #v1181FinanceRouteMask{
+        position:fixed;inset:0;z-index:2147483000;
+        display:none;place-items:center;
+        background:#f2f6f7;
+      }
+      #v1181FinanceRouteMask.show{display:grid}
+      .v1181-finance-route-card{
+        min-width:min(430px,82vw);
+        padding:28px 30px;border:1px solid #dbe6ea;border-radius:18px;
+        background:#fff;box-shadow:0 20px 60px rgba(25,58,72,.10);
+        text-align:center;color:#17313e
+      }
+      .v1181-finance-route-card b{display:block;font-size:17px;margin-top:12px}
+      .v1181-finance-route-card span{display:block;font-size:11px;color:#6d818b;margin-top:5px}
+      .v1181-finance-route-spinner{
+        width:34px;height:34px;margin:auto;border-radius:50%;
+        border:3px solid #dce8ec;border-top-color:#168bc0;
+        animation:v1181spin .75s linear infinite
+      }
+      @keyframes v1181spin{to{transform:rotate(360deg)}}
+    `;
+    (document.head||document.documentElement).appendChild(st);
+  }
+
+  async function openCorrectFinance(){
+    if(restoring)return;
+    restoring=true;
+    localStorage.setItem(LAST_KEY,'finance');
+    showMask();
+
+    try{
+      // Il modulo è definito durante la valutazione di planner-v11.5.js.
+      // Aspettiamo solo se la pagina è ancora nel primissimo bootstrap.
+      for(let i=0;i<80;i++){
+        if(window.SPReleaseV1170?.openFinance)break;
+        await new Promise(r=>setTimeout(r,25));
+      }
+
+      if(window.SPReleaseV1170?.openFinance){
+        await window.SPReleaseV1170.openFinance();
+      }
+
+      // Attendi che la vista custom sia effettivamente attiva.
+      for(let i=0;i<80;i++){
+        const v=document.getElementById('adminFinanceV1170View');
+        if(v?.classList.contains('active') && !v.querySelector('.v1179-fin-loading')){
+          break;
+        }
+        await new Promise(r=>setTimeout(r,25));
+      }
+    }catch(e){
+      console.warn('[V11.8.1] finance route',e);
+    }finally{
+      hideMask();
+      restoring=false;
+    }
+  }
+
+  // Intercetta il click PRIMA del vecchio handler.
+  document.addEventListener('click',e=>{
+    const finance=isFinanceControl(e.target);
+    if(finance){
+      const nav=finance.closest?.('#sideNav,.nav,.sidebar,aside');
+      if(nav && isAdminRemembered()){
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        openCorrectFinance();
+        return;
+      }
+    }
+
+    // Se l'utente sceglie un altro modulo amministrativo, non ripristinare
+    // Finance al prossimo refresh.
+    const adminControl=isAdminNavControl(e.target);
+    if(adminControl && !isFinanceControl(adminControl)){
+      localStorage.removeItem(LAST_KEY);
+    }
+  },true);
+
+  function oldFinanceVisible(){
+    if(!isAdminRemembered())return false;
+    const title=String(
+      document.querySelector('#pageTitle')?.textContent ||
+      document.querySelector('h1')?.textContent ||
+      ''
+    ).trim();
+
+    // Titolo della vecchia vista mostrata nello screenshot.
+    if(/^Analisi economico-finanziaria$/i.test(title))return true;
+
+    const active=$activeView();
+    const text=String(active?.textContent||'');
+    return /Valore ordini acquisti/i.test(text) &&
+           /Ricavi consegnati/i.test(text) &&
+           /Valore magazzino materie prime/i.test(text);
+  }
+
+  function $activeView(){
+    return document.querySelector('.view.active');
+  }
+
+  function restoreIfNeeded(){
+    injectStyles();
+    if(!isAdminRemembered())return;
+
+    const remembered=localStorage.getItem(LAST_KEY)==='finance';
+    if(remembered || oldFinanceVisible()){
+      showMask();
+      openCorrectFinance();
+    }
+  }
+
+  // Se arriviamo da una sessione precedente in Finance, copriamo il rendering
+  // legacy appena il body esiste e apriamo direttamente la nuova vista.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',restoreIfNeeded,{once:true});
+  }else{
+    restoreIfNeeded();
+  }
+
+  // Sorveglianza temporanea solo durante i primi secondi: se il vecchio renderer
+  // prova a comparire durante il bootstrap, viene sostituito immediatamente.
+  let checks=0;
+  const bootWatch=setInterval(()=>{
+    checks++;
+    if(oldFinanceVisible()){
+      showMask();
+      openCorrectFinance();
+    }
+    if(checks>=20)clearInterval(bootWatch);
+  },150);
+
+  window.SPFinanceRouteGuardV1181={
+    open:openCorrectFinance,
+    clear:()=>localStorage.removeItem(LAST_KEY),
+    version:'V11.8.1'
+  };
+})();
+
+
 /* V11.7.5 · STARTUP PERFORMANCE QUEUE */
 (()=>{
   if(window.SPBootLater)return;

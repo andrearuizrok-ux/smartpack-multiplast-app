@@ -1,0 +1,41 @@
+SMART PACK · MULTIPLAST — V11.8.1
+NO FLASH DELLA VECCHIA SCHERMATA ECONOMICO-FINANZIARIA
+
+PROBLEMA
+Per alcuni secondi poteva comparire la vecchia vista:
+- Valore ordini acquisti
+- Ricavi consegnati
+- Acquisti materie prime
+- Margine materiali
+- Pagamenti / debiti fornitori
+- Valore magazzino
+
+prima che venisse aperta la nuova analisi basata sui Bilanci SPRING.
+
+CAUSA
+Il vecchio handler del menu era disponibile prima che il modulo custom
+Economico-finanziario terminasse il bootstrap differito.
+
+CORREZIONE
+1. Il click su "Economico-finanziario" viene intercettato in capture phase,
+   prima del vecchio handler.
+2. La vecchia vista non viene più aperta.
+3. Durante i pochi istanti necessari appare solo:
+   "Caricamento analisi economico-finanziaria…"
+4. Si apre direttamente adminFinanceV1170View con:
+   - Bilanci SPRING salvati
+   - ultimo periodo disponibile
+   - confronto / previsione
+   - KPI aggiornati.
+5. Se si preme F5 mentre si è in Economico-finanziario,
+   viene ricordato il modulo e si torna direttamente alla nuova vista.
+6. Se durante il bootstrap un vecchio renderer prova comunque a mostrare
+   la schermata precedente, viene rilevato e sostituito immediatamente.
+7. Se si apre un altro modulo amministrativo, il ricordo Finance viene cancellato.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-37
