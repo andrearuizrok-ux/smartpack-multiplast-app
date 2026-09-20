@@ -1,5 +1,5 @@
-/* V11.8.4 FINANCE PERIOD FIX · static-40 */
-const CACHE='spmp-v118-static-40';
+/* V11.8.5 ADMIN NAV STABLE · static-41 */
+const CACHE='spmp-v118-static-41';
 
 const CORE_STATIC=[
   './access-v11.5.js',

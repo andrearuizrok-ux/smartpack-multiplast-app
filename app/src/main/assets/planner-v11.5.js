@@ -4671,6 +4671,11 @@
     }
 
     const cv=(()=>{try{return currentView}catch(_){return ''}})();
+    // Le viste custom devono avere UNA sola voce attiva.
+    // In precedenza Consegne/DDT poteva restare evidenziato quando si apriva Panoramica.
+    if(cv==='adminOverviewV1170'||cv==='adminFinanceV1170'){
+      [...nav.querySelectorAll('button')].forEach(b=>b.classList.remove('active'));
+    }
     overview.classList.toggle('active',cv==='adminOverviewV1170');
     finance.classList.toggle('active',cv==='adminFinanceV1170');
   }
@@ -6692,5 +6697,193 @@
     @media(max-width:850px){.v1182-admin-hero{display:block}.v1182-scope-tabs{margin-top:12px;width:max-content}.v1182-main-grid,.v1182-lower-grid{grid-template-columns:1fr}.v1182-economic-grid{grid-template-columns:1fr 1fr}}
     @media(max-width:600px){.v1182-today-grid,.v1182-quick-actions,.v1182-company-compare{grid-template-columns:1fr}.v1182-recent>div{grid-template-columns:1fr}}
   `;document.head.appendChild(s);
+})();
+
+
+
+
+/* ========================================================================
+   V11.8.5 · MENU AMMINISTRAZIONE STABILE
+   - Panoramica sempre prima
+   - una sola voce active
+   - restore ultimo modulo su F5
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPAdminNavV1185)return;
+
+  const KEY='poi_v1185_admin_last_menu';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  let observer=null,queued=false,restoring=false,lastClickedAt=0;
+
+  const ORDER=[
+    'Panoramica',
+    'Consegne / DDT',
+    'Magazzino interno',
+    'Materie prime',
+    'Clienti e fornitori',
+    'Listini e prezzi',
+    'Economico-finanziario',
+    'Scadenze & Compliance',
+    'Tracciabilità',
+    'Analisi produzione',
+    'Configurazione azienda'
+  ];
+
+  function norm(v){return String(v||'').replace(/\s+/g,' ').trim()}
+  function nav(){return $('#sideNav')||$('.nav')}
+
+  function canonical(text){
+    const t=norm(text);
+    if(/Panoramica/i.test(t))return 'Panoramica';
+    if(/Consegne\s*\/\s*DDT|Consegne.*DDT/i.test(t))return 'Consegne / DDT';
+    if(/Magazzino interno/i.test(t))return 'Magazzino interno';
+    if(/Materie prime/i.test(t))return 'Materie prime';
+    if(/Clienti e fornitori/i.test(t))return 'Clienti e fornitori';
+    if(/Listini e prezzi/i.test(t))return 'Listini e prezzi';
+    if(/Economico-finanziario/i.test(t))return 'Economico-finanziario';
+    if(/Scadenze.*Compliance/i.test(t))return 'Scadenze & Compliance';
+    if(/Tracciabilità/i.test(t))return 'Tracciabilità';
+    if(/Analisi produzione/i.test(t))return 'Analisi produzione';
+    if(/Configurazione azienda/i.test(t))return 'Configurazione azienda';
+    return '';
+  }
+
+  function buttons(){return $$('.nav button,#sideNav button').filter((b,i,a)=>a.indexOf(b)===i)}
+  function find(label){return buttons().find(b=>canonical(b.textContent)===label)||null}
+
+  function ensureOverview(){
+    const n=nav();if(!n)return null;
+    let all=buttons().filter(b=>canonical(b.textContent)==='Panoramica');
+    let b=all.shift()||null;
+    all.forEach(x=>x.remove());
+    if(!b){
+      b=document.createElement('button');
+      b.type='button';b.id='adminOverviewNavV1170';
+      b.innerHTML='<span class="icon">⌂</span><span>Panoramica</span>';
+      b.onclick=()=>window.SPReleaseV1170?.openAdminOverview?.();
+    }
+    if(b.id!=='adminOverviewNavV1170')b.id='adminOverviewNavV1170';
+    if(n.firstElementChild!==b)n.insertBefore(b,n.firstElementChild);
+    return b;
+  }
+
+  function orderMenu(){
+    const n=nav();if(!n)return;
+    ensureOverview();
+    // Muoviamo solo le voci note. Gli eventuali moduli futuri restano in fondo.
+    for(const label of ORDER){
+      const b=find(label);
+      if(b)n.appendChild(b);
+    }
+    // dopo l'append in ordine, Panoramica deve tornare esplicitamente all'inizio
+    const overview=find('Panoramica');
+    if(overview&&n.firstElementChild!==overview)n.insertBefore(overview,n.firstElementChild);
+  }
+
+  function visibleLabel(){
+    let cv='';try{cv=String(currentView||'')}catch(_){}
+    if(cv==='adminOverviewV1170')return 'Panoramica';
+    if(cv==='adminFinanceV1170')return 'Economico-finanziario';
+    if(cv==='admin')return 'Consegne / DDT';
+
+    const title=norm($('#pageTitle')?.textContent||'');
+    if(/Panoramica Amministrazione/i.test(title))return 'Panoramica';
+    const c=canonical(title);if(c)return c;
+
+    return localStorage.getItem(KEY)||'Panoramica';
+  }
+
+  function setActive(label){
+    const bs=buttons();
+    bs.forEach(b=>b.classList.remove('active'));
+    const target=find(label);
+    if(target)target.classList.add('active');
+  }
+
+  function remember(label){
+    if(!label)return;
+    localStorage.setItem(KEY,label);
+    sessionStorage.setItem(KEY,label);
+  }
+
+  function stabilize(){
+    if(typeof currentRole==='undefined'||currentRole!=='admin')return;
+    const n=nav();if(!n)return;
+    orderMenu();
+
+    let label=visibleLabel();
+    // Subito dopo un click, la scelta dell'utente vince sul vecchio pageTitle
+    // finché la nuova vista non ha terminato il rendering.
+    const recent=sessionStorage.getItem(KEY)||localStorage.getItem(KEY)||'';
+    if(Date.now()-lastClickedAt<900 && recent)label=recent;
+    setActive(label);
+  }
+
+  function queue(){
+    if(queued)return;queued=true;
+    requestAnimationFrame(()=>{queued=false;stabilize()});
+  }
+
+  function bindClicks(){
+    const n=nav();if(!n||n.dataset.v1185Bound==='1')return;
+    n.dataset.v1185Bound='1';
+    n.addEventListener('click',e=>{
+      const b=e.target.closest('button');if(!b||!n.contains(b))return;
+      const label=canonical(b.textContent);if(!label)return;
+      remember(label);lastClickedAt=Date.now();
+      // feedback visivo immediato: nessuna vecchia selezione resta evidenziata
+      setActive(label);
+      setTimeout(stabilize,0);setTimeout(stabilize,80);setTimeout(stabilize,350);
+    },true);
+  }
+
+  function observe(){
+    const n=nav();if(!n)return;
+    if(observer)observer.disconnect();
+    observer=new MutationObserver(()=>queue());
+    // Solo il menu: nessun observer sulle view/contenuti.
+    observer.observe(n,{childList:true,subtree:true});
+  }
+
+  function restore(){
+    if(restoring||typeof currentRole==='undefined'||currentRole!=='admin')return;
+    const n=nav();if(!n)return;
+    restoring=true;
+    stabilize();bindClicks();observe();
+
+    let wanted=sessionStorage.getItem(KEY)||localStorage.getItem(KEY)||'';
+    if(!wanted)wanted='Panoramica';
+
+    // Se la vista corrente è già quella corretta, non generiamo un secondo click.
+    const visible=visibleLabel();
+    if(visible!==wanted){
+      const b=find(wanted)||find('Panoramica');
+      if(b)setTimeout(()=>b.click(),60);
+    }else{
+      setActive(wanted);
+    }
+    restoring=false;
+  }
+
+  function patch(){
+    if(typeof currentRole==='undefined'||currentRole!=='admin')return;
+    ensureOverview();orderMenu();bindClicks();
+    if(!observer)observe();
+    stabilize();
+  }
+
+  function boot(){
+    patch();
+    setTimeout(restore,180);
+    setTimeout(patch,700);
+    setInterval(patch,6000);
+  }
+
+  window.SPAdminNavV1185={patch,restore,setActive,version:'V11.8.5'};
+  if(window.SPBootLater)window.SPBootLater(boot);
+  else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
 })();
 

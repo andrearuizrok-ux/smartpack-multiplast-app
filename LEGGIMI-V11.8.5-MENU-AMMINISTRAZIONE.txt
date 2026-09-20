@@ -1,0 +1,40 @@
+SMART PACK · MULTIPLAST — V11.8.5
+MENU AMMINISTRAZIONE STABILE
+
+PROBLEMI TROVATI
+1. Panoramica è una voce custom inserita sopra al menu standard.
+   Quando il menu base veniva ricostruito, Panoramica poteva sparire
+   temporaneamente e Consegne / DDT diventava la prima voce.
+
+2. Aprendo Panoramica, il codice aggiungeva .active alla nuova voce
+   ma non rimuoveva sempre .active dalla voce standard precedente.
+   Risultato: dashboard Panoramica aperta ma Consegne / DDT ancora evidenziato.
+
+CORREZIONI
+- Panoramica viene ricreata immediatamente se il menu base la elimina.
+- Panoramica è SEMPRE la prima voce dell'area Amministrazione.
+- Il menu viene mantenuto in questo ordine:
+  1. Panoramica
+  2. Consegne / DDT
+  3. Magazzino interno
+  4. Materie prime
+  5. Clienti e fornitori
+  6. Listini e prezzi
+  7. Economico-finanziario
+  8. Scadenze & Compliance
+  9. Tracciabilità
+  10. Analisi produzione
+  11. Configurazione azienda
+- Può esserci UNA SOLA voce active alla volta.
+- Il click evidenzia immediatamente la voce scelta.
+- Contenuto e selezione vengono risincronizzati dopo il rendering.
+- L'ultimo modulo Amministrazione viene ricordato su F5/riapertura.
+- Se non esiste un modulo ricordato, Amministrazione parte da Panoramica.
+- MutationObserver limitato SOLO al menu laterale; non osserva le view.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-41
