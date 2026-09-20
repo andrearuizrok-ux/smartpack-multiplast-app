@@ -1,5 +1,5 @@
-/* V11.9.0 LOGIN HOME DESIGN · static-46 */
-const CACHE='spmp-v119-static-46';
+/* V11.9.2 LOGIN FLOW FIX · static-47 */
+const CACHE='spmp-v119-static-47';
 
 const CORE_STATIC=[
   './access-v11.5.js',

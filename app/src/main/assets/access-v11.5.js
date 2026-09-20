@@ -1025,6 +1025,89 @@
     closeOverlays();enterRole(role,false);hideLegacyProfileGate();
   }
 
+  function ensureGlobalLoginError(form){
+    let box=form?.querySelector?.('.poi1192-login-error');
+    if(!box&&form){
+      box=document.createElement('div');
+      box.className='poi1192-login-error';
+      form.appendChild(box);
+    }
+    return box;
+  }
+
+  async function waitForProfileAfterLogin(timeoutMs=8000){
+    const started=Date.now();
+    while(Date.now()-started<timeoutMs){
+      const p=profile();
+      if(p)return p;
+      await new Promise(r=>setTimeout(r,120));
+    }
+    return null;
+  }
+
+  function bindGlobalLogin(){
+    const form=$('#poiCloudLoginForm');
+    if(!form||form.dataset.poi1192Bound==='1')return;
+    form.dataset.poi1192Bound='1';
+
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      const emailInput=$('#poiCloudEmail')||form.querySelector('input[type="email"]')||form.elements?.email;
+      const passwordInput=$('#poiCloudPassword')||form.querySelector('input[type="password"]')||form.elements?.password;
+      const submit=form.querySelector('button[type="submit"]');
+      const err=ensureGlobalLoginError(form);
+      const email=String(emailInput?.value||'').trim().toLowerCase();
+      const password=String(passwordInput?.value||'');
+
+      if(err){err.textContent='';err.classList.remove('show')}
+      if(!email||!password){
+        if(err){err.textContent='Inserisci e-mail e password.';err.classList.add('show')}
+        return;
+      }
+
+      if(submit){submit.disabled=true;submit.dataset.oldText=submit.textContent;submit.textContent='Accesso…'}
+
+      try{
+        const sb=client();
+        if(!sb)throw new Error('Connessione non pronta. Riprova tra qualche secondo.');
+
+        const {data,error}=await sb.auth.signInWithPassword({email,password});
+        if(error)throw error;
+        if(!data?.session)throw new Error('Sessione non creata. Riprova.');
+
+        // Il token è valido: attendiamo il profilo applicativo associato all'account.
+        const p=await waitForProfileAfterLogin(8000);
+        if(p){
+          await routeAfterGlobalLogin();
+          return;
+        }
+
+        // Il profilo può essere caricato dal bootstrap al reload. La sessione Supabase
+        // è già persistita, quindi facciamo un solo refresh controllato.
+        sessionStorage.setItem('poi_v1192_login_reload','1');
+        location.reload();
+      }catch(error){
+        console.warn('[V11.9.2] global login',error);
+        const msg=String(error?.message||'').toLowerCase();
+        if(err){
+          err.textContent=(msg.includes('invalid login')||msg.includes('invalid credentials'))
+            ?'E-mail o password non corrette.'
+            :'Accesso non riuscito. Controlla la connessione e riprova.';
+          err.classList.add('show');
+        }
+        passwordInput?.focus?.();
+      }finally{
+        if(submit&&document.contains(submit)){
+          submit.disabled=false;
+          submit.textContent=submit.dataset.oldText||'Accedi';
+        }
+      }
+    },true);
+  }
+
   function decorateAuth(){
     const auth=$('#poiCloudAuth');
     if(!auth)return;
@@ -1063,6 +1146,7 @@
       ?'Area riservata alla prima attivazione di un account già autorizzato.'
       :'Un unico accesso per amministrazione NOMYRA e account aziendali autorizzati.';
     const login=$('#poiCloudLoginForm'),register=$('#poiCloudRegisterForm'),showRegister=$('#poiShowRegister'),showLogin=$('#poiShowLogin');
+    bindGlobalLogin();
     if(showRegister)showRegister.style.display='none';
     if(activationMode){
       if(login)login.style.display='none';if(register)register.style.display='block';
@@ -2082,6 +2166,35 @@
     #poiCloudAuth.poi1190-login-home .poi-cloud-auth-foot b{
       color:#1f5a5d!important;
       font-weight:900!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home .poi1192-login-error{
+      display:none;
+      grid-column:1/-1;
+      margin-top:-3px;
+      padding:10px 12px;
+      border:1px solid #ecc8cb;
+      border-radius:10px;
+      background:#fff4f5;
+      color:#a23f48;
+      font-size:10px;
+      line-height:1.45;
+    }
+    #poiCloudAuth.poi1190-login-home .poi1192-login-error.show{display:block}
+    #poiCloudAuth.poi1190-login-home button[type="submit"]:disabled{
+      opacity:.76;cursor:wait!important;transform:none!important;
+    }
+
+    @keyframes poi1192Ambient{
+      0%,100%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+    }
+    #poiCloudAuth.poi1190-login-home{
+      background-size:115% 115%!important;
+      animation:poi1192Ambient 18s ease-in-out infinite!important;
+    }
+    @media(prefers-reduced-motion:reduce){
+      #poiCloudAuth.poi1190-login-home{animation:none!important}
     }
 
     /* Nasconde soltanto elementi legacy della schermata pre-login */

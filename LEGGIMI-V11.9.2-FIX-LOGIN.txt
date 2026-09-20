@@ -1,0 +1,12 @@
+V11.9.2 · FIX LOGIN PORTALE NOMYRA
+
+- Corretto il pulsante Accedi della home pre-login.
+- Il form usa direttamente Supabase signInWithPassword.
+- Dopo login attende il profilo e apre NOMYRA Admin o la piattaforma cliente.
+- Fallback con un solo refresh controllato se il profilo applicativo tarda a caricarsi.
+- Errori credenziali mostrati nella card.
+- Design V11.9.1 mantenuto.
+- Campo e-mail a tutta larghezza.
+- Messaggio: SOLUZIONI PER UNA INDUSTRIA PIÙ FORTE.
+- Background con movimento ambientale molto leggero e senza immagini raster/pixelate.
+- Cache: spmp-v119-static-47.
