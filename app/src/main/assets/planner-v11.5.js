@@ -1419,7 +1419,7 @@
     try{const oldNav=window.renderNav||renderNav;if(typeof oldNav==='function'&&!oldNav.__v116){const w=function(){const out=oldNav.apply(this,arguments);setTimeout(decorateHelp,0);return out};w.__v116=true;window.renderNav=w;renderNav=w}}catch(e){console.warn('[V11.6] nav patch',e)}
   }
   function version(){document.body.dataset.deliveryBuild='PIATTAFORMA-GRUPPO-V11.6.3';$$('.version-badge').forEach(x=>x.textContent=VERSION)}
-  function boot(){ensureData();injectStyles();ensureView();ensureGuideUI();addNav();patchRender();version();try{if(typeof renderNav==='function')renderNav()}catch(_){}decorateHelp();setTimeout(()=>{addNav();decorateHelp();decorateNomyraAdmin();maybeIntro();version()},900);setInterval(()=>{decorateHelp();decorateNomyraAdmin();if(role())maybeIntro()},1800)}
+  function boot(){ensureData();injectStyles();ensureView();ensureGuideUI();addNav();patchRender();version();try{if(typeof renderNav==='function')renderNav()}catch(_){}decorateHelp();setTimeout(()=>{addNav();decorateHelp();decorateNomyraAdmin();maybeIntro();version()},900);setInterval(()=>{decorateHelp();decorateNomyraAdmin();if(role())maybeIntro()},6000)}
 
   window.SPDeliveryV116={render:renderConfig,setCompany,saveCompany,previewExcel,applyImport,restoreImport,exportExcel,downloadTemplate,startTour,nextTour,prevTour,closeGuide,resetGuide,dismissIntro};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
@@ -1812,7 +1812,7 @@
     decorate();
     setTimeout(decorate,350);
     setTimeout(decorate,1100);
-    setInterval(decorate,1600);
+    setInterval(decorate,5000);
   }
 
   window.SPOrderSourceV1162={open:openSource,gmailUrl,refresh:decorate,version:VERSION};
@@ -1934,7 +1934,7 @@
     window.SPMailFlowV1163={sync:syncGmailV1163,accept:acceptEmailOrder,associate:openAssociate,discardSupplier,refresh:decorateSupplierConfirmations};
     if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?window.SPMPV1164.accept(id):acceptEmailOrder(id)}
     patchDeliveryImport();repairConvertedDrafts();ensureSupplierDialog();decorateSupplierConfirmations();
-    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?window.SPMPV1164.accept(id):acceptEmailOrder(id)}patchDeliveryImport();decorateSupplierConfirmations()},1600);
+    setInterval(()=>{if(window.SPPlannerV115){window.SPPlannerV115.syncGmail=syncGmailV1163;window.SPPlannerV115.toOrder=(id)=>window.SPMPV1164?window.SPMPV1164.accept(id):acceptEmailOrder(id)}patchDeliveryImport();decorateSupplierConfirmations()},5000);
     document.body.dataset.mailFlow='V11.6.3';
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
@@ -2288,7 +2288,7 @@
         document.body.removeAttribute('data-company-v1164');
         document.body.removeAttribute('data-mp-bridge-v1164');
       }
-    },900);
+    },3000);
     document.body.dataset.buildFinal='V11.6.4';
   }
   window.SPMPV1164={accept:acceptDraft,reconcile:reconcileEmailOrders,openRegister,openCosts:openMPCosts,bridgeMP,createFromDraft,commitDraft,mainFor,makeSheet,version:VERSION};
@@ -2512,7 +2512,7 @@
   function boot(){
     patch();
     repairDraftLinks();
-    setInterval(patch,1200);
+    setInterval(patch,5000);
     document.body.dataset.registerFix='V11.6.5';
   }
 
@@ -2953,7 +2953,7 @@
     injectStyles();
     backfillEmailLinks();
     patchGlobalFlows();
-    setInterval(keepRegisterCurrent,450);
+    setInterval(keepRegisterCurrent,2500);
     const view=$('#ordersRegisterView');
     if(view){
       new MutationObserver(()=>{
@@ -3505,7 +3505,7 @@
 
   function boot(){
     ensureState();injectStyles();ensureUI();patch();
-    setInterval(patch,900);
+    setInterval(patch,3000);
     document.body.dataset.loadingFlow='V11.6.7';
   }
 
@@ -4339,7 +4339,7 @@
 
   function boot(){
     patch();
-    setInterval(patch,420);
+    setInterval(patch,2500);
     document.body.dataset.release='V11.7.0';
   }
 

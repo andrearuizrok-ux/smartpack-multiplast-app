@@ -1,0 +1,39 @@
+SMART PACK · MULTIPLAST — V11.7.1 PERFORMANCE
+
+OBIETTIVO
+Ridurre il tempo di apertura e rendere l'interfaccia più fluida senza eliminare funzioni.
+
+OTTIMIZZAZIONI
+1. access-v11.5.js:
+   - prima conteneva 3 immagini PNG enormi incorporate in Base64;
+   - ora i loghi sono file WebP esterni e compressi.
+   - Il JS degli accessi passa da circa 1,96 MB a poche decine di KB.
+
+2. LOGHI:
+   - group-logo.webp
+   - smartpack-logo.webp
+   - multiplast-logo.webp
+   Sono dimensionati per l'uso reale dell'interfaccia.
+
+3. CACHE:
+   - service worker spmp-v117-static-27
+   - HTML resta network-first;
+   - JavaScript/loghi/statici vengono serviti subito dalla cache e aggiornati in background.
+   - Dopo il primo caricamento con questa versione, le aperture successive devono essere sensibilmente più rapide.
+
+4. PRESTAZIONI RUNTIME:
+   - ridotti i polling automatici troppo frequenti;
+   - mantenuti MutationObserver, eventi e refresh necessari;
+   - nessun modulo funzionale rimosso.
+
+FILE DA SOSTITUIRE/CARICARE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+app/src/main/assets/group-logo.webp
+app/src/main/assets/smartpack-logo.webp
+app/src/main/assets/multiplast-logo.webp
+
+NOTA TEST
+Il primissimo caricamento dopo il deploy può ancora impiegare un po' perché il nuovo service worker deve installarsi.
+Dalla seconda apertura/ricarica, gli asset statici devono arrivare dalla cache versionata static-27.
