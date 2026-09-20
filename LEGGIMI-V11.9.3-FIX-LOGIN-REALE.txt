@@ -1,0 +1,22 @@
+V11.9.3 · FIX LOGIN REALE
+
+CAUSA TROVATA
+La home pre-login forzava display:grid!important sul contenitore #poiCloudAuth.
+Dopo un login corretto, la piattaforma provava a nascondere il portale ma il CSS poteva mantenerlo visibile davanti all'app, dando l'impressione che Accedi non funzionasse.
+
+CORREZIONE
+- rimosso display:grid!important dalla home NOMYRA;
+- il sistema originale torna ad avere pieno controllo su mostra/nascondi login;
+- nessun secondo handler sostituisce il login originale;
+- mantenuto il design NOMYRA;
+- e-mail a tutta larghezza;
+- messaggio “SOLUZIONI PER UNA INDUSTRIA PIÙ FORTE”;
+- aggiunta animazione ambientale leggera solo grafica;
+- hidden/.hidden hanno sempre priorità.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v119-static-48
