@@ -1,0 +1,30 @@
+SMART PACK · MULTIPLAST — V11.8.7
+USCITA ESPLICITA + SESSIONE PERSISTENTE
+
+COMPORTAMENTO
+- F5 NON chiude la sessione.
+- Chiudere/riaprire il browser NON chiude la sessione.
+- "Cambia area" mantiene l'autenticazione e permette di cambiare modulo/azienda.
+- "Esci" chiude completamente la sessione sul dispositivo.
+
+DOVE COMPARE "ESCI"
+1. Nella schermata Scegli area ufficio.
+2. Nella barra superiore, accanto a "Cambia area".
+
+QUANDO SI PREME "ESCI"
+- viene chiesta conferma;
+- vengono cancellati i dati di sessione ricordata;
+- viene eseguito anche il logout cloud;
+- alla prossima apertura occorre effettuare di nuovo l'accesso.
+
+DISTINZIONE
+CAMBIA AREA = resto autenticato
+ESCI        = logout completo
+F5          = resto autenticato
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-43

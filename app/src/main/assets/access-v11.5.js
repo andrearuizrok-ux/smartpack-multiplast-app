@@ -582,7 +582,8 @@
     injectStyles();
     if(!$('#poi113CompanyGate'))document.body.insertAdjacentHTML('beforeend',`
       <div class="poi113-overlay" id="poi113CompanyGate"><section class="poi113-card">
-        <div class="poi113-head"><div class="poi113-logo">SP·MP</div><div class="grow"><h2>Seleziona l’azienda</h2><p>Entra nell’ambiente di lavoro e poi usa il tuo USER e PIN personale.</p></div><button class="poi113-close" id="poi113CompanyLogout" type="button">Esci</button></div>
+        <div class="poi113-head"><div class="poi113-logo">SP·MP</div><div class="grow"><h2>Seleziona l’azienda</h2><p>Entra nell’ambiente di lavoro e poi usa il tuo USER e PIN personale.</p></div><button class="poi113-close" id="poi113CompanyLogout" type="button">Esci</button>
+            <button class="poi1187-exit" id="poi1187OfficeExit" type="button">Esci</button></div>
         <div id="poi113CompanyBody"></div>
       </section></div>`);
     if(!$('#poi113AccessGate'))document.body.insertAdjacentHTML('beforeend',`
@@ -1502,3 +1503,127 @@
   window.POIV112=publicApi;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+
+
+
+/* ========================================================================
+   V11.8.7 · USCITA ESPLICITA CON SESSIONE PERSISTENTE
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPExplicitLogoutV1187)return;
+
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+  function fullLogout(){
+    const ok=confirm('Vuoi uscire dalla sessione su questo computer?');
+    if(!ok)return;
+
+    try{
+      // Preferisci la funzione completa già esistente, che cancella
+      // sia sessionStorage sia localStorage della sessione ricordata.
+      if(typeof corporateLogout==='function'){
+        corporateLogout();
+        return;
+      }
+    }catch(_){}
+
+    // Fallback difensivo.
+    [
+      'poi_v1180_device_employee',
+      'poi_v1180_office_unlocked',
+      'poi_v1180_office_role',
+      'poi_v1180_company',
+      'poi_v113_employee',
+      'poi_v115_office_role',
+      'poi_v113_company',
+      'industrialos_role_session',
+      'nomyra_group_company_v92',
+      'nomyra_group_role_v92'
+    ].forEach(k=>{
+      try{localStorage.removeItem(k)}catch(_){}
+      try{sessionStorage.removeItem(k)}catch(_){}
+    });
+
+    try{$('#poiCloudLogout')?.click()}catch(_){}
+    setTimeout(()=>location.reload(),120);
+  }
+
+  function decorateOfficeMenu(){
+    const b=$('#poi1187OfficeExit');
+    if(b && b.dataset.bound!=='1'){
+      b.dataset.bound='1';
+      b.onclick=fullLogout;
+    }
+  }
+
+  function decorateTopbar(){
+    const role=(()=>{try{return String(currentRole||'')}catch(_){return ''}})();
+    if(!['director','manager','admin'].includes(role)){
+      $('#poi1187TopExit')?.remove();
+      return;
+    }
+
+    // Locate "Cambia area" in the top bar.
+    const candidates=$$('button,a').filter(x=>/Cambia area/i.test(String(x.textContent||'')));
+    const changeArea=candidates[0]||null;
+    if(!changeArea)return;
+
+    let exit=$('#poi1187TopExit');
+    if(!exit){
+      exit=document.createElement('button');
+      exit.id='poi1187TopExit';
+      exit.type='button';
+      exit.className='poi1187-top-exit';
+      exit.textContent='Esci';
+      exit.onclick=fullLogout;
+      changeArea.insertAdjacentElement('afterend',exit);
+    }
+  }
+
+  function injectStyles(){
+    if($('#poi1187Styles'))return;
+    const st=document.createElement('style');
+    st.id='poi1187Styles';
+    st.textContent=`
+      .poi1187-top-exit{
+        min-height:42px;padding:0 14px;margin-left:7px;
+        border:1px solid #d7e2e7;border-radius:12px;
+        background:#fff;color:#8f3941;
+        font:inherit;font-weight:900;cursor:pointer;
+      }
+      .poi1187-top-exit:hover{background:#fff3f4;border-color:#e4b9be}
+      .poi1187-exit{
+        min-height:42px;padding:0 16px;border:1px solid #e4b9be;border-radius:11px;
+        background:#fff;color:#9b3f48;font-weight:900;cursor:pointer
+      }
+      .poi1187-exit:hover{background:#fff3f4}
+      .poi1187-office-exit-wrap{display:flex;justify-content:flex-end;margin:10px 0 0}
+      @media(max-width:760px){
+        .poi1187-top-exit{min-height:38px;padding:0 10px}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function patch(){
+    injectStyles();
+    decorateOfficeMenu();
+    decorateTopbar();
+  }
+
+  function boot(){
+    patch();
+    setTimeout(patch,300);
+    setTimeout(patch,900);
+    setInterval(patch,5000);
+  }
+
+  window.SPExplicitLogoutV1187={logout:fullLogout,patch,version:'V11.8.7'};
+
+  if(window.SPBootLater)window.SPBootLater(boot);
+  else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+
