@@ -1,0 +1,54 @@
+SMART PACK · MULTIPLAST — V11.7.9
+FINANZA PERSISTENTE + CONFRONTO + PREVISIONE + UTENTI NELL'HUB
+
+1. BILANCI SALVATI NEL CLOUD
+- Il Bilancio SPRING NON va ricaricato a ogni apertura.
+- Snapshot, mappature conti, importazioni e record finanziari vengono salvati su Supabase.
+- All'apertura l'app richiama poi_finance_state_get e ripristina i dati.
+- Se il cloud è vuoto ma il browser contiene già il bilancio 2025 importato, al primo avvio della V11.7.9 i dati locali vengono migrati automaticamente nel cloud.
+
+2. PERIODO DI APERTURA
+- L'area Economico-finanziaria non apre più automaticamente il mese corrente vuoto.
+- Preferisce l'ultimo periodo disponibile/importato.
+- Il periodo selezionato resta memorizzato.
+
+3. BUG [object PointerEvent]
+- Corretto: il click nel menu non viene più interpretato come valore del periodo.
+
+4. CONFRONTO E PREVISIONE
+Con bilancio annuale precedente + progressivo dell'anno corrente:
+- Ricavi YTD
+- EBITDA YTD
+- EBIT YTD
+- confronto EBIT con esercizio precedente
+- stima lineare della chiusura annuale
+- scostamento stimato vs esercizio precedente
+La previsione è chiaramente indicata come proiezione gestionale, non budget ufficiale.
+
+Esempio:
+2025 annuale + 2026-09 progressivo → stima chiusura 2026 su 9 mesi caricati.
+
+5. UTENTI E ACCESSI
+- Spostato come 4° modulo nella schermata “Scegli area ufficio”.
+- Layout 2x2:
+  Gestione Smart Pack | Responsabile Multiplast
+  Amministrazione     | Utenti e accessi
+- Da lì si apre direttamente la gestione USER + PIN già implementata.
+
+6. CARICAMENTO SENZA FLASH DATI VECCHI
+- Quando si apre Economico-finanziario appare un breve stato “Caricamento dati finanziari…” finché il cloud non è pronto.
+- Solo dopo viene renderizzato il periodo corretto.
+
+SUPABASE
+Aggiunte RPC:
+- poi_finance_state_get
+- poi_finance_state_save
+Salvataggio in poi_app_segments / financeStateV1179.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v117-static-35

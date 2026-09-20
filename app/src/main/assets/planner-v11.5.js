@@ -1319,7 +1319,7 @@
     return [...other,...map.values()];
   }
   function snapshot(){ensureData();return{companyProfilesV116:state.companyProfilesV116,clientDirectory:state.clientDirectory,clients:state.clients,productDirectory:state.productDirectory,products:state.products,supplierDirectory:state.supplierDirectory,machines:state.machines,molds:state.molds,imls:state.imls,orders:state.orders,operators:state.operators,operatorsByCompanyV116:state.operatorsByCompanyV116,complianceRecords:state.complianceRecords,importHistoryV116:state.importHistoryV116}}
-  function applyImport(){
+  async function applyImport(){
     if(!pendingImport||!canConfigure())return;const mode=importMode(),c=safeCompany(),sec=pendingImport.sections||{};if(!confirm(`Importare i dati di “${pendingImport.file}” in ${companyName(c)}?\nModalità: ${mode==='replace'?'Sostituisci le sezioni presenti':'Unisci / aggiorna'}.`))return;
     try{localStorage.setItem('poi_v116_last_import_backup',JSON.stringify({at:iso(),company:c,data:snapshot()}))}catch(_){ }
     ensureData();
@@ -4088,7 +4088,7 @@
     for(const k of ['revenue','materials','personnel','energy','transport','otherOpex','depreciation','receivables','payables','cash'])r[k]=n(f.get(k));
     r.notes=String(f.get('notes')||'').trim();r.updatedAt=new Date().toISOString();
     audit('Dati economici aggiornati',company,period);
-    saveSafe();renderFinance(period);toastSafe(`Dati ${company==='smartpack'?'Smart Pack':'Multiplast'} aggiornati`);
+    saveSafe();window.SPFinanceCloudV1179?.save?.(period);renderFinance(period);toastSafe(`Dati ${company==='smartpack'?'Smart Pack':'Multiplast'} aggiornati`);
   }
 
   function financeForm(company,period){
@@ -4215,10 +4215,16 @@
     $('#financePeriodV1170').onchange=e=>renderFinance(e.target.value||monthNow());
   }
 
-  function openFinance(period=monthNow()){
+  async function openFinance(period=monthNow()){
     if(currentRole!=='admin')return;
+    if(period && typeof period==='object')period='';
     activateCustom('adminFinanceV1170View','Economico-finanziario','Ricavi, costi, EBITDA, EBIT, crediti e debiti');
-    renderFinance(period);
+    const view=$('#adminFinanceV1170View');
+    if(view) view.innerHTML='<div class="v1179-fin-loading"><div class="spinner"></div><b>Caricamento dati finanziari…</b><span>Recupero bilanci e storico salvati.</span></div>';
+    try{await window.SPFinanceCloudV1179?.ensureLoaded?.()}catch(_){ }
+    const preferred=window.SPFinanceCloudV1179?.preferredPeriod?.(period)||period||monthNow();
+    renderFinance(preferred);
+    setTimeout(()=>window.SPFinanceCloudV1179?.decorate?.(),30);
   }
 
   /* ------------------------- administration overview ----------------------- */
@@ -4335,13 +4341,13 @@
     }
 
     let finance=[...nav.querySelectorAll('button')].find(x=>/Economico-finanziario/i.test(x.textContent||''));
-    if(finance){finance.onclick=openFinance;finance.dataset.v1170Finance='1'}
+    if(finance){finance.onclick=()=>openFinance();finance.dataset.v1170Finance='1'}
     else{
       finance=$('#adminFinanceNavV1170');
       if(!finance){
         finance=document.createElement('button');finance.id='adminFinanceNavV1170';finance.type='button';
         finance.innerHTML='<span class="icon">€</span><span>Economico-finanziario</span>';
-        finance.onclick=openFinance;nav.appendChild(finance);
+        finance.onclick=()=>openFinance();nav.appendChild(finance);
       }
     }
 
@@ -5511,7 +5517,7 @@
     $('#springBalanceV1173Dialog').showModal();
   }
 
-  function applyImport(){
+  async function applyImport(){
     if(!pending)return;
     ensureState();
     const company=$('#springCompanyV1173').value;
@@ -5554,6 +5560,7 @@
 
     try{addAudit('Bilancio SPRING importato',companyName(company),`${period} · ${snapshot.fileName} · ${mode==='annual'?'annuale':mode==='cumulative'?'progressivo':'mese/periodo'}`)}catch(_){}
     try{save()}catch(_){}
+    try{await window.SPFinanceCloudV1179?.save?.(period)}catch(_){}
 
     $('#springBalanceV1173Dialog').close();
     pending=null;
@@ -6086,5 +6093,213 @@
   if(window.SPBootLater)window.SPBootLater(boot);
   else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
+})();
+
+
+
+
+/* ========================================================================
+   V11.7.9 · FINANZA PERSISTENTE + CONFRONTO + PREVISIONE + HUB UTENTI
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinanceCloudV1179)return;
+
+  const GROUP='smartpack-multiplast';
+  const $=(s,r=document)=>r.querySelector(s);
+  const n=v=>Number(v||0);
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n(v));
+  const pct=v=>`${n(v).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}%`;
+  let loaded=false,loading=null,lastCloudSave=0;
+
+  const client=()=>window.POICloudV10?.getClient?.()||null;
+  const profile=()=>window.POICloudV10?.getProfile?.()||null;
+
+  function ensureLocal(){
+    state.adminFinanceV1170=state.adminFinanceV1170&&typeof state.adminFinanceV1170==='object'?state.adminFinanceV1170:{records:[]};
+    state.adminFinanceV1170.records=Array.isArray(state.adminFinanceV1170.records)?state.adminFinanceV1170.records:[];
+    state.financeSpringV1173=state.financeSpringV1173&&typeof state.financeSpringV1173==='object'?state.financeSpringV1173:{snapshots:[],mappings:{smartpack:{},multiplast:{}},imports:[]};
+    state.financeSpringV1173.snapshots=Array.isArray(state.financeSpringV1173.snapshots)?state.financeSpringV1173.snapshots:[];
+    state.financeSpringV1173.imports=Array.isArray(state.financeSpringV1173.imports)?state.financeSpringV1173.imports:[];
+    state.financeSpringV1173.mappings=state.financeSpringV1173.mappings||{smartpack:{},multiplast:{}};
+  }
+
+  function payload(lastPeriod=''){
+    ensureLocal();
+    return {
+      schema:'finance-v1179',
+      savedAt:new Date().toISOString(),
+      lastPeriod:lastPeriod||preferredPeriod(''),
+      adminFinanceV1170:state.adminFinanceV1170,
+      financeSpringV1173:state.financeSpringV1173
+    };
+  }
+
+  function hasLocal(){
+    ensureLocal();
+    return !!(state.adminFinanceV1170.records.length||state.financeSpringV1173.snapshots.length||state.financeSpringV1173.imports.length);
+  }
+
+  function latestSnapshotPeriod(){
+    ensureLocal();
+    const ps=state.financeSpringV1173.snapshots.map(x=>String(x.period||'')).filter(/^\d{4}-\d{2}$/.test.bind(/^\d{4}-\d{2}$/));
+    const rs=state.adminFinanceV1170.records.map(x=>String(x.period||'')).filter(x=>/^\d{4}-\d{2}$/.test(x));
+    return [...ps,...rs].sort().reverse()[0]||'';
+  }
+
+  function preferredPeriod(requested=''){
+    if(requested && /^\d{4}-\d{2}$/.test(String(requested)))return String(requested);
+    const saved=sessionStorage.getItem('poi_finance_period_v1179')||localStorage.getItem('poi_finance_period_v1179')||'';
+    return saved||latestSnapshotPeriod()||new Date().toISOString().slice(0,7);
+  }
+
+  async function ensureLoaded(force=false){
+    if(loaded&&!force)return true;
+    if(loading)return loading;
+    loading=(async()=>{
+      ensureLocal();
+      const sb=client(),p=profile();
+      if(!sb||!p||!['platform_admin','tenant_admin'].includes(String(p.account_type||''))){loaded=true;return false}
+      try{
+        const {data,error}=await sb.rpc('poi_finance_state_get',{p_group:GROUP});
+        if(error)throw error;
+        const cloud=data&&typeof data==='object'?data:{};
+        const cloudHas=!!(cloud.adminFinanceV1170?.records?.length||cloud.financeSpringV1173?.snapshots?.length||cloud.financeSpringV1173?.imports?.length);
+        if(cloudHas){
+          state.adminFinanceV1170=cloud.adminFinanceV1170||state.adminFinanceV1170;
+          state.financeSpringV1173=cloud.financeSpringV1173||state.financeSpringV1173;
+          if(cloud.lastPeriod){localStorage.setItem('poi_finance_period_v1179',cloud.lastPeriod)}
+          try{save()}catch(_){ }
+        }else if(hasLocal()){
+          await save(preferredPeriod(''));
+        }
+        loaded=true;
+        return true;
+      }catch(e){
+        console.warn('[V11.7.9] finance cloud load',e);
+        loaded=true;
+        return false;
+      }finally{loading=null}
+    })();
+    return loading;
+  }
+
+  async function save(period=''){
+    ensureLocal();
+    const sb=client(),p=profile();
+    if(!sb||!p||!['platform_admin','tenant_admin'].includes(String(p.account_type||'')))return false;
+    const per=/^\d{4}-\d{2}$/.test(String(period||''))?String(period):preferredPeriod('');
+    localStorage.setItem('poi_finance_period_v1179',per);
+    sessionStorage.setItem('poi_finance_period_v1179',per);
+    try{
+      const {error}=await sb.rpc('poi_finance_state_save',{p_data:payload(per),p_group:GROUP});
+      if(error)throw error;
+      lastCloudSave=Date.now();
+      return true;
+    }catch(e){console.warn('[V11.7.9] finance cloud save',e);return false}
+  }
+
+  function mapFor(company){
+    ensureLocal();return state.financeSpringV1173.mappings?.[company]||{};
+  }
+  function keyOf(a){return String(a?.mapKey||(a?.partitario?`${a.code}|${a.partitario}`:a?.code||''))}
+  function amt(a,cat){
+    if(Number.isFinite(Number(a?.signedAmount)))return Number(a.signedAmount);
+    if(n(a?.debit)||n(a?.credit)){
+      const d=n(a.debit),c=n(a.credit);
+      if(cat==='revenue'||cat==='payables'||cat==='extraordinaryIncome')return Math.abs(c-d);
+      return Math.abs(d-c);
+    }
+    return Math.abs(n(a?.balance));
+  }
+  function aggregateSnapshot(s){
+    if(!s)return null;
+    const mp=mapFor(s.company),v={revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,extraordinaryIncome:0,financialCharges:0,taxes:0,receivables:0,payables:0,cash:0,inventory:0};
+    for(const a of (s.accounts||[])){
+      const cat=mp[keyOf(a)]||a.category||'';if(!cat||!(cat in v))continue;
+      v[cat]+=amt(a,cat);
+    }
+    const opex=v.materials+v.personnel+v.energy+v.transport+v.otherOpex;
+    v.ebitda=v.revenue-opex;
+    v.ebit=v.ebitda-v.depreciation;
+    v.net=v.ebit+v.extraordinaryIncome-v.financialCharges-v.taxes;
+    v.margin=v.revenue?v.ebitda/v.revenue*100:0;
+    return v;
+  }
+
+  function snapshots(company){ensureLocal();return state.financeSpringV1173.snapshots.filter(x=>x.company===company).slice().sort((a,b)=>String(a.period).localeCompare(String(b.period)))}
+  function annualBefore(company,year){return snapshots(company).filter(x=>x.mode==='annual'&&Number(String(x.period).slice(0,4))<year).sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0]||null}
+  function currentSnapshot(company,period){return snapshots(company).find(x=>x.period===period)||null}
+  function forecast(company,period){
+    const curr=currentSnapshot(company,period);if(!curr)return null;
+    const year=Number(String(period).slice(0,4)),month=Number(String(period).slice(5,7));
+    const prior=annualBefore(company,year);const cv=aggregateSnapshot(curr),pv=aggregateSnapshot(prior);
+    if(!cv)return null;
+    const canForecast=curr.mode==='cumulative'&&month>0&&month<12;
+    const factor=canForecast?12/month:1;
+    const projected=canForecast?{
+      revenue:cv.revenue*factor,materials:cv.materials*factor,personnel:cv.personnel*factor,energy:cv.energy*factor,transport:cv.transport*factor,otherOpex:cv.otherOpex*factor,depreciation:cv.depreciation*factor
+    }:null;
+    if(projected){const o=projected.materials+projected.personnel+projected.energy+projected.transport+projected.otherOpex;projected.ebitda=projected.revenue-o;projected.ebit=projected.ebitda-projected.depreciation}
+    return {curr,cv,prior,pv,projected,month,year};
+  }
+
+  function comparisonHTML(company,period){
+    const f=forecast(company,period),name=company==='multiplast'?'Multiplast':'Smart Pack';
+    if(!f)return `<article class=\"v1179-forecast-card muted\"><div><span>${name}</span><h4>Confronto non disponibile</h4></div><p>Importa il bilancio del periodo per attivare confronto e previsione.</p></article>`;
+    const priorYear=f.prior?String(f.prior.period).slice(0,4):'';
+    const deltaEbit=f.pv?f.cv.ebit-f.pv.ebit:null;
+    const forecastDelta=f.projected&&f.pv?f.projected.ebit-f.pv.ebit:null;
+    return `<article class=\"v1179-forecast-card\">
+      <div class=\"v1179-forecast-head\"><div><span>${name}</span><h4>${period} · andamento aggiornato</h4></div><span class=\"badge\">${f.curr.mode==='cumulative'?'Progressivo YTD':f.curr.mode==='annual'?'Annuale':'Periodo'}</span></div>
+      <div class=\"v1179-forecast-grid\">
+        <div><span>Ricavi attuali</span><b>${money(f.cv.revenue)}</b></div>
+        <div><span>EBITDA attuale</span><b class=\"${f.cv.ebitda<0?'loss':''}\">${money(f.cv.ebitda)}</b></div>
+        <div><span>EBIT attuale</span><b class=\"${f.cv.ebit<0?'loss':''}\">${money(f.cv.ebit)}</b></div>
+        ${f.pv?`<div><span>EBIT ${priorYear}</span><b class=\"${f.pv.ebit<0?'loss':''}\">${money(f.pv.ebit)}</b></div>`:''}
+      </div>
+      ${f.projected?`<div class=\"v1179-projection\"><div><b>Stima chiusura ${f.year}</b><span>Proiezione lineare su ${f.month} mesi; non è un budget ufficiale.</span></div><strong class=\"${f.projected.ebit<0?'loss':''}\">EBIT ${money(f.projected.ebit)}</strong></div>`:''}
+      <div class=\"v1179-deltas\">
+        ${deltaEbit!=null?`<span>Vs ${priorYear} ad oggi: <b class=\"${deltaEbit<0?'loss':'ok'}\">${deltaEbit>=0?'+':''}${money(deltaEbit)}</b></span>`:''}
+        ${forecastDelta!=null?`<span>Stima EBIT vs ${priorYear}: <b class=\"${forecastDelta<0?'loss':'ok'}\">${forecastDelta>=0?'+':''}${money(forecastDelta)}</b></span>`:''}
+      </div>
+    </article>`;
+  }
+
+  function decorate(){
+    const view=$('#adminFinanceV1170View');if(!view||!view.classList.contains('active'))return;
+    const input=$('#financePeriodV1170');
+    if(input){
+      input.onchange=e=>{
+        const p=e.target.value||preferredPeriod('');
+        localStorage.setItem('poi_finance_period_v1179',p);sessionStorage.setItem('poi_finance_period_v1179',p);
+        window.SPReleaseV1170?.renderFinance?.(p);setTimeout(decorate,30);
+      };
+    }
+    const p=input?.value||preferredPeriod('');
+    view.querySelector('.v1179-forecast-wrap')?.remove();
+    const target=view.querySelector('.v1170-fin-group')||view.querySelector('.v1173-source-banner');
+    if(target){
+      target.insertAdjacentHTML('afterend',`<section class=\"v1179-forecast-wrap\"><div class=\"v1179-forecast-title\"><div><span class=\"eyebrow\">CONFRONTO E PREVISIONE</span><h3>Andamento vs esercizio precedente</h3></div><small>La stima usa il progressivo caricato e annualizza il ritmo corrente.</small></div><div class=\"v1179-forecast-cards\">${comparisonHTML('smartpack',p)}${comparisonHTML('multiplast',p)}</div></section>`);
+    }
+  }
+
+  function injectStyles(){
+    if($('#v1179Styles'))return;
+    const st=document.createElement('style');st.id='v1179Styles';st.textContent=`
+      .v1179-fin-loading{min-height:360px;display:grid;place-items:center;text-align:center;align-content:center;gap:8px;color:#536b76}.v1179-fin-loading .spinner{width:34px;height:34px;border:3px solid #d9e6ea;border-top-color:#168bc0;border-radius:50%;animation:v1179spin .8s linear infinite}.v1179-fin-loading b{font-size:16px}.v1179-fin-loading span{font-size:11px;color:#71858e}@keyframes v1179spin{to{transform:rotate(360deg)}}
+      .v1179-forecast-wrap{margin-top:12px;padding:15px;border:1px solid var(--line);border-radius:17px;background:#fff}.v1179-forecast-title{display:flex;gap:12px;align-items:end;margin-bottom:10px}.v1179-forecast-title>div{flex:1}.v1179-forecast-title h3{font-size:18px;margin:3px 0}.v1179-forecast-title small{font-size:10px;color:var(--muted)}.v1179-forecast-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v1179-forecast-card{border:1px solid #dbe6ea;border-radius:14px;padding:13px;background:#fbfdfd}.v1179-forecast-card.muted{opacity:.7}.v1179-forecast-card>p{font-size:11px;color:var(--muted)}.v1179-forecast-head{display:flex;gap:9px;align-items:center}.v1179-forecast-head>div{flex:1}.v1179-forecast-head span:first-child{font-size:9px;color:var(--primary);font-weight:950}.v1179-forecast-head h4{font-size:14px;margin:3px 0}.v1179-forecast-head .badge{font-size:9px;background:#edf4f7;padding:5px 7px;border-radius:999px}.v1179-forecast-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.v1179-forecast-grid>div{padding:9px;border-radius:9px;background:#f1f6f7}.v1179-forecast-grid span{display:block;font-size:9px;color:var(--muted)}.v1179-forecast-grid b{display:block;font-size:14px;margin-top:3px}.v1179-projection{display:flex;gap:10px;align-items:center;margin-top:9px;padding:10px;border-radius:10px;background:#eef7fa}.v1179-projection>div{flex:1}.v1179-projection b{display:block;font-size:11px}.v1179-projection span{display:block;font-size:9px;color:var(--muted);margin-top:2px}.v1179-projection strong{font-size:14px}.v1179-deltas{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:9px;color:var(--muted)}.v1179-deltas .ok{color:#1d7657}.loss{color:#b33f48!important}@media(max-width:900px){.v1179-forecast-cards{grid-template-columns:1fr}.v1179-forecast-title{display:block}.v1179-forecast-title small{display:block;margin-top:4px}}
+    `;document.head.appendChild(st);
+  }
+
+  async function boot(){
+    injectStyles();
+    await ensureLoaded();
+    const p=preferredPeriod('');localStorage.setItem('poi_finance_period_v1179',p);
+    setTimeout(decorate,100);
+  }
+
+  window.SPFinanceCloudV1179={ensureLoaded,save,preferredPeriod,decorate,forecast,version:'V11.7.9'};
+  if(window.SPBootLater)window.SPBootLater(boot);else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 

@@ -1,5 +1,5 @@
-/* V11.7.8 USERS FINANCE UI · static-34 */
-const CACHE='spmp-v117-static-34';
+/* V11.7.9 FINANCE CLOUD FORECAST · static-35 */
+const CACHE='spmp-v117-static-35';
 
 const CORE_STATIC=[
   './access-v11.5.js',
