@@ -4420,7 +4420,7 @@
     $('#financePeriodV1170').onchange=e=>renderFinance(e.target.value||monthNow());
   }
 
-  async function openFinance(period=monthNow()){
+  async function openFinance(period=''){
     if(currentRole!=='admin')return;
     if(period && typeof period==='object')period='';
     activateCustom('adminFinanceV1170View','Economico-finanziario','Ricavi, costi, EBITDA, EBIT, crediti e debiti');
@@ -4428,6 +4428,8 @@
     if(view) view.innerHTML='<div class="v1179-fin-loading"><div class="spinner"></div><b>Caricamento dati finanziari…</b><span>Recupero bilanci e storico salvati.</span></div>';
     try{await window.SPFinanceCloudV1179?.ensureLoaded?.()}catch(_){ }
     const preferred=window.SPFinanceCloudV1179?.preferredPeriod?.(period)||period||monthNow();
+    sessionStorage.setItem('poi_finance_period_v1179',preferred);
+    localStorage.setItem('poi_finance_period_v1179',preferred);
     renderFinance(preferred);
     const periodInput=document.getElementById('financePeriodV1170');
     if(periodInput && /^\d{4}-\d{2}$/.test(preferred))periodInput.value=preferred;
@@ -6474,18 +6476,24 @@
   }
 
   function preferredPeriod(requested=''){
-    if(requested && /^\d{4}-\d{2}$/.test(String(requested)))return String(requested);
+    // Se viene richiesto esplicitamente un periodo CHE HA DATI, rispettalo.
+    // Un mese vuoto non deve mai battere l'ultimo bilancio realmente disponibile.
+    if(requested && /^\d{4}-\d{2}$/.test(String(requested)) && financePeriodExists(String(requested))){
+      return String(requested);
+    }
 
-    // All'apertura la fonte contabile reale ha priorità sul vecchio valore
-    // lasciato nel browser da una schermata precedente.
+    // Prima scelta: periodo dichiarato dal cloud, ma solo se contiene dati.
     if(cloudLastPeriod && financePeriodExists(cloudLastPeriod))return cloudLastPeriod;
 
+    // Seconda scelta: ultimo snapshot/record realmente disponibile.
     const latest=latestSnapshotPeriod();
     if(latest)return latest;
 
+    // Terza scelta: periodo ricordato dal browser, solo se contiene dati.
     const saved=sessionStorage.getItem('poi_finance_period_v1179')||localStorage.getItem('poi_finance_period_v1179')||'';
     if(saved && financePeriodExists(saved))return saved;
 
+    // Solo se non esiste proprio alcun dato finanziario.
     return new Date().toISOString().slice(0,7);
   }
 
@@ -6515,6 +6523,18 @@
               localStorage.setItem('poi_finance_period_v1179',latest);
               sessionStorage.setItem('poi_finance_period_v1179',latest);
             }
+          }
+          // Elimina qualsiasi vecchia selezione browser che non corrisponde più a un periodo con dati.
+          const remembered=sessionStorage.getItem('poi_finance_period_v1179')||localStorage.getItem('poi_finance_period_v1179')||'';
+          if(remembered && !financePeriodExists(remembered)){
+            sessionStorage.removeItem('poi_finance_period_v1179');
+            localStorage.removeItem('poi_finance_period_v1179');
+          }
+          const validPeriod=cloudLastPeriod&&financePeriodExists(cloudLastPeriod)?cloudLastPeriod:latestSnapshotPeriod();
+          if(validPeriod){
+            cloudLastPeriod=validPeriod;
+            sessionStorage.setItem('poi_finance_period_v1179',validPeriod);
+            localStorage.setItem('poi_finance_period_v1179',validPeriod);
           }
           try{save()}catch(_){ }
         }else if(hasLocal()){

@@ -1,5 +1,5 @@
-/* V11.8.3 BOOT + CACHE CONSISTENCY · static-39 */
-const CACHE='spmp-v118-static-39';
+/* V11.8.4 FINANCE PERIOD FIX · static-40 */
+const CACHE='spmp-v118-static-40';
 
 const CORE_STATIC=[
   './access-v11.5.js',

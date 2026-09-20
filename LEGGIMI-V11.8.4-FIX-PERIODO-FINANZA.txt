@@ -1,0 +1,39 @@
+SMART PACK · MULTIPLAST — V11.8.4
+FIX DEFINITIVO PERIODO INIZIALE ECONOMICO-FINANZIARIO
+
+DIAGNOSI
+I file LEGGIMI-*.txt nel repository NON vengono eseguiti e non causano il problema.
+
+Il cloud financeStateV1179 contiene già dati:
+- ultimo periodo 2025-12
+- record finanziario presente
+- snapshot SPRING presente
+
+Il bug era in openFinance():
+  openFinance(period=monthNow())
+
+Chiamando openFinance() senza argomenti, JavaScript trasformava immediatamente
+la chiamata in openFinance('2026-09'). Quel valore veniva poi trattato come
+periodo richiesto e aveva precedenza sul 2025-12 realmente presente nel cloud.
+
+CORREZIONE
+- openFinance() parte ora con period=''
+- un periodo richiesto viene accettato solo se contiene realmente dati
+- priorità:
+  1. periodo cloud valido
+  2. ultimo snapshot/record realmente disponibile
+  3. periodo browser valido
+  4. mese corrente solo se NON esiste alcun dato
+- vecchie selezioni browser senza dati vengono eliminate
+- il periodo valido viene riscritto in sessionStorage/localStorage
+
+RISULTATO ATTESO
+Con lo stato cloud attuale, entrando in Economico-finanziario deve aprirsi
+direttamente 2025-12 con i dati del Bilancio SPRING, non settembre 2026 vuoto.
+
+CACHE
+spmp-v118-static-40
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
