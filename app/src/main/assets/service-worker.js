@@ -1,5 +1,5 @@
-/* V11.8.7 EXPLICIT LOGOUT · static-43 */
-const CACHE='spmp-v118-static-43';
+/* V11.8.9 SHARED DEVICE SECURITY · static-45 */
+const CACHE='spmp-v118-static-45';
 
 const CORE_STATIC=[
   './access-v11.5.js',

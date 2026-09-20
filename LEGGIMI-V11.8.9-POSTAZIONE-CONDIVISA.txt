@@ -1,0 +1,52 @@
+SMART PACK · MULTIPLAST — V11.8.9
+POSTAZIONE CONDIVISA · UFFICI BLOCCATI
+
+PROBLEMA
+Il login generale dell'account aziendale non deve lasciare automaticamente
+accessibile Amministrazione su un computer che poi viene usato dagli operai.
+
+FLUSSO CORRETTO
+
+1. PORTALE GENERALE
+email + password account aziendale
+→ riconosce il cliente / tenant
+→ apre la piattaforma del cliente
+→ NON sblocca Amministrazione.
+
+2. PRODUZIONE
+Smart Pack / Multiplast
+→ operatori entrano esclusivamente con USER + PIN personale.
+
+3. ACCESSO UFFICI
+L'email dell'account è già nota e non è modificabile.
+L'utente inserisce soltanto la PASSWORD:
+→ password corretta = area uffici sbloccata;
+→ password errata = area uffici resta bloccata.
+
+4. F5 DOPO SBLOCCO UFFICI
+La sessione uffici resta aperta, come richiesto.
+
+5. BLOCCA
+Richiude soltanto l'area uffici.
+L'account aziendale base resta collegato per consentire le postazioni operative.
+
+6. ESCI
+Chiude completamente la sessione e richiede nuovamente il login generale.
+
+7. NOMYRA ADMIN
+Il platform_admin continua ad aprire direttamente l'ambiente NOMYRA dopo
+il login generale.
+
+DISTINZIONE
+Login generale = identifica il cliente
+USER + PIN      = operatore
+Password uffici = autorizza l'area riservata
+Blocca          = richiude uffici
+Esci            = logout completo
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-45

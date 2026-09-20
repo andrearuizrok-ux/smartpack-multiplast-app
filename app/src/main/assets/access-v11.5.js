@@ -780,7 +780,9 @@
   function showProductionHome(){
     ensureUI();if(!profile())return;
     closeOverlays();hideLegacyProfileGate();
-    officeUnlockedFlag=false;employee=null;pendingEntry=null;
+    // Non azzerare officeUnlockedFlag: l'accesso globale e-mail/password
+    // è già una verifica esplicita dell'account aziendale.
+    employee=null;pendingEntry=null;
     sessionStorage.removeItem(EMPLOYEE_KEY);
     sessionStorage.removeItem(OFFICE_ROLE_KEY);
     sessionStorage.removeItem('industrialos_role_session');
@@ -915,7 +917,14 @@
   async function openOfficeLogin(){
     ensureUI();hideLegacyProfileGate();
 
-    // Nessuna schermata intermedia: il login uffici compare direttamente nella HOME.
+    // Se l'utente ha appena effettuato il login nel portale generale,
+    // non chiedere una seconda volta e-mail e password.
+    if(officeUnlocked()){
+      showOfficeMenu();
+      return;
+    }
+
+    // Login uffici richiesto soltanto dopo un blocco esplicito.
     officeUnlockedFlag=false;
     sessionStorage.removeItem(OFFICE_ROLE_KEY);
     sessionStorage.removeItem('industrialos_role_session');
@@ -929,27 +938,39 @@
     if(!wrap)return;
 
     wrap.innerHTML=`
-      <div class="poi116-office-head"><span>Accesso uffici / amministrazione</span></div>
-      <div class="poi1180-device-note">La sessione resterà aperta su questo computer finché non premi <b>Blocca / Esci</b>.</div>
+      <div class="poi116-office-head"><span>Sblocca area uffici</span></div>
+      <div class="poi1189-office-security">
+        <b>Area riservata.</b>
+        L'account aziendale è già collegato. Conferma la password per abilitare Amministrazione e gli altri moduli ufficio su questa postazione.
+      </div>
       <div class="poi116-office-login">
         <form id="poi116OfficeInlineForm" autocomplete="off">
-          <label>E-mail aziendale
-            <input name="email" type="email" required autocomplete="username" placeholder="nome@azienda.it">
+          <label class="poi1189-account-label">Account collegato
+            <input name="email" type="email" required autocomplete="username" readonly>
           </label>
-          <label>Password
-            <input name="password" type="password" required autocomplete="current-password" placeholder="Password">
+          <label>Password uffici
+            <input name="password" type="password" required autocomplete="current-password" placeholder="Inserisci la password">
           </label>
-          <button class="poi116-office-submit" type="submit">Accedi</button>
+          <button class="poi116-office-submit" type="submit">Sblocca uffici</button>
           <button class="poi116-office-cancel" type="button" onclick="POIV113.cancelOfficeLogin()">Annulla</button>
           <div class="poi116-office-error" id="poi116OfficeInlineError"></div>
         </form>
       </div>`;
 
     const form=$('#poi116OfficeInlineForm');
+    let authenticatedEmail='';
     try{
       const {data}=await client().auth.getUser();
-      if(data?.user?.email)form.elements.email.value=data.user.email;
+      authenticatedEmail=String(data?.user?.email||'').trim().toLowerCase();
+      if(authenticatedEmail)form.elements.email.value=authenticatedEmail;
     }catch(_){}
+
+    if(!authenticatedEmail){
+      const err=$('#poi116OfficeInlineError');
+      err.textContent='Sessione account non disponibile. Esci e accedi nuovamente dal portale principale.';
+      err.classList.add('show');
+      form.querySelector('.poi116-office-submit').disabled=true;
+    }
 
     setTimeout(()=>form?.elements?.password?.focus(),60);
 
@@ -957,7 +978,7 @@
       e.preventDefault();
       const err=$('#poi116OfficeInlineError');
       const btn=form.querySelector('.poi116-office-submit');
-      const email=String(form.elements.email.value||'').trim().toLowerCase();
+      const email=authenticatedEmail;
       const password=String(form.elements.password.value||'');
 
       err.classList.remove('show');
@@ -980,7 +1001,7 @@
       }catch(error){
         officeUnlockedFlag=false;
         clearRememberedOffice();
-        err.textContent='E-mail o password non corretti.';
+        err.textContent='Password non corretta. L’area uffici resta bloccata.';
         err.classList.add('show');
         form.elements.password.value='';
         form.elements.password.focus();
@@ -1007,9 +1028,25 @@
   function decorateAuth(){
     const auth=$('#poiCloudAuth');
     if(!auth)return;
-    const title=$('#poiCloudAuth h2');if(title)title.textContent=activationMode?'Attivazione account autorizzato':'Accesso aziendale';
-    const brandText=$('#poiCloudAuth .poi-cloud-auth-brand p');if(brandText)brandText.textContent='Smart Pack + Multiplast';
-    const intro=$('#poiCloudAuth .poi-cloud-auth-card>p');if(intro)intro.textContent=activationMode?'Area riservata alla prima attivazione di un account già autorizzato.':'Inserisci l’e-mail dell’account base e la password.';
+    auth.classList.add('poi1188-global-auth');
+
+    const brand=$('#poiCloudAuth .poi-cloud-auth-brand');
+    if(brand){
+      brand.innerHTML=`
+        <div class="poi1188-brandmark">N</div>
+        <div class="poi1188-brandcopy">
+          <strong>NOMYRA</strong>
+          <span>Portale piattaforme aziendali</span>
+        </div>`;
+    }
+
+    const title=$('#poiCloudAuth h2');
+    if(title)title.textContent=activationMode?'Attivazione account autorizzato':'Accedi alla piattaforma';
+
+    const intro=$('#poiCloudAuth .poi-cloud-auth-card>p');
+    if(intro)intro.textContent=activationMode
+      ?'Area riservata alla prima attivazione di un account già autorizzato.'
+      :'Un unico accesso per amministrazione NOMYRA e account aziendali autorizzati.';
     const login=$('#poiCloudLoginForm'),register=$('#poiCloudRegisterForm'),showRegister=$('#poiShowRegister'),showLogin=$('#poiShowLogin');
     if(showRegister)showRegister.style.display='none';
     if(activationMode){
@@ -1022,7 +1059,10 @@
       if(register)register.style.display='none';if(login)login.style.display='block';
       if(showLogin)showLogin.style.display='none';
     }
-    const foot=$('.poi-cloud-auth-foot');if(foot)foot.textContent=activationMode?'Sono accettati esclusivamente gli indirizzi già autorizzati da NOMYRA.':'Gli operai non inseriscono l’e-mail: accedono dopo la scelta dell’azienda con USER e PIN personale.';
+    const foot=$('.poi-cloud-auth-foot');
+    if(foot)foot.innerHTML=activationMode
+      ?'Sono accettati esclusivamente gli indirizzi già autorizzati da NOMYRA.'
+      :'<b>Accesso sicuro.</b> Dopo il login verrà aperto automaticamente l’ambiente associato al tuo account. Gli operatori continueranno a usare USER + PIN nelle postazioni di produzione.';
     $('#poi113ForgotAccount')?.remove();
   }
 
@@ -1035,13 +1075,45 @@
     alert(error?'Non è stato possibile inviare il recupero.':'E-mail di recupero inviata all’account base. Controlla anche la cartella Spam.');
   }
 
+  async function routeAfterGlobalLogin(){
+    // Il profilo applicativo può arrivare qualche istante dopo SIGNED_IN.
+    let p=null;
+    for(let i=0;i<50;i++){
+      p=profile();
+      if(p)break;
+      await new Promise(r=>setTimeout(r,60));
+    }
+    if(!p)return;
+
+    if(isPlatform()){
+      openNomyra();
+      return;
+    }
+
+    if(isTenant()){
+      // Il login globale identifica l'azienda ma NON sblocca gli uffici.
+      // Questa postazione può essere condivisa con gli operatori.
+      officeUnlockedFlag=false;
+      localStorage.removeItem(DEVICE_OFFICE_UNLOCKED_KEY);
+      localStorage.removeItem(DEVICE_OFFICE_ROLE_KEY);
+      sessionStorage.removeItem(OFFICE_ROLE_KEY);
+      sessionStorage.removeItem('industrialos_role_session');
+      showProductionHome();
+      return;
+    }
+
+    showCompanyMenu();
+  }
+
   function bindPasswordRecovery(){
     const sb=client();if(!sb||sb.__poi113RecoveryBound)return;sb.__poi113RecoveryBound=true;
     sb.auth.onAuthStateChange(event=>{
       if(event==='SIGNED_IN'&&activationMode){setTimeout(()=>location.replace(location.origin+location.pathname),500);return}
       if(event==='SIGNED_IN'&&!activationMode){
-        // IMPORTANTE: una sessione account già valida NON autorizza automaticamente l'area uffici.
-        // L'area uffici viene sbloccata solo da openOfficeLogin() dopo una nuova password corretta.
+        // Il login globale è il gateway NOMYRA / cliente.
+        // Per tenant_admin identifica l'azienda ma NON sblocca gli uffici:
+        // lo sblocco uffici richiede una conferma password separata.
+        setTimeout(()=>routeAfterGlobalLogin(),100);
         return;
       }
       if(event!=='PASSWORD_RECOVERY')return;
@@ -1625,5 +1697,192 @@
   if(window.SPBootLater)window.SPBootLater(boot);
   else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
+})();
+
+
+
+
+/* ========================================================================
+   V11.8.8 · PORTALE ACCESSO GLOBALE
+   ======================================================================== */
+(()=>{
+  if(document.getElementById('poi1188GlobalAuthStyles'))return;
+  const st=document.createElement('style');
+  st.id='poi1188GlobalAuthStyles';
+  st.textContent=`
+    #poiCloudAuth.poi1188-global-auth{
+      position:fixed!important;
+      inset:0!important;
+      z-index:2147483500!important;
+      width:100vw!important;
+      min-height:100dvh!important;
+      padding:24px!important;
+      box-sizing:border-box!important;
+      place-items:center!important;
+      background:
+        radial-gradient(circle at 18% 14%,rgba(31,90,93,.08),transparent 28%),
+        radial-gradient(circle at 86% 82%,rgba(185,120,80,.07),transparent 26%),
+        #f5f7f6!important;
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth::before{
+      content:"NOMYRA · ACCESSO RISERVATO";
+      position:fixed;
+      top:28px;left:34px;
+      font-size:11px;font-weight:900;letter-spacing:.12em;
+      color:#53656e;
+    }
+
+    #poiCloudAuth.poi1188-global-auth::after{
+      content:"Piattaforma Operativa Integrata";
+      position:fixed;
+      bottom:26px;left:0;right:0;
+      text-align:center;
+      font-size:10px;font-weight:750;letter-spacing:.04em;
+      color:#87969d;
+    }
+
+    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-card{
+      width:min(560px,calc(100vw - 40px))!important;
+      max-width:560px!important;
+      margin:0!important;
+      padding:34px 36px 28px!important;
+      border:1px solid #dce5e3!important;
+      border-radius:22px!important;
+      background:#fff!important;
+      box-shadow:0 22px 70px rgba(20,43,51,.11)!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-brand{
+      display:flex!important;
+      align-items:center!important;
+      gap:12px!important;
+      margin-bottom:26px!important;
+    }
+
+    .poi1188-brandmark{
+      width:46px;height:46px;border-radius:13px;
+      display:grid;place-items:center;
+      background:#142033;color:#fff;
+      font-size:19px;font-weight:950;
+    }
+
+    .poi1188-brandcopy strong{
+      display:block;color:#142033;
+      font-size:18px;letter-spacing:.06em;
+    }
+
+    .poi1188-brandcopy span{
+      display:block;margin-top:2px;
+      font-size:10px;color:#76878d;
+    }
+
+    #poiCloudAuth.poi1188-global-auth h2{
+      margin:0 0 8px!important;
+      font-size:28px!important;
+      line-height:1.12!important;
+      color:#142033!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-card>p{
+      margin:0 0 24px!important;
+      max-width:460px;
+      color:#637780!important;
+      font-size:12px!important;
+      line-height:1.55!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth label{
+      font-size:10px!important;
+      font-weight:850!important;
+      color:#4c6069!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth input{
+      min-height:50px!important;
+      margin-top:6px!important;
+      border:1px solid #d5e0e3!important;
+      border-radius:11px!important;
+      background:#fbfcfc!important;
+      font-size:14px!important;
+      padding:0 13px!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth button[type="submit"]{
+      min-height:50px!important;
+      border-radius:11px!important;
+      background:#142033!important;
+      font-size:13px!important;
+      font-weight:900!important;
+      box-shadow:none!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-foot{
+      margin-top:16px!important;
+      padding:11px 12px!important;
+      border-radius:10px!important;
+      background:#f2f6f5!important;
+      color:#64777e!important;
+      font-size:9px!important;
+      line-height:1.5!important;
+    }
+
+    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-foot b{
+      color:#1f5a5d;
+    }
+
+    @media(max-width:620px){
+      #poiCloudAuth.poi1188-global-auth{padding:14px!important}
+      #poiCloudAuth.poi1188-global-auth::before{top:17px;left:18px;font-size:9px}
+      #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-card{
+        width:100%!important;
+        padding:28px 20px 22px!important;
+        border-radius:18px!important;
+      }
+      #poiCloudAuth.poi1188-global-auth h2{font-size:24px!important}
+    }
+  `;
+  document.head.appendChild(st);
+})();
+
+
+
+
+/* ========================================================================
+   V11.8.9 · POSTAZIONE CONDIVISA / UFFICI BLOCCATI
+   ======================================================================== */
+(()=>{
+  if(document.getElementById('poi1189SharedDeviceStyles'))return;
+  const st=document.createElement('style');
+  st.id='poi1189SharedDeviceStyles';
+  st.textContent=`
+    .poi1189-office-security{
+      margin:8px 0 12px;
+      padding:10px 12px;
+      border:1px solid #d8e3e7;
+      border-radius:11px;
+      background:#f4f8f9;
+      color:#5f737c;
+      font-size:9px;
+      line-height:1.5;
+    }
+    .poi1189-office-security b{color:#17394a}
+    .poi1189-account-label input[readonly]{
+      background:#edf3f5!important;
+      color:#5f727b!important;
+      cursor:default!important;
+    }
+    .poi1189-account-label::after{
+      content:"Account aziendale già autenticato";
+      display:block;
+      margin-top:4px;
+      font-size:8px;
+      color:#748890;
+      font-weight:750;
+    }
+  `;
+  document.head.appendChild(st);
 })();
 
