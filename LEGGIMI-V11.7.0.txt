@@ -1,0 +1,83 @@
+SMART PACK · MULTIPLAST — V11.7.0
+RELEASE CANDIDATE CLIENTE
+
+1. DDT / SPRING
+- Il DDT ufficiale NON viene generato dalla piattaforma.
+- Viene creato nel gestionale SPRING.
+- La piattaforma registra soltanto:
+  numero/riferimento DDT, data, foglio di carico, cliente, ordini e quantità.
+- La registrazione chiude automaticamente gli ordini completamente consegnati.
+
+2. CARICO CAMION
+Nuovo stato logistico:
+  In preparazione → Caricato → Pronto per DDT → DDT registrato
+- Il foglio può essere salvato come bozza.
+- Può essere modificato anche dopo il caricamento e fino alla registrazione del DDT.
+- Dopo il DDT è bloccato.
+- Possibilità di annullare con motivo.
+- Possibilità di stampare il foglio di carico interno.
+- Il foglio stampato è esplicitamente "documento operativo interno per predisposizione DDT in SPRING".
+
+3. PANORAMICA AMMINISTRAZIONE
+- Carichi pronti per DDT.
+- Carichi ancora in reparto.
+- Ordini aperti.
+- DDT registrati nel mese.
+- Priorità operative.
+- Anagrafiche incomplete.
+- Azioni rapide.
+- Ultime attività.
+- Situazione economica del mese.
+
+4. CRONOLOGIA ATTIVITÀ
+Per ogni ordine:
+- ricezione Gmail;
+- registrazione ordine;
+- audit/modifiche;
+- foglio produzione;
+- produzione;
+- carico camion;
+- passaggio ad Amministrazione;
+- DDT SPRING;
+- chiusura o annullamento.
+Nel Registro ordini compare il pulsante "Cronologia".
+
+5. ECONOMICO-FINANZIARIO
+Per Smart Pack e Multiplast:
+- Ricavi
+- Materie/acquisti
+- Personale
+- Energia
+- Trasporti
+- Altri costi operativi
+- Ammortamenti
+- Crediti clienti
+- Debiti fornitori
+- Liquidità
+
+Calcoli automatici:
+- Costi operativi
+- EBITDA
+- EBIT
+- Margine EBITDA
+- Crediti - Debiti
+- Totale gruppo
+- Storico per periodo
+
+I valori NON sono precompilati e NON vengono inventati.
+La schermata evidenzia in rosso i risultati negativi.
+
+6. ANAGRAFICHE
+Restano pronte per il caricamento reale tramite Excel al momento della presentazione al cliente.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v117-static-26
+
+TEST CONSIGLIATO PRIMA DELLA CONSEGNA
+Ordine Gmail → Registro → Produzione → Carico in preparazione → Caricato →
+Pronto per DDT → creazione DDT in SPRING → registrazione numero DDT →
+ordine chiuso → Cronologia completa.

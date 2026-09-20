@@ -3516,3 +3516,850 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+
+
+
+/* ========================================================================
+   V11.7.0 · RELEASE CANDIDATE CLIENTE
+   - Panoramica Amministrazione
+   - Cronologia attività ordine
+   - Carico camion: In preparazione → Caricato → Pronto per DDT → DDT registrato
+   - DDT ufficiale generato in SPRING: qui si registra solo riferimento/data
+   - Analisi economico-finanziaria Smart Pack / Multiplast / Gruppo
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPReleaseV1170)return;
+
+  const VERSION='V11.7.0';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const n=v=>Number(v||0);
+  const fmt=v=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:0}).format(n(v));
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n(v));
+  const pct=v=>`${n(v).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}%`;
+  const today=()=>new Date().toISOString().slice(0,10);
+  const monthNow=()=>new Date().toISOString().slice(0,7);
+  const id=p=>`${p}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+
+  function saveSafe(){try{save()}catch(e){console.warn('[V11.7] save',e)}}
+  function toastSafe(m){try{toast(m)}catch(_){ }}
+  function audit(action,ref,detail){
+    try{addAudit(action,ref,detail)}
+    catch(_){
+      state.audit=Array.isArray(state.audit)?state.audit:[];
+      state.audit.unshift({id:id('aud'),at:new Date().toISOString(),action,ref,detail,role:String(currentRole||'')});
+    }
+  }
+  function prettyDate(v,withTime=true){
+    if(!v)return '—';
+    try{
+      const d=new Date(v);
+      if(isNaN(d))return String(v);
+      return new Intl.DateTimeFormat('it-IT',withTime?
+        {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}:
+        {day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+    }catch(_){return String(v)}
+  }
+
+  /* -------------------------- shared order helpers -------------------------- */
+  function orderGroups(){
+    const map=new Map();
+    for(const o of (state.orders||[])){
+      if(!o||typeof o!=='object'||o.deletedV54)continue;
+      if(o.companyCode && o.companyCode!=='smartpack')continue;
+      const p=String(o.parent??o.code??'').replace(/[A-Za-z]+$/,'').trim();
+      if(!p)continue;
+      if(!map.has(p))map.set(p,[]);
+      map.get(p).push(o);
+    }
+    return [...map.entries()].map(([parent,lines])=>({
+      parent,lines,main:lines.find(x=>String(x.code||'').endsWith('A'))||lines[0]||{}
+    }));
+  }
+  function group(parent){return orderGroups().find(g=>String(g.parent)===String(parent))||null}
+  function deliveryRecords(parent){
+    return (state.deliveryRecords||[]).filter(r=>String(r.parent)===String(parent))
+      .sort((a,b)=>String(a.at||a.date||'').localeCompare(String(b.at||b.date||'')));
+  }
+  function delivered(parent){return deliveryRecords(parent).reduce((s,r)=>s+n(r.qty),0)}
+  function isClosed(g){
+    if(!g)return false;
+    const a=g.main||{};
+    return /chius|complet/i.test(String(a.status||'')) || (n(a.qty)>0&&delivered(g.parent)>=n(a.qty));
+  }
+  function isCancelled(g){return !!g?.main?.cancelled||/annull/i.test(String(g?.main?.status||''))}
+  function flowAvailable(parent){
+    try{
+      const x=window.SPFlowV101?.availableForOrder?.(parent);
+      if(Number.isFinite(Number(x)))return Math.max(0,n(x));
+    }catch(_){}
+    const g=group(parent);if(!g)return 0;
+    const runs=(state.productionRuns||[]).filter(r=>String(r.parent)===String(parent)&&r.status!=='Annullata');
+    const produced=runs.reduce((s,r)=>s+Math.max(0,n(r.netProducedV104!=null?r.netProducedV104:r.produced)),0);
+    const stock=g.lines.reduce((s,o)=>s+n(o.warehousePreparedQty||0),0);
+    return Math.max(produced,stock,0);
+  }
+
+  /* ----------------------------- activity log ------------------------------ */
+  function ensureTimelineDialog(){
+    if($('#activityV1170Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="activityV1170Dialog" class="v1170-timeline-dialog">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">TRACCIABILITÀ</span>
+            <h3 id="activityV1170Title">Cronologia attività</h3>
+            <p id="activityV1170Sub">Tutti i passaggi operativi collegati all'ordine.</p>
+          </div>
+          <button type="button" class="close" onclick="document.getElementById('activityV1170Dialog').close()">×</button>
+        </div>
+        <div class="modal-body"><div id="activityV1170Body"></div></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick="document.getElementById('activityV1170Dialog').close()">Chiudi</button>
+        </div>
+      </dialog>`);
+  }
+
+  function timelineEvents(parent){
+    const g=group(parent);if(!g)return [];
+    const a=g.main||{}, events=[];
+    const push=(at,title,detail='',kind='')=>{
+      if(!at)return;
+      events.push({at,title,detail,kind});
+    };
+
+    // Origine ordine / Gmail.
+    const src=a.orderSourceV1162?.email||{};
+    if(src.receivedAt||a.sourceEmailReceivedAtV1162){
+      push(src.receivedAt||a.sourceEmailReceivedAtV1162,'Ordine ricevuto via e-mail',
+        [src.from||a.sourceEmailFromV1162,src.subject||a.sourceEmailSubjectV1162].filter(Boolean).join(' · '),'email');
+    }
+    if(a.sourceRecordedAtV1162){
+      push(a.sourceRecordedAtV1162,'Ordine registrato in piattaforma',
+        `Origine: ${String(a.sourceTypeV1162||'manuale')} · ${a.sourceRecordedByV1162||''}`,'order');
+    }
+
+    // Audit.
+    for(const x of (state.audit||[])){
+      const ref=String(x.ref||''), detail=String(x.detail||'');
+      const codes=g.lines.map(o=>String(o.code||''));
+      if(ref===String(parent)||codes.includes(ref)||detail.includes(String(parent))){
+        push(x.at||x.createdAt,x.action||'Attività',detail,'audit');
+      }
+    }
+
+    // Foglio produzione.
+    for(const s of (state.productionSheets||[]).filter(x=>String(x.parent)===String(parent))){
+      push(s.createdAt||s.date,'Foglio produzione creato',`Foglio ${s.sheetNo||'—'} · ${s.orderCode||''}`,'sheet');
+      if(s.cancelledAt)push(s.cancelledAt,'Foglio produzione annullato',s.cancelReason||'','cancel');
+    }
+
+    // Produzione.
+    for(const r of (state.productionRuns||[]).filter(x=>String(x.parent)===String(parent))){
+      push(r.createdAt||r.plannedAt,'Produzione pianificata',`${r.orderCode||''} · ${r.machineId||''}`,'production');
+      push(r.startedAt||r.startAt,'Produzione avviata',`${r.machineId||''} · ${r.operator||''}`,'production');
+      if(/complet/i.test(String(r.status||''))){
+        push(r.completedAt||r.finishedAt||r.updatedAt,'Produzione completata',
+          `${fmt(r.netProducedV104!=null?r.netProducedV104:r.produced)} pz`,'production');
+      }
+    }
+
+    // Carichi camion.
+    for(const s of (state.loadingSheetsV1167||[])){
+      const line=(s.lines||[]).find(l=>String(l.parent)===String(parent));
+      if(!line)continue;
+      push(s.createdAt||s.preparedAt,'Foglio carico creato',
+        `${s.code} · ${fmt(line.qtyLoaded)} pz · ${s.client}`,'load');
+      if(s.loadedAt)push(s.loadedAt,'Carico camion completato',`${s.code} · ${fmt(line.qtyLoaded)} pz`,'load');
+      if(s.readyAt)push(s.readyAt,'Carico inviato ad Amministrazione',`${s.code}`,'load');
+      if(s.cancelledAt)push(s.cancelledAt,'Foglio carico annullato',s.cancelReason||s.code,'cancel');
+    }
+
+    // DDT / consegne.
+    for(const d of deliveryRecords(parent)){
+      push(d.at||d.date,'DDT SPRING registrato',
+        `${d.ddtRef||'DDT'} · ${fmt(d.qty)} pz${d.loadSheetCodeV1167?' · '+d.loadSheetCodeV1167:''}`,'ddt');
+    }
+
+    // Chiusura / annullamento.
+    if(a.cancelledAt)push(a.cancelledAt,'Ordine annullato',a.cancelReason||'','cancel');
+    if(a.closedAt)push(a.closedAt,'Ordine chiuso',`Chiuso da ${a.closedBy||'Amministrazione'}`,'close');
+
+    // dedup by timestamp/title/detail
+    const seen=new Set();
+    return events.filter(e=>{
+      const k=[e.at,e.title,e.detail].join('|');
+      if(seen.has(k))return false;seen.add(k);return true;
+    }).sort((x,y)=>new Date(x.at)-new Date(y.at));
+  }
+
+  function openTimeline(parent){
+    ensureTimelineDialog();
+    const g=group(parent);if(!g)return;
+    const events=timelineEvents(parent);
+    $('#activityV1170Title').textContent=`Ordine ${parent} · Cronologia attività`;
+    $('#activityV1170Sub').textContent=`${g.main.client||'Cliente'} · ${g.main.product||''}`;
+    $('#activityV1170Body').innerHTML=events.length?`
+      <div class="v1170-timeline">
+        ${events.map((e,i)=>`
+          <div class="v1170-event ${esc(e.kind||'')}">
+            <div class="v1170-dot">${i+1}</div>
+            <div class="v1170-event-body">
+              <time>${esc(prettyDate(e.at,true))}</time>
+              <b>${esc(e.title)}</b>
+              ${e.detail?`<span>${esc(e.detail)}</span>`:''}
+            </div>
+          </div>`).join('')}
+      </div>`:'<div class="empty"><b>Nessuna attività registrata</b>La cronologia si popolerà durante l\'utilizzo reale.</div>';
+    $('#activityV1170Dialog').showModal();
+  }
+
+  function decorateRegisterTimeline(){
+    $$('.v1166-row:not(.v1166-head)').forEach(row=>{
+      if(row.dataset.v1170Timeline==='1')return;
+      const parent=row.querySelector('.v1166-cell.order b')?.textContent?.trim();
+      const actions=row.querySelector('.v1166-actions');
+      if(!parent||!actions)return;
+      row.dataset.v1170Timeline='1';
+      const b=document.createElement('button');
+      b.type='button';b.className='btn small';b.textContent='Cronologia';
+      b.onclick=()=>openTimeline(parent);
+      actions.appendChild(b);
+    });
+  }
+
+  /* --------------------------- refined loading flow ------------------------- */
+  function ensureLoadState(){
+    state.loadingSheetsV1167=Array.isArray(state.loadingSheetsV1167)?state.loadingSheetsV1167:[];
+    state.deliveryRecords=Array.isArray(state.deliveryRecords)?state.deliveryRecords:[];
+    for(const s of state.loadingSheetsV1167){
+      if(!s.status)s.status='In preparazione';
+      if(!s.createdAt)s.createdAt=s.preparedAt||new Date().toISOString();
+    }
+  }
+
+  function pendingOther(parent,ignoreId=''){
+    return (state.loadingSheetsV1167||[])
+      .filter(s=>String(s.id)!==String(ignoreId)&&['In preparazione','Caricato','Pronto per DDT'].includes(String(s.status||'')))
+      .flatMap(s=>s.lines||[])
+      .filter(l=>String(l.parent)===String(parent))
+      .reduce((sum,l)=>sum+n(l.qtyLoaded),0);
+  }
+  function loadable(parent,ignoreId=''){
+    const g=group(parent);if(!g||isCancelled(g)||isClosed(g))return 0;
+    const remaining=Math.max(0,n(g.main.qty)-delivered(parent));
+    const physical=Math.max(0,flowAvailable(parent)-delivered(parent));
+    return Math.max(0,Math.min(remaining,physical)-pendingOther(parent,ignoreId));
+  }
+  function sheet(idv){return (state.loadingSheetsV1167||[]).find(x=>String(x.id)===String(idv))||null}
+  function existingQty(s,parent){return n((s?.lines||[]).find(l=>String(l.parent)===String(parent))?.qtyLoaded)}
+  function availableForClient(client,ignoreId=''){
+    const current=sheet(ignoreId);
+    return orderGroups().filter(g=>String(g.main.client||'').trim()===String(client||'').trim())
+      .map(g=>({g,max:Math.max(loadable(g.parent,ignoreId),existingQty(current,g.parent))}))
+      .filter(x=>x.max>0);
+  }
+  function candidateClients(editId=''){
+    const s=sheet(editId), set=new Set();
+    if(s?.client)set.add(s.client);
+    for(const g of orderGroups()){
+      if(loadable(g.parent,editId)>0)set.add(String(g.main.client||'').trim());
+    }
+    return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'it'));
+  }
+
+  function ensureLoadEditor(){
+    if($('#loadEditorV1170Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="loadEditorV1170Dialog" class="v1170-load-dialog">
+        <form id="loadEditorV1170Form">
+          <div class="modal-head">
+            <div>
+              <span class="eyebrow">SMART PACK · LOGISTICA</span>
+              <h3 id="loadEditorV1170Title">Foglio di carico</h3>
+              <p>Il foglio può essere corretto finché Amministrazione non registra il DDT di SPRING.</p>
+            </div>
+            <button type="button" class="close" onclick="document.getElementById('loadEditorV1170Dialog').close()">×</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" name="id">
+            <div class="form-grid">
+              <label class="field">Cliente<select name="client" required></select></label>
+              <label class="field">Data carico<input type="date" name="loadDate" required></label>
+              <label class="field">Targa / mezzo<input name="vehicle"></label>
+              <label class="field">Autista / trasportatore<input name="driver"></label>
+              <label class="field full">Destinazione / note logistiche<input name="destination"></label>
+            </div>
+            <div id="loadEditorLinesV1170" class="v1170-edit-lines"></div>
+          </div>
+          <div class="modal-actions" id="loadEditorActionsV1170">
+            <button type="button" class="btn" onclick="document.getElementById('loadEditorV1170Dialog').close()">Annulla</button>
+            <button class="btn" type="submit" data-load-action="draft">Salva in preparazione</button>
+            <button class="btn primary" type="submit" data-load-action="loaded">Carico completato</button>
+          </div>
+        </form>
+      </dialog>`);
+    $('#loadEditorV1170Form').elements.client.onchange=renderLoadEditorLines;
+    $('#loadEditorV1170Form').onsubmit=saveLoadEditor;
+  }
+
+  function renderLoadEditorLines(){
+    const f=$('#loadEditorV1170Form');if(!f)return;
+    const editId=String(f.elements.id.value||''),client=String(f.elements.client.value||''),s=sheet(editId);
+    const rows=availableForClient(client,editId);
+    $('#loadEditorLinesV1170').innerHTML=rows.length?`
+      <div class="v1170-edit-head"><div>Ordine</div><div>Prodotto</div><div>Disponibile</div><div>Caricato</div></div>
+      ${rows.map(({g,max})=>`
+        <div class="v1170-edit-row">
+          <div><b>${esc(g.parent)}</b><span>${esc(g.main.orderRef||'')}</span></div>
+          <div><b>${esc(g.main.product||'—')}</b><span>${esc(g.main.imlCode||'ANONIMO')}</span></div>
+          <div><b>${fmt(max)} pz</b><span>massimo disponibile</span></div>
+          <div><input type="number" min="0" max="${max}" name="qty_${esc(g.parent)}" value="${Math.min(max,existingQty(s,g.parent)||max)}"></div>
+        </div>`).join('')}
+    `:'<div class="empty"><b>Nessun ordine disponibile</b></div>';
+  }
+
+  function openLoadEditor(loadId=''){
+    if(!['worker','director'].includes(String(currentRole||'')))return;
+    ensureLoadState();ensureLoadEditor();
+    const s=sheet(loadId);
+    if(s?.status==='DDT emesso'){alert('Il DDT è già stato registrato: il foglio di carico è bloccato.');return}
+    const clients=candidateClients(loadId);
+    if(!clients.length){alert('Non ci sono ordini pronti da caricare.');return}
+    const f=$('#loadEditorV1170Form');f.reset();
+    f.elements.id.value=s?.id||'';
+    f.elements.client.innerHTML=clients.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    f.elements.client.value=s?.client||clients[0];
+    f.elements.loadDate.value=s?.loadDate||today();
+    f.elements.vehicle.value=s?.vehicle||'';
+    f.elements.driver.value=s?.driver||'';
+    f.elements.destination.value=s?.destination||'';
+    $('#loadEditorV1170Title').textContent=s?`${s.code} · modifica carico`:'Nuovo foglio di carico';
+    renderLoadEditorLines();
+
+    const actions=$('#loadEditorActionsV1170');
+    const status=s?.status||'In preparazione';
+    actions.querySelectorAll('[data-load-action]').forEach(b=>b.remove());
+    if(status==='Pronto per DDT'){
+      actions.insertAdjacentHTML('beforeend','<button class="btn primary" type="submit" data-load-action="ready">Salva modifiche</button>');
+    }else{
+      actions.insertAdjacentHTML('beforeend','<button class="btn" type="submit" data-load-action="draft">Salva in preparazione</button><button class="btn primary" type="submit" data-load-action="loaded">Carico completato</button>');
+    }
+    $('#loadEditorV1170Dialog').showModal();
+  }
+
+  function recalcLoadedPending(){
+    for(const o of (state.orders||[]))o.loadedPendingQtyV1167=0;
+    for(const s of (state.loadingSheetsV1167||[]).filter(x=>['In preparazione','Caricato','Pronto per DDT'].includes(String(x.status||'')))){
+      for(const l of s.lines||[]){
+        const g=group(l.parent);
+        for(const o of g?.lines||[])o.loadedPendingQtyV1167=n(o.loadedPendingQtyV1167)+n(l.qtyLoaded);
+      }
+    }
+  }
+
+  function nextLoadCode(){
+    const y=new Date().getFullYear();
+    const nums=(state.loadingSheetsV1167||[]).filter(x=>String(x.code||'').startsWith(`CAR-${y}-`))
+      .map(x=>Number(String(x.code).split('-').pop())||0);
+    return `CAR-${y}-${String(Math.max(0,...nums)+1).padStart(3,'0')}`;
+  }
+
+  function saveLoadEditor(e){
+    e.preventDefault();
+    ensureLoadState();
+    const action=e.submitter?.dataset.loadAction||'draft';
+    const f=new FormData(e.currentTarget),editId=String(f.get('id')||''),old=sheet(editId);
+    const client=String(f.get('client')||'').trim();
+    const rows=availableForClient(client,editId);
+    const lines=[];
+    for(const {g,max} of rows){
+      const q=Math.max(0,Math.min(max,n(f.get(`qty_${g.parent}`))));
+      if(q<=0)continue;
+      lines.push({
+        parent:String(g.parent),orderCode:String(g.main.code||''),orderRef:String(g.main.orderRef||''),
+        client,product:String(g.main.product||''),productCode:String(g.main.productCode||''),
+        imlCode:String(g.main.imlCode||''),qtyLoaded:q
+      });
+    }
+    if(!lines.length){alert('Inserisci almeno una quantità caricata.');return}
+
+    const now=new Date().toISOString();
+    const status=action==='draft'?'In preparazione':action==='loaded'?'Caricato':'Pronto per DDT';
+    const obj=old||{id:id('load'),code:nextLoadCode(),createdAt:now,preparedBy:'Operatore'};
+    Object.assign(obj,{
+      companyCode:'smartpack',client,loadDate:String(f.get('loadDate')||today()),
+      vehicle:String(f.get('vehicle')||'').trim(),driver:String(f.get('driver')||'').trim(),
+      destination:String(f.get('destination')||'').trim(),lines,
+      totalQty:lines.reduce((s,l)=>s+n(l.qtyLoaded),0),status,
+      updatedAt:now
+    });
+    if(action==='loaded')obj.loadedAt=now;
+    if(action==='ready')obj.readyAt=obj.readyAt||now;
+    if(!old)state.loadingSheetsV1167.unshift(obj);
+
+    recalcLoadedPending();
+    audit(action==='draft'?'Foglio carico salvato':action==='loaded'?'Carico camion completato':'Carico modificato',
+      obj.code,`${client} · ${obj.totalQty} pz · ${lines.length} ordini`);
+    saveSafe();
+    $('#loadEditorV1170Dialog').close();
+    toastSafe(`${obj.code} · ${status}`);
+    renderWorkerLogistics();
+    if(currentRole==='director')try{renderCurrent()}catch(_){}
+  }
+
+  function sendLoadToAdmin(loadId){
+    const s=sheet(loadId);if(!s||s.status!=='Caricato')return;
+    s.status='Pronto per DDT';s.readyAt=new Date().toISOString();s.updatedAt=s.readyAt;
+    audit('Carico inviato ad Amministrazione',s.code,`${s.client} · ${s.totalQty} pz`);
+    saveSafe();toastSafe(`${s.code} pronto per DDT SPRING`);renderWorkerLogistics();
+  }
+
+  function cancelLoad(loadId){
+    const s=sheet(loadId);if(!s||s.status==='DDT emesso')return;
+    const reason=prompt(`Motivo annullamento ${s.code}:`,'');
+    if(reason===null||!reason.trim())return;
+    s.status='Annullato';s.cancelReason=reason.trim();s.cancelledAt=new Date().toISOString();
+    recalcLoadedPending();audit('Foglio carico annullato',s.code,reason.trim());saveSafe();renderWorkerLogistics();
+  }
+
+  function printLoad(loadId){
+    const s=sheet(loadId);if(!s)return;
+    const w=window.open('','_blank','width=900,height=760');
+    if(!w)return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(s.code)}</title>
+    <style>body{font-family:Arial,sans-serif;padding:28px;color:#172b35}h1{font-size:22px;margin:0}p{color:#60727b}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccd8dc;padding:9px;text-align:left;font-size:12px}th{background:#f3f6f7}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.box{border:1px solid #ccd8dc;padding:10px}.box span{font-size:10px;color:#697c85;display:block}.box b{font-size:13px}.sign{margin-top:35px;display:grid;grid-template-columns:1fr 1fr;gap:40px}.line{border-top:1px solid #333;padding-top:6px;font-size:11px}</style></head><body>
+    <h1>Foglio di carico ${esc(s.code)}</h1><p>Smart Pack · documento operativo interno per predisposizione DDT in SPRING</p>
+    <div class="meta"><div class="box"><span>Cliente</span><b>${esc(s.client)}</b></div><div class="box"><span>Data carico</span><b>${esc(s.loadDate)}</b></div>
+    <div class="box"><span>Mezzo / Targa</span><b>${esc(s.vehicle||'—')}</b></div><div class="box"><span>Autista / Trasportatore</span><b>${esc(s.driver||'—')}</b></div></div>
+    <table><thead><tr><th>Ordine</th><th>Rif.</th><th>Prodotto</th><th>IML</th><th>Quantità caricata</th></tr></thead><tbody>
+    ${(s.lines||[]).map(l=>`<tr><td>${esc(l.parent)}</td><td>${esc(l.orderRef||'')}</td><td>${esc(l.product||'')}</td><td>${esc(l.imlCode||'ANONIMO')}</td><td>${fmt(l.qtyLoaded)} pz</td></tr>`).join('')}
+    </tbody></table><p><b>Totale caricato: ${fmt(s.totalQty)} pz</b></p>
+    ${s.destination?`<p><b>Destinazione / Note:</b> ${esc(s.destination)}</p>`:''}
+    <div class="sign"><div class="line">Operatore / Magazzino</div><div class="line">Controllo Amministrazione</div></div>
+    </body></html>`);
+    w.document.close();setTimeout(()=>w.print(),250);
+  }
+
+  function renderWorkerLogistics(){
+    if(currentRole!=='worker')return;
+    ensureLoadState();ensureLoadEditor();
+    const view=$('#productionView');if(!view)return;
+    view.querySelector('[data-v1170-logistics]')?.remove();
+
+    const active=(state.loadingSheetsV1167||[]).filter(x=>x.status!=='Annullato')
+      .slice().sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,10);
+
+    const html=`<section class="v1170-logistics" data-v1170-logistics>
+      <div class="v1170-logistics-head">
+        <div><span class="eyebrow">LOGISTICA</span><h3>Preparazione e carico camion</h3><p>Il DDT viene creato in SPRING. Qui confermiamo esattamente ciò che è stato caricato e lo passiamo ad Amministrazione.</p></div>
+        <button class="btn primary" type="button" onclick="SPReleaseV1170.openLoad()">+ Nuovo carico</button>
+      </div>
+      <div class="v1170-flow"><span>1 · In preparazione</span><span>2 · Caricato</span><span>3 · Pronto per DDT</span><span>4 · DDT registrato</span></div>
+      <div class="v1170-load-list">
+        ${active.map(s=>`
+          <article class="v1170-load-item">
+            <div class="v1170-load-main"><b>${esc(s.code)} · ${esc(s.client)}</b><span>${esc(s.loadDate)} · ${s.lines?.length||0} ordini · ${fmt(s.totalQty)} pz</span></div>
+            <span class="v1170-state ${String(s.status).replace(/\s+/g,'-').toLowerCase()}">${esc(s.status==='DDT emesso'?'DDT registrato':s.status)}</span>
+            <div class="v1170-load-actions">
+              ${s.status!=='DDT emesso'?`<button class="btn small" onclick="SPReleaseV1170.openLoad('${esc(s.id)}')">Modifica</button>`:''}
+              ${s.status==='Caricato'?`<button class="btn small primary" onclick="SPReleaseV1170.sendLoad('${esc(s.id)}')">Invia ad Amministrazione</button>`:''}
+              <button class="btn small" onclick="SPReleaseV1170.printLoad('${esc(s.id)}')">Stampa</button>
+              ${!['DDT emesso','Pronto per DDT'].includes(s.status)?`<button class="btn small danger" onclick="SPReleaseV1170.cancelLoad('${esc(s.id)}')">Annulla</button>`:''}
+            </div>
+          </article>`).join('')||'<div class="empty"><b>Nessun carico registrato</b>Apri un nuovo foglio quando inizi a preparare il camion.</div>'}
+      </div>
+    </section>`;
+    view.insertAdjacentHTML('afterbegin',html);
+  }
+
+  function hideLegacyWorkerLoading(){
+    // Il vecchio blocco V11.6.7 continua a essere mantenuto dal codice storico:
+    // lo nascondiamo e usiamo il nuovo flusso senza interferire con i dati.
+    $$('.v1167-worker-panel[data-v1167-worker]').forEach(x=>x.style.display='none');
+  }
+
+  /* ------------------------- finance / economic view ------------------------ */
+  function ensureFinanceState(){
+    state.adminFinanceV1170=state.adminFinanceV1170&&typeof state.adminFinanceV1170==='object'?state.adminFinanceV1170:{records:[]};
+    state.adminFinanceV1170.records=Array.isArray(state.adminFinanceV1170.records)?state.adminFinanceV1170.records:[];
+  }
+  function financeRecord(company,period,create=false){
+    ensureFinanceState();
+    let r=state.adminFinanceV1170.records.find(x=>x.company===company&&x.period===period);
+    if(!r&&create){r={company,period,revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,receivables:0,payables:0,cash:0,notes:''};state.adminFinanceV1170.records.push(r)}
+    return r||null;
+  }
+  function calcFinance(r){
+    if(!r)return {configured:false,revenue:0,opex:0,ebitda:0,ebit:0,margin:0,working:0};
+    const opex=n(r.materials)+n(r.personnel)+n(r.energy)+n(r.transport)+n(r.otherOpex);
+    const ebitda=n(r.revenue)-opex,ebit=ebitda-n(r.depreciation);
+    return {configured:true,revenue:n(r.revenue),opex,ebitda,ebit,margin:n(r.revenue)?ebitda/n(r.revenue)*100:0,working:n(r.receivables)-n(r.payables)};
+  }
+  function groupFinance(period){
+    const rs=['smartpack','multiplast'].map(c=>financeRecord(c,period,false)).filter(Boolean);
+    if(!rs.length)return calcFinance(null);
+    return calcFinance({
+      revenue:rs.reduce((s,r)=>s+n(r.revenue),0),
+      materials:rs.reduce((s,r)=>s+n(r.materials),0),personnel:rs.reduce((s,r)=>s+n(r.personnel),0),
+      energy:rs.reduce((s,r)=>s+n(r.energy),0),transport:rs.reduce((s,r)=>s+n(r.transport),0),
+      otherOpex:rs.reduce((s,r)=>s+n(r.otherOpex),0),depreciation:rs.reduce((s,r)=>s+n(r.depreciation),0),
+      receivables:rs.reduce((s,r)=>s+n(r.receivables),0),payables:rs.reduce((s,r)=>s+n(r.payables),0)
+    });
+  }
+  function financeStatus(z){
+    if(!z.configured)return {cls:'neutral',label:'Da configurare'};
+    if(z.ebit<0)return {cls:'loss',label:'Risultato operativo negativo'};
+    if(z.ebit>0)return {cls:'profit',label:'Risultato operativo positivo'};
+    return {cls:'neutral',label:'Pareggio operativo'};
+  }
+
+  function ensureCustomViews(){
+    const content=$('.content');if(!content)return;
+    if(!$('#adminOverviewV1170View')){
+      const v=document.createElement('section');v.id='adminOverviewV1170View';v.className='view';content.appendChild(v);
+    }
+    if(!$('#adminFinanceV1170View')){
+      const v=document.createElement('section');v.id='adminFinanceV1170View';v.className='view';content.appendChild(v);
+    }
+  }
+  function activateCustom(idv,title,sub){
+    ensureCustomViews();
+    $$('.view').forEach(v=>v.classList.remove('active'));
+    $('#'+idv)?.classList.add('active');
+    try{currentView=idv}catch(_){}
+    if($('#pageTitle'))$('#pageTitle').textContent=title;
+    if($('#pageSubtitle'))$('#pageSubtitle').textContent=sub;
+    decorateAdminNav();
+  }
+
+  function saveFinanceCompany(company,period){
+    const form=$(`#financeForm_${company}`);
+    if(!form)return;
+    const f=new FormData(form),r=financeRecord(company,period,true);
+    for(const k of ['revenue','materials','personnel','energy','transport','otherOpex','depreciation','receivables','payables','cash'])r[k]=n(f.get(k));
+    r.notes=String(f.get('notes')||'').trim();r.updatedAt=new Date().toISOString();
+    audit('Dati economici aggiornati',company,period);
+    saveSafe();renderFinance(period);toastSafe(`Dati ${company==='smartpack'?'Smart Pack':'Multiplast'} aggiornati`);
+  }
+
+  function financeForm(company,period){
+    const r=financeRecord(company,period,false)||{},z=calcFinance(financeRecord(company,period,false)),st=financeStatus(z);
+    const name=company==='smartpack'?'SMART PACK':'MULTIPLAST';
+    const val=k=>r[k]||'';
+    return `<section class="v1170-fin-company">
+      <div class="v1170-fin-company-head">
+        <div><span>${name}</span><h3>${period}</h3></div>
+        <span class="v1170-fin-status ${st.cls}">${st.label}</span>
+      </div>
+      <div class="v1170-fin-mini">
+        <div><span>Ricavi</span><b>${r.period?money(r.revenue):'—'}</b></div>
+        <div><span>EBITDA</span><b class="${z.ebitda<0?'loss':''}">${r.period?money(z.ebitda):'—'}</b></div>
+        <div><span>EBIT</span><b class="${z.ebit<0?'loss':''}">${r.period?money(z.ebit):'—'}</b></div>
+        <div><span>Margine EBITDA</span><b>${r.period?pct(z.margin):'—'}</b></div>
+      </div>
+      <form id="financeForm_${company}" class="v1170-fin-form">
+        <label class="field">Ricavi<input name="revenue" type="number" step="0.01" value="${val('revenue')}"></label>
+        <label class="field">Materie / acquisti<input name="materials" type="number" step="0.01" value="${val('materials')}"></label>
+        <label class="field">Personale<input name="personnel" type="number" step="0.01" value="${val('personnel')}"></label>
+        <label class="field">Energia<input name="energy" type="number" step="0.01" value="${val('energy')}"></label>
+        <label class="field">Trasporti<input name="transport" type="number" step="0.01" value="${val('transport')}"></label>
+        <label class="field">Altri costi operativi<input name="otherOpex" type="number" step="0.01" value="${val('otherOpex')}"></label>
+        <label class="field">Ammortamenti<input name="depreciation" type="number" step="0.01" value="${val('depreciation')}"></label>
+        <label class="field">Crediti clienti<input name="receivables" type="number" step="0.01" value="${val('receivables')}"></label>
+        <label class="field">Debiti fornitori<input name="payables" type="number" step="0.01" value="${val('payables')}"></label>
+        <label class="field">Liquidità<input name="cash" type="number" step="0.01" value="${val('cash')}"></label>
+        <label class="field full">Note<input name="notes" value="${esc(r.notes||'')}"></label>
+        <button type="button" class="btn primary" onclick="SPReleaseV1170.saveFinance('${company}','${period}')">Salva periodo</button>
+      </form>
+    </section>`;
+  }
+
+  function renderFinance(period=monthNow()){
+    ensureCustomViews();ensureFinanceState();
+    const view=$('#adminFinanceV1170View');if(!view)return;
+    const g=groupFinance(period),st=financeStatus(g);
+    const history=[...new Set(state.adminFinanceV1170.records.map(r=>r.period))].sort().reverse().slice(0,12);
+
+    view.innerHTML=`
+      <div class="v1170-fin-hero">
+        <div><span class="eyebrow">AMMINISTRAZIONE · CONTROLLO ECONOMICO</span><h2>Andamento economico-finanziario</h2>
+        <p>Quadro operativo per capire rapidamente se i ricavi stanno coprendo i costi. I dati possono essere caricati manualmente ora e successivamente alimentati dall'Excel aziendale.</p></div>
+        <label class="field">Periodo<input id="financePeriodV1170" type="month" value="${esc(period)}"></label>
+      </div>
+      <div class="v1170-fin-group">
+        <div><span>Ricavi gruppo</span><b>${g.configured?money(g.revenue):'Da configurare'}</b></div>
+        <div><span>Costi operativi</span><b>${g.configured?money(g.opex):'—'}</b></div>
+        <div><span>EBITDA</span><b class="${g.ebitda<0?'loss':''}">${g.configured?money(g.ebitda):'—'}</b></div>
+        <div><span>EBIT</span><b class="${g.ebit<0?'loss':''}">${g.configured?money(g.ebit):'—'}</b></div>
+        <div><span>Margine EBITDA</span><b>${g.configured?pct(g.margin):'—'}</b></div>
+        <div><span>Crediti - Debiti</span><b class="${g.working<0?'loss':''}">${g.configured?money(g.working):'—'}</b></div>
+      </div>
+      ${g.configured&&g.ebit<0?`<div class="v1170-loss-alert"><b>Attenzione · risultato operativo negativo</b><span>La priorità è distinguere dove si genera la perdita: margine prodotto, costo materia/energia/personale, prezzi di vendita e tempi di incasso. Questa schermata serve proprio a renderlo visibile mese per mese.</span></div>`:''}
+      <div class="v1170-fin-grid">${financeForm('smartpack',period)}${financeForm('multiplast',period)}</div>
+      <div class="section panel">
+        <div class="panel-head"><div><h3>Storico periodi</h3><p>Confronto sintetico dei dati inseriti.</p></div></div>
+        <div class="v1170-fin-history">
+          ${history.map(p=>{
+            const sp=calcFinance(financeRecord('smartpack',p,false)),mp=calcFinance(financeRecord('multiplast',p,false)),gg=groupFinance(p);
+            return `<div class="v1170-fin-history-row">
+              <b>${esc(p)}</b><span>Smart Pack EBIT: <strong class="${sp.ebit<0?'loss':''}">${sp.configured?money(sp.ebit):'—'}</strong></span>
+              <span>Multiplast EBIT: <strong class="${mp.ebit<0?'loss':''}">${mp.configured?money(mp.ebit):'—'}</strong></span>
+              <span>Gruppo: <strong class="${gg.ebit<0?'loss':''}">${gg.configured?money(gg.ebit):'—'}</strong></span>
+            </div>`;
+          }).join('')||'<div class="empty"><b>Nessuno storico ancora</b>Inserisci il primo periodo per iniziare il confronto.</div>'}
+        </div>
+      </div>`;
+    $('#financePeriodV1170').onchange=e=>renderFinance(e.target.value||monthNow());
+  }
+
+  function openFinance(period=monthNow()){
+    if(currentRole!=='admin')return;
+    activateCustom('adminFinanceV1170View','Economico-finanziario','Ricavi, costi, EBITDA, EBIT, crediti e debiti');
+    renderFinance(period);
+  }
+
+  /* ------------------------- administration overview ----------------------- */
+  function recentOperationalActivity(limit=8){
+    const arr=[];
+    for(const a of (state.audit||[]).slice(0,80))arr.push({at:a.at||a.createdAt,title:a.action||'Attività',detail:[a.ref,a.detail].filter(Boolean).join(' · ')});
+    for(const s of (state.loadingSheetsV1167||[])){
+      if(s.createdAt)arr.push({at:s.createdAt,title:'Foglio carico',detail:`${s.code} · ${s.client} · ${s.status}`});
+      if(s.ddtCreatedAt)arr.push({at:s.ddtCreatedAt,title:'DDT SPRING registrato',detail:`${s.ddtRef} · ${s.code}`});
+    }
+    return arr.filter(x=>x.at).sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,limit);
+  }
+
+  function openMenuText(regex){
+    const nav=$('#sideNav')||$('.nav');
+    const b=[...(nav?.querySelectorAll('button')||[])].find(x=>regex.test(x.textContent||''));
+    if(b){b.click();return true}
+    return false;
+  }
+
+  function renderAdminOverview(){
+    if(currentRole!=='admin')return;
+    ensureCustomViews();ensureLoadState();ensureFinanceState();
+    const view=$('#adminOverviewV1170View');if(!view)return;
+    const loads=state.loadingSheetsV1167||[];
+    const ready=loads.filter(s=>s.status==='Pronto per DDT');
+    const preparing=loads.filter(s=>['In preparazione','Caricato'].includes(s.status));
+    const ddtMonth=loads.filter(s=>s.status==='DDT emesso'&&String(s.ddtDate||'').startsWith(monthNow()));
+    const openOrders=orderGroups().filter(g=>!isCancelled(g)&&!isClosed(g));
+    const clients=(state.clientDirectory||[]).filter(x=>x?.active!==false);
+    const incomplete=clients.filter(x=>!String(x.code||x.reference||'').trim()||(!x.email&&!x.phone)).length;
+    const f=groupFinance(monthNow()),fs=financeStatus(f);
+    const activity=recentOperationalActivity();
+
+    view.innerHTML=`
+      <div class="v1170-admin-hero">
+        <div><span class="eyebrow">AMMINISTRAZIONE · CENTRO OPERATIVO</span><h2>Panoramica Amministrazione</h2>
+        <p>Quello che richiede attenzione oggi: carichi pronti, DDT da registrare in piattaforma dopo l'emissione in SPRING, anagrafiche e situazione economica.</p></div>
+        <div class="v1170-admin-actions">
+          <button class="btn primary" onclick="navTo('admin')">Consegne / DDT</button>
+          <button class="btn" onclick="SPReleaseV1170.openFinance()">Analisi economica</button>
+        </div>
+      </div>
+
+      <div class="v1170-admin-kpis">
+        <button onclick="navTo('admin')"><span>Carichi pronti per DDT</span><b>${ready.length}</b><small>${ready.reduce((s,x)=>s+n(x.totalQty),0).toLocaleString('it-IT')} pz</small></button>
+        <div><span>Carichi ancora in reparto</span><b>${preparing.length}</b><small>In preparazione / caricati</small></div>
+        <div><span>Ordini ancora aperti</span><b>${openOrders.length}</b><small>Smart Pack</small></div>
+        <div><span>DDT registrati questo mese</span><b>${ddtMonth.length}</b><small>Documento emesso in SPRING</small></div>
+      </div>
+
+      <div class="v1170-admin-layout">
+        <section class="panel">
+          <div class="panel-head"><div><h3>Priorità di oggi</h3><p>Azioni che possono bloccare consegne o chiusure.</p></div></div>
+          <div class="v1170-priority-list">
+            ${ready.length?`<button onclick="navTo('admin')"><b>${ready.length} carichi aspettano il numero DDT</b><span>Apri Consegne / DDT e registra il riferimento creato in SPRING.</span></button>`:''}
+            ${preparing.length?`<div><b>${preparing.length} carichi non ancora passati ad Amministrazione</b><span>Il reparto deve completare il carico e inviarlo.</span></div>`:''}
+            ${incomplete?`<button onclick="SPReleaseV1170.openClients()"><b>${incomplete} anagrafiche clienti incomplete</b><span>Codice gestionale o contatti mancanti.</span></button>`:''}
+            ${!ready.length&&!preparing.length&&!incomplete?'<div class="ok"><b>Nessuna criticità amministrativa immediata</b><span>I flussi principali risultano allineati.</span></div>':''}
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div><h3>Situazione economica · ${monthNow()}</h3><p>Indicatore gestionale, non sostituisce la contabilità ufficiale.</p></div><div class="right"><button class="btn small" onclick="SPReleaseV1170.openFinance()">Apri</button></div></div>
+          <div class="v1170-economic-summary">
+            <span class="v1170-fin-status ${fs.cls}">${fs.label}</span>
+            <div><span>Ricavi gruppo</span><b>${f.configured?money(f.revenue):'Da inserire'}</b></div>
+            <div><span>EBITDA</span><b class="${f.ebitda<0?'loss':''}">${f.configured?money(f.ebitda):'—'}</b></div>
+            <div><span>EBIT</span><b class="${f.ebit<0?'loss':''}">${f.configured?money(f.ebit):'—'}</b></div>
+            <div><span>Crediti - Debiti</span><b class="${f.working<0?'loss':''}">${f.configured?money(f.working):'—'}</b></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="v1170-admin-layout lower">
+        <section class="panel">
+          <div class="panel-head"><div><h3>Azioni rapide</h3><p>Accesso diretto alle operazioni amministrative più frequenti.</p></div></div>
+          <div class="v1170-quick-admin">
+            <button onclick="navTo('admin')"><b>Consegne / DDT</b><span>Registra i riferimenti DDT prodotti in SPRING.</span></button>
+            <button onclick="SPReleaseV1170.openClients()"><b>Clienti e fornitori</b><span>Anagrafiche e codici gestionali.</span></button>
+            <button onclick="SPReleaseV1170.openFinance()"><b>Economico-finanziario</b><span>Analizza costi, risultato e circolante.</span></button>
+            <button onclick="SPReleaseV1170.openConfig()"><b>Importa Excel</b><span>Aggiorna i dati reali dell'azienda.</span></button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div><h3>Ultime attività</h3><p>Movimenti recenti della piattaforma.</p></div></div>
+          <div class="v1170-recent">
+            ${activity.map(x=>`<div><time>${esc(prettyDate(x.at,true))}</time><b>${esc(x.title)}</b><span>${esc(x.detail||'')}</span></div>`).join('')||'<div class="empty">Nessuna attività recente.</div>'}
+          </div>
+        </section>
+      </div>`;
+  }
+
+  function openAdminOverview(){
+    if(currentRole!=='admin')return;
+    activateCustom('adminOverviewV1170View','Panoramica Amministrazione','Priorità, consegne, DDT SPRING e andamento economico');
+    renderAdminOverview();
+  }
+
+  /* ------------------------------ admin nav -------------------------------- */
+  function decorateAdminNav(){
+    const nav=$('#sideNav')||$('.nav');if(!nav)return;
+    if(currentRole!=='admin'){
+      $('#adminOverviewNavV1170')?.remove();
+      return;
+    }
+    let overview=$('#adminOverviewNavV1170');
+    if(!overview){
+      overview=document.createElement('button');overview.id='adminOverviewNavV1170';overview.type='button';
+      overview.innerHTML='<span class="icon">⌂</span><span>Panoramica</span>';
+      overview.onclick=openAdminOverview;
+      const first=nav.querySelector('button');first?nav.insertBefore(overview,first):nav.appendChild(overview);
+    }
+
+    let finance=[...nav.querySelectorAll('button')].find(x=>/Economico-finanziario/i.test(x.textContent||''));
+    if(finance){finance.onclick=openFinance;finance.dataset.v1170Finance='1'}
+    else{
+      finance=$('#adminFinanceNavV1170');
+      if(!finance){
+        finance=document.createElement('button');finance.id='adminFinanceNavV1170';finance.type='button';
+        finance.innerHTML='<span class="icon">€</span><span>Economico-finanziario</span>';
+        finance.onclick=openFinance;nav.appendChild(finance);
+      }
+    }
+
+    const cv=(()=>{try{return currentView}catch(_){return ''}})();
+    overview.classList.toggle('active',cv==='adminOverviewV1170');
+    finance.classList.toggle('active',cv==='adminFinanceV1170');
+  }
+
+  function patchAdminDDTLanguage(){
+    // Il DDT ufficiale è prodotto da SPRING: la piattaforma conserva solo la traccia.
+    const dlg=$('#ddtFromLoadV1167Dialog');
+    if(dlg){
+      const h=dlg.querySelector('.modal-head h3'),p=dlg.querySelector('.modal-head p');
+      if(h)h.textContent='Registra riferimento DDT SPRING';
+      if(p)p.textContent='Il documento viene emesso in SPRING. Qui registri numero e data per collegarlo al foglio di carico e chiudere correttamente gli ordini.';
+      const ref=dlg.querySelector('input[name="ddtRef"]')?.closest('label');
+      if(ref&&ref.firstChild?.nodeType===3)ref.firstChild.nodeValue='Numero / riferimento DDT SPRING';
+      const submit=dlg.querySelector('.modal-actions .btn.primary');if(submit)submit.textContent='Registra DDT SPRING';
+    }
+    const admin=$('#adminView');
+    if(admin){
+      admin.innerHTML=admin.innerHTML
+        .replaceAll('DDT emesso','DDT registrato')
+        .replaceAll('DDT emessi','DDT registrati')
+        .replaceAll('Registra DDT del carico','Registra DDT SPRING')
+        .replaceAll('Registra DDT','Registra DDT SPRING');
+    }
+  }
+
+  function openClients(){return openMenuText(/Clienti e fornitori/i)}
+  function openConfig(){
+    if(openMenuText(/Configurazione|Import.*Export/i))return true;
+    try{window.SPCompanyConfigV116?.open?.();return true}catch(_){}
+    return false;
+  }
+
+  /* ------------------------------- styles ---------------------------------- */
+  function injectStyles(){
+    if($('#v1170Styles'))return;
+    const st=document.createElement('style');st.id='v1170Styles';st.textContent=`
+      .v1167-worker-panel[data-v1167-worker]{display:none!important}
+      .v1170-timeline-dialog{width:min(760px,94vw)}
+      .v1170-timeline{display:grid;gap:0}.v1170-event{display:grid;grid-template-columns:34px 1fr;gap:10px;position:relative;padding-bottom:14px}.v1170-event:not(:last-child):before{content:"";position:absolute;left:16px;top:28px;bottom:0;width:1px;background:#d7e3e7}.v1170-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#eef5f7;color:var(--primary);font-size:8px;font-weight:950;z-index:1}.v1170-event.ddt .v1170-dot{background:#e9f7f0;color:#1f7a5d}.v1170-event.cancel .v1170-dot{background:#fdecee;color:#a44149}.v1170-event-body{padding-top:1px}.v1170-event-body time{display:block;font-size:7px;color:#7a8d96}.v1170-event-body b{display:block;font-size:10px;margin-top:2px}.v1170-event-body span{display:block;font-size:8px;color:var(--muted);margin-top:3px;line-height:1.4}
+
+      .v1170-logistics{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:14px;box-shadow:0 6px 18px rgba(25,64,79,.04)}
+      .v1170-logistics-head{display:flex;gap:14px;align-items:center;padding:15px 16px;border-bottom:1px solid var(--line)}.v1170-logistics-head>div{flex:1}.v1170-logistics-head h3{margin:2px 0 3px;font-size:15px}.v1170-logistics-head p{margin:0;color:var(--muted);font-size:8px}
+      .v1170-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 14px;background:#f7fafb}.v1170-flow span{padding:7px 8px;background:#fff;border:1px solid var(--line);border-radius:9px;font-size:7px;font-weight:900;text-align:center;color:#566d78}
+      .v1170-load-list{padding:8px 14px}.v1170-load-item{display:grid;grid-template-columns:minmax(200px,1fr) 120px auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #edf2f3}.v1170-load-item:last-child{border-bottom:0}.v1170-load-main b{display:block;font-size:9px}.v1170-load-main span{display:block;font-size:7px;color:var(--muted);margin-top:2px}.v1170-state{display:inline-flex;justify-content:center;padding:5px 7px;border-radius:999px;font-size:7px;font-weight:950;background:#eef3f5;color:#5b707a}.v1170-state.caricato{background:#fff4df;color:#976315}.v1170-state.pronto-per-ddt{background:#e9f4fb;color:#176b94}.v1170-state.ddt-registrato{background:#e8f7ef;color:#1d7558}.v1170-load-actions{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+      .v1170-load-dialog{width:min(880px,94vw)}.v1170-edit-lines{margin-top:14px;border:1px solid var(--line);border-radius:13px;overflow:hidden}.v1170-edit-head,.v1170-edit-row{display:grid;grid-template-columns:.65fr 1.5fr .75fr .65fr;gap:8px;align-items:center}.v1170-edit-head{padding:9px 10px;background:#f7fafb;font-size:7px;text-transform:uppercase;color:#71858e;font-weight:950}.v1170-edit-row{padding:10px;border-top:1px solid #edf2f3;font-size:8px}.v1170-edit-row b{display:block}.v1170-edit-row span{display:block;font-size:7px;color:var(--muted);margin-top:2px}.v1170-edit-row input{width:100%;padding:8px;border:1px solid #cfdee3;border-radius:9px}
+
+      .v1170-admin-hero,.v1170-fin-hero{display:flex;gap:18px;align-items:center;padding:20px 22px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,#fff,#f3faf8);box-shadow:var(--shadow)}.v1170-admin-hero>div:first-child,.v1170-fin-hero>div:first-child{flex:1}.v1170-admin-hero h2,.v1170-fin-hero h2{font-size:24px;margin:2px 0 5px}.v1170-admin-hero p,.v1170-fin-hero p{font-size:9px;color:var(--muted);line-height:1.5;margin:0;max-width:850px}.v1170-admin-actions{display:flex;gap:7px;flex-wrap:wrap}
+      .v1170-admin-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:13px}.v1170-admin-kpis>div,.v1170-admin-kpis>button{border:1px solid var(--line);background:#fff;border-radius:15px;padding:13px 14px;text-align:left;color:inherit}.v1170-admin-kpis span,.v1170-admin-kpis small{display:block;font-size:8px;color:var(--muted)}.v1170-admin-kpis b{display:block;font-size:22px;margin:5px 0 2px}.v1170-admin-kpis>button:hover{border-color:#afcad4}
+      .v1170-admin-layout{display:grid;grid-template-columns:1.15fr .85fr;gap:12px;margin-top:13px}.v1170-admin-layout.lower{grid-template-columns:1fr 1fr}
+      .v1170-priority-list{padding:9px 14px}.v1170-priority-list>div,.v1170-priority-list>button{display:block;width:100%;border:0;border-bottom:1px solid #edf2f3;background:transparent;text-align:left;padding:10px 0;color:inherit}.v1170-priority-list b{display:block;font-size:9px}.v1170-priority-list span{display:block;font-size:7.5px;color:var(--muted);margin-top:3px}.v1170-priority-list .ok b{color:#1f7459}
+      .v1170-economic-summary{padding:13px}.v1170-economic-summary>div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #edf2f3}.v1170-economic-summary>div span{font-size:8px;color:var(--muted)}.v1170-economic-summary>div b{font-size:9px}.loss{color:#b13f48!important}
+      .v1170-quick-admin{padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.v1170-quick-admin button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px;text-align:left;color:inherit}.v1170-quick-admin b{display:block;font-size:9px}.v1170-quick-admin span{display:block;font-size:7.5px;color:var(--muted);margin-top:4px;line-height:1.35}
+      .v1170-recent{padding:8px 14px}.v1170-recent>div{display:grid;grid-template-columns:115px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid #edf2f3}.v1170-recent time{font-size:7px;color:#758891}.v1170-recent b{display:block;font-size:8px}.v1170-recent span{display:block;font-size:7px;color:var(--muted);margin-top:2px}
+
+      .v1170-fin-group{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:12px}.v1170-fin-group>div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px}.v1170-fin-group span{display:block;font-size:7px;color:var(--muted);font-weight:800}.v1170-fin-group b{display:block;font-size:15px;margin-top:4px}
+      .v1170-loss-alert{margin-top:10px;border:1px solid #ecc7ca;background:#fff4f5;border-radius:13px;padding:11px 13px}.v1170-loss-alert b{display:block;font-size:9px;color:#a63d46}.v1170-loss-alert span{display:block;font-size:8px;color:#76555a;margin-top:3px;line-height:1.45}
+      .v1170-fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.v1170-fin-company{background:#fff;border:1px solid var(--line);border-radius:17px;padding:14px}.v1170-fin-company-head{display:flex;gap:10px;align-items:center}.v1170-fin-company-head>div{flex:1}.v1170-fin-company-head span:first-child{font-size:7px;font-weight:950;color:var(--primary)}.v1170-fin-company-head h3{margin:2px 0;font-size:14px}
+      .v1170-fin-status{display:inline-flex;padding:5px 7px;border-radius:999px;background:#eef3f5;color:#5d717b;font-size:7px;font-weight:950}.v1170-fin-status.loss{background:#fdecee;color:#a53d46}.v1170-fin-status.profit{background:#e9f7f0;color:#1d7357}
+      .v1170-fin-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.v1170-fin-mini>div{background:#f7fafb;border-radius:9px;padding:8px}.v1170-fin-mini span{display:block;font-size:6.5px;color:var(--muted)}.v1170-fin-mini b{display:block;font-size:9px;margin-top:3px}
+      .v1170-fin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v1170-fin-form .full{grid-column:1/-1}.v1170-fin-history{padding:8px 14px}.v1170-fin-history-row{display:grid;grid-template-columns:.6fr 1.2fr 1.2fr 1fr;gap:10px;padding:9px 0;border-bottom:1px solid #edf2f3;font-size:8px}.v1170-fin-history-row span{color:var(--muted)}
+      @media(max-width:1100px){.v1170-admin-kpis{grid-template-columns:repeat(2,1fr)}.v1170-fin-group{grid-template-columns:repeat(3,1fr)}.v1170-fin-grid{grid-template-columns:1fr}.v1170-load-item{grid-template-columns:1fr 120px}.v1170-load-actions{grid-column:1/-1;justify-content:flex-start}}
+      @media(max-width:760px){.v1170-admin-layout,.v1170-admin-layout.lower{grid-template-columns:1fr}.v1170-admin-hero,.v1170-fin-hero{display:block}.v1170-admin-actions{margin-top:12px}.v1170-flow{grid-template-columns:1fr 1fr}.v1170-fin-group{grid-template-columns:1fr 1fr}.v1170-quick-admin{grid-template-columns:1fr}.v1170-edit-head{display:none}.v1170-edit-row{grid-template-columns:1fr 1fr}.v1170-fin-history-row{grid-template-columns:1fr}.v1170-recent>div{grid-template-columns:1fr}}
+    `;document.head.appendChild(st);
+  }
+
+  /* -------------------------------- patch ---------------------------------- */
+  function patch(){
+    injectStyles();ensureTimelineDialog();ensureCustomViews();ensureLoadState();ensureFinanceState();
+    decorateRegisterTimeline();
+    decorateAdminNav();
+
+    if(currentRole==='worker'){
+      hideLegacyWorkerLoading();
+      if(!$('#productionView [data-v1170-logistics]'))renderWorkerLogistics();
+    }
+
+    if(currentRole==='admin'){
+      patchAdminDDTLanguage();
+      // Mostra la panoramica al primo ingresso del profilo Amministrazione.
+      if(document.body.dataset.v1170AdminEntered!=='1'){
+        document.body.dataset.v1170AdminEntered='1';
+        setTimeout(openAdminOverview,40);
+      }
+    }else{
+      delete document.body.dataset.v1170AdminEntered;
+    }
+
+    // Se V11.6.7 ricrea il vecchio blocco worker, lo nascondiamo immediatamente.
+    hideLegacyWorkerLoading();
+  }
+
+  function boot(){
+    patch();
+    setInterval(patch,420);
+    document.body.dataset.release='V11.7.0';
+  }
+
+  window.SPReleaseV1170={
+    openTimeline,
+    openLoad:openLoadEditor,
+    sendLoad:sendLoadToAdmin,
+    cancelLoad,
+    printLoad,
+    renderWorkerLogistics,
+    openAdminOverview,
+    openFinance,
+    renderFinance,
+    saveFinance:saveFinanceCompany,
+    openClients,
+    openConfig,
+    timelineEvents,
+    version:VERSION
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
