@@ -1,0 +1,51 @@
+SMART PACK · MULTIPLAST — V11.7.8
+UTENTI OPERATORI + ECONOMICO-FINANZIARIO PIÙ LEGGIBILE
+
+1. ECONOMICO-FINANZIARIO
+Aumentata la leggibilità dell'intera schermata:
+- titolo e descrizione
+- fonte dati SPRING
+- riconciliazione
+- KPI Gruppo
+- Ricavi, EBITDA, EBIT, Margine
+- schede Smart Pack / Multiplast
+- dati bloccati da SPRING
+- valori read-only
+- campi manuali
+- link "Apri analisi"
+
+2. CONFIGURAZIONE > UTENTI E ACCESSI
+Nuova card "Operatori di produzione" dentro Configurazione azienda.
+
+FUNZIONI
+- selezione Smart Pack / Multiplast
+- nome e cognome
+- USER personale
+- PIN temporaneo di 6 cifre
+- ruolo produzione automatico
+- elenco operatori
+- ultimo accesso
+- sospendi / riattiva
+- reset PIN
+
+3. PERMESSI
+- NOMYRA platform_admin: gestione completa.
+- tenant_admin aziendale: gestione operatori SOLO delle aziende assegnate al proprio account.
+- gli operatori non possono gestire utenti.
+
+4. SICUREZZA
+- il PIN non viene mai mostrato dopo la creazione.
+- reset PIN genera un PIN temporaneo.
+- al primo accesso / reset l'operatore deve cambiarlo.
+- USER e azioni restano tracciati lato database.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v117-static-34
+
+SUPABASE
+Aggiornato anche il controllo private.poi_can_manage_employees:
+tenant_admin può gestire gli operatori delle proprie company_codes.

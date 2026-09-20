@@ -5794,3 +5794,297 @@
   window.SPBootLater(boot);
 })();
 
+
+
+
+/* ========================================================================
+   V11.7.8 · UTENTI OPERATORI + FINANZA PIÙ LEGGIBILE
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPUsersV1178)return;
+
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const client=()=>window.POICloudV10?.getClient?.()||null;
+  const profile=()=>window.POICloudV10?.getProfile?.()||null;
+  const companyName=c=>c==='multiplast'?'Multiplast':'Smart Pack';
+  const productionRole=c=>c==='multiplast'?'mpworker':'worker';
+  const roleLabel=c=>c==='multiplast'?'Produzione Multiplast':'Produzione Smart Pack';
+  let currentCompany='smartpack';
+
+  function canManage(){
+    const p=profile();
+    return !!p && p.active!==false && ['platform_admin','tenant_admin'].includes(String(p.account_type||''));
+  }
+
+  function allowedCompanies(){
+    const p=profile();
+    if(!p)return [];
+    if(p.account_type==='platform_admin'){
+      const xs=Array.isArray(p.company_codes)?p.company_codes:[];
+      return xs.length?xs.filter(x=>['smartpack','multiplast'].includes(x)):['smartpack','multiplast'];
+    }
+    const xs=Array.isArray(p.company_codes)?p.company_codes:[];
+    return xs.filter(x=>['smartpack','multiplast'].includes(x));
+  }
+
+  function safeCompany(c){
+    const a=allowedCompanies();
+    if(a.includes(c))return c;
+    return a[0]||'smartpack';
+  }
+
+  function ensureDialog(){
+    if($('#usersV1178Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="usersV1178Dialog" class="v1178-users-dialog">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">CONFIGURAZIONE · UTENTI E ACCESSI</span>
+            <h3>Operatori di produzione</h3>
+            <p>Crea USER e PIN personali per gli operatori. Il primo PIN è temporaneo e va cambiato al primo accesso.</p>
+          </div>
+          <button type="button" class="close" onclick="document.getElementById('usersV1178Dialog').close()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="v1178-company-tabs" id="usersCompanyTabsV1178"></div>
+
+          <div class="v1178-users-layout">
+            <section class="v1178-users-card">
+              <h4>+ Nuovo operatore</h4>
+              <p id="usersCreateHelpV1178"></p>
+              <form id="usersCreateFormV1178" class="v1178-users-form">
+                <label>Nome e cognome
+                  <input name="display_name" required minlength="2" maxlength="100" placeholder="Es. Mario Rossi">
+                </label>
+                <label>USER
+                  <input name="username" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]{3,40}" autocomplete="off" placeholder="Es. mario.rossi">
+                </label>
+                <label>Primo PIN
+                  <input name="pin" required inputmode="numeric" type="password" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" placeholder="6 cifre">
+                </label>
+                <label>Ruolo
+                  <input id="usersRoleV1178" readonly>
+                </label>
+                <div class="v1178-users-note">
+                  Il PIN non viene mai mostrato dopo il salvataggio. L'operatore dovrà cambiarlo al primo accesso.
+                </div>
+                <div class="v1178-error" id="usersCreateErrorV1178"></div>
+                <button class="btn primary" type="submit">Crea USER operatore</button>
+              </form>
+            </section>
+
+            <section class="v1178-users-card">
+              <div class="v1178-users-head">
+                <div><h4 id="usersListTitleV1178">Operatori</h4><p>USER attivi e sospesi.</p></div>
+                <button class="btn small" type="button" onclick="SPUsersV1178.load()">Aggiorna</button>
+              </div>
+              <div id="usersListV1178" class="v1178-users-list"><div class="empty">Caricamento…</div></div>
+            </section>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick="document.getElementById('usersV1178Dialog').close()">Chiudi</button>
+        </div>
+      </dialog>`);
+    $('#usersCreateFormV1178').onsubmit=createEmployee;
+  }
+
+  function renderTabs(){
+    const a=allowedCompanies();
+    currentCompany=safeCompany(currentCompany);
+    $('#usersCompanyTabsV1178').innerHTML=a.map(c=>`
+      <button type="button" class="${c===currentCompany?'active':''}" onclick="SPUsersV1178.setCompany('${c}')">${companyName(c)}</button>
+    `).join('');
+    $('#usersRoleV1178').value=roleLabel(currentCompany);
+    $('#usersCreateHelpV1178').textContent=`Creazione accesso per un operatore ${companyName(currentCompany)}.`;
+    $('#usersListTitleV1178').textContent=`Operatori · ${companyName(currentCompany)}`;
+  }
+
+  async function load(){
+    if(!canManage())return;
+    ensureDialog();renderTabs();
+    const box=$('#usersListV1178');box.innerHTML='<div class="empty">Caricamento…</div>';
+    try{
+      const sb=client();
+      if(!sb)throw new Error('session_missing');
+      const {data,error}=await sb.rpc('poi_employee_list',{p_group:'smartpack-multiplast',p_company:currentCompany});
+      if(error)throw error;
+      const rows=Array.isArray(data)?data:[];
+      box.innerHTML=rows.length?rows.map(item=>`
+        <article class="v1178-user-row">
+          <div class="v1178-user-avatar">${esc((item.display_name||item.username||'?').slice(0,1).toUpperCase())}</div>
+          <div class="v1178-user-info">
+            <b>${esc(item.display_name||'—')}</b>
+            <span>USER: <strong>${esc(item.username||'—')}</strong></span>
+            <small>${esc(roleLabel(currentCompany))} · ${item.active?'Attivo':'Sospeso'}${item.last_login_at?` · ultimo accesso ${esc(new Date(item.last_login_at).toLocaleString('it-IT'))}`:''}</small>
+          </div>
+          <div class="v1178-user-actions">
+            <button class="btn small" type="button" onclick="SPUsersV1178.resetPin('${esc(item.id)}')">Nuovo PIN</button>
+            <button class="btn small ${item.active?'danger':''}" type="button" onclick="SPUsersV1178.toggle('${esc(item.id)}',${!item.active})">${item.active?'Sospendi':'Riattiva'}</button>
+          </div>
+        </article>`).join(''):'<div class="empty"><b>Nessun operatore creato</b>Usa il modulo a sinistra per creare il primo USER.</div>';
+    }catch(e){
+      console.warn('[V11.7.8] employee list',e);
+      box.innerHTML='<div class="empty"><b>Impossibile caricare gli operatori</b>Verifica la sessione dell’account aziendale.</div>';
+    }
+  }
+
+  async function createEmployee(e){
+    e.preventDefault();
+    if(!canManage())return;
+    const form=e.currentTarget,err=$('#usersCreateErrorV1178'),button=form.querySelector('button[type="submit"]');
+    err.textContent='';err.classList.remove('show');
+    const fd=new FormData(form);
+    const username=String(fd.get('username')||'').trim().toLowerCase();
+    const display=String(fd.get('display_name')||'').trim();
+    const pin=String(fd.get('pin')||'');
+    if(!/^[a-z0-9._-]{3,40}$/.test(username)){err.textContent='USER non valido: usa almeno 3 caratteri, lettere/numeri/punto/trattino.';err.classList.add('show');return}
+    if(!/^\d{6}$/.test(pin)){err.textContent='Il PIN deve contenere esattamente 6 cifre.';err.classList.add('show');return}
+    button.disabled=true;button.textContent='Creazione…';
+    try{
+      const sb=client();if(!sb)throw new Error('session_missing');
+      const {error}=await sb.rpc('poi_employee_create',{
+        p_company:currentCompany,p_username:username,p_display_name:display,
+        p_role_code:productionRole(currentCompany),p_pin:pin,p_group:'smartpack-multiplast'
+      });
+      if(error)throw error;
+      form.reset();renderTabs();
+      alert(`USER creato per ${display}. Comunica il PIN temporaneo: dovrà cambiarlo al primo accesso.`);
+      await load();
+    }catch(e){
+      const msg=String(e?.message||'');
+      err.textContent=/duplicate|unique/i.test(msg)?'Questo USER esiste già.':'Creazione non riuscita. Controlla dati e autorizzazioni.';
+      err.classList.add('show');
+    }finally{
+      button.disabled=false;button.textContent='Crea USER operatore';
+    }
+  }
+
+  async function resetPin(id){
+    if(!canManage())return;
+    const a=prompt('Nuovo PIN temporaneo di 6 cifre:');if(a===null)return;
+    if(!/^\d{6}$/.test(a)){alert('Il PIN deve contenere esattamente 6 cifre.');return}
+    const b=prompt('Ripeti il nuovo PIN temporaneo:');if(a!==b){alert('I due PIN non coincidono.');return}
+    try{
+      const {error}=await client().rpc('poi_employee_update',{
+        p_employee_id:id,p_new_pin:a,p_group:'smartpack-multiplast'
+      });
+      if(error)throw error;
+      alert('Nuovo PIN temporaneo salvato. L’operatore dovrà cambiarlo al prossimo accesso.');
+      load();
+    }catch(e){alert('PIN non aggiornato.')}
+  }
+
+  async function toggle(id,active){
+    if(!canManage())return;
+    if(!confirm(active?'Riattivare questo USER?':'Sospendere questo USER?'))return;
+    try{
+      const {error}=await client().rpc('poi_employee_update',{
+        p_employee_id:id,p_active:active,p_group:'smartpack-multiplast'
+      });
+      if(error)throw error;
+      load();
+    }catch(e){alert('Aggiornamento non riuscito.')}
+  }
+
+  function setCompany(c){
+    if(!allowedCompanies().includes(c))return;
+    currentCompany=c;renderTabs();load();
+  }
+
+  function open(company=''){
+    if(!canManage()){alert('Questa funzione richiede un account aziendale autorizzato.');return}
+    ensureDialog();
+    currentCompany=safeCompany(company||sessionStorage.getItem('poi_v116_config_company')||'smartpack');
+    renderTabs();load();$('#usersV1178Dialog').showModal();
+  }
+
+  function decorateConfig(){
+    if(typeof currentRole==='undefined'||!['admin','director','manager'].includes(String(currentRole)))return;
+    if(!canManage())return;
+    const view=$('#companySettingsView');
+    if(!view||!view.classList.contains('active'))return;
+    if(view.querySelector('[data-v1178-users-card]'))return;
+
+    const target=view.querySelector('.v116-settings');
+    if(!target)return;
+    const card=document.createElement('div');
+    card.className='v116-card v1178-config-users';
+    card.dataset.v1178UsersCard='1';
+    const a=allowedCompanies();
+    card.innerHTML=`
+      <div class="v1178-config-users-top">
+        <div>
+          <span class="eyebrow">UTENTI E ACCESSI</span>
+          <h3>Operatori di produzione</h3>
+          <p>Crea e gestisci gli USER + PIN degli operatori Smart Pack e Multiplast.</p>
+        </div>
+        <button class="btn primary" type="button" onclick="SPUsersV1178.open('${esc(safeCompany(sessionStorage.getItem('poi_v116_config_company')||a[0]||'smartpack'))}')">Gestisci operatori</button>
+      </div>
+      <div class="v1178-config-user-features">
+        <span>USER personale</span><span>PIN 6 cifre</span><span>Reset PIN</span><span>Sospensione accesso</span>
+      </div>`;
+    const hero=target.querySelector('.hero');
+    if(hero)hero.insertAdjacentElement('afterend',card); else target.prepend(card);
+  }
+
+  function injectStyles(){
+    if($('#v1178Styles'))return;
+    const st=document.createElement('style');st.id='v1178Styles';st.textContent=`
+      /* FINANZA: gerarchia leggibile da desktop e tablet */
+      #adminFinanceV1170View .v1170-fin-hero h2{font-size:30px!important}
+      #adminFinanceV1170View .v1170-fin-hero p{font-size:13px!important;line-height:1.55!important}
+      #adminFinanceV1170View .v1173-source-banner b{font-size:13px!important}
+      #adminFinanceV1170View .v1173-source-banner span{font-size:11px!important;line-height:1.45!important}
+      #adminFinanceV1170View .v1176-reconciliation span{font-size:10px!important}
+      #adminFinanceV1170View .v1176-reconciliation b{font-size:16px!important}
+      #adminFinanceV1170View .v1176-reconciliation small{font-size:10px!important}
+      #adminFinanceV1170View .v1170-fin-group span{font-size:11px!important}
+      #adminFinanceV1170View .v1170-fin-group b{font-size:26px!important;line-height:1.15!important}
+      #adminFinanceV1170View .v1172-open-hint{font-size:10px!important;margin-top:8px!important}
+      #adminFinanceV1170View .v1170-fin-company-head span:first-child{font-size:10px!important}
+      #adminFinanceV1170View .v1170-fin-company-head h3{font-size:20px!important}
+      #adminFinanceV1170View .v1170-fin-status{font-size:10px!important;padding:7px 10px!important}
+      #adminFinanceV1170View .v1170-fin-mini span{font-size:10px!important}
+      #adminFinanceV1170View .v1170-fin-mini b{font-size:18px!important}
+      #adminFinanceV1170View .v1177-source-lock b{font-size:13px!important}
+      #adminFinanceV1170View .v1177-source-lock span{font-size:11px!important}
+      #adminFinanceV1170View .v1177-lock-badge{font-size:10px!important}
+      #adminFinanceV1170View .v1177-readonly-grid span{font-size:10px!important}
+      #adminFinanceV1170View .v1177-readonly-grid b{font-size:16px!important}
+      #adminFinanceV1170View .v1177-locked-note{font-size:11px!important;line-height:1.5!important}
+      #adminFinanceV1170View .v1170-fin-form label{font-size:11px!important}
+      #adminFinanceV1170View .v1170-fin-form input{font-size:14px!important;min-height:43px!important}
+
+      .v1178-config-users{margin-top:14px}
+      .v1178-config-users-top{display:flex;align-items:center;gap:14px}.v1178-config-users-top>div{flex:1}.v1178-config-users-top h3{font-size:18px!important;margin:2px 0 4px!important}.v1178-config-users-top p{font-size:11px!important;margin:0!important}
+      .v1178-config-user-features{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.v1178-config-user-features span{padding:6px 9px;border-radius:999px;background:#edf5f7;color:#456472;font-size:9px;font-weight:900}
+      .v1178-users-dialog{width:min(980px,95vw);max-height:91vh}
+      .v1178-company-tabs{display:flex;gap:7px;margin-bottom:12px}.v1178-company-tabs button{border:1px solid #d7e3e8;background:#fff;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.v1178-company-tabs button.active{background:#17394a;color:#fff;border-color:#17394a}
+      .v1178-users-layout{display:grid;grid-template-columns:minmax(310px,.8fr) minmax(420px,1.2fr);gap:12px}
+      .v1178-users-card{border:1px solid #dce7eb;border-radius:15px;padding:15px;background:#fff}.v1178-users-card h4{font-size:16px;margin:0 0 4px}.v1178-users-card>p,.v1178-users-head p{font-size:10px;color:#6a7e88;margin:0 0 12px}
+      .v1178-users-form{display:grid;gap:9px}.v1178-users-form label{display:grid;gap:5px;font-size:10px;font-weight:850;color:#516a76}.v1178-users-form input{width:100%;box-sizing:border-box;border:1px solid #d7e3e8;border-radius:10px;padding:10px 11px;font-size:12px}.v1178-users-form input[readonly]{background:#f4f7f8;color:#647983}
+      .v1178-users-note{font-size:9px;line-height:1.45;color:#5d747f;background:#f4f9fa;border-radius:10px;padding:9px}.v1178-error{display:none;padding:8px;border-radius:9px;background:#fff0f1;color:#a33d46;font-size:9px}.v1178-error.show{display:block}
+      .v1178-users-head{display:flex;align-items:center;gap:10px}.v1178-users-head>div{flex:1}
+      .v1178-users-list{display:grid;gap:7px;max-height:430px;overflow:auto}.v1178-user-row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:10px;border:1px solid #e1e9ec;border-radius:11px}.v1178-user-avatar{width:38px;height:38px;border-radius:10px;background:#e9f4f7;color:#176181;display:grid;place-items:center;font-weight:950}.v1178-user-info b{display:block;font-size:11px}.v1178-user-info span{display:block;font-size:9px;margin-top:2px}.v1178-user-info small{display:block;font-size:8px;color:#71848d;margin-top:3px}.v1178-user-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+      @media(max-width:820px){.v1178-users-layout{grid-template-columns:1fr}.v1178-config-users-top{display:block}.v1178-config-users-top .btn{margin-top:10px}}
+    `;document.head.appendChild(st);
+  }
+
+  function patch(){
+    injectStyles();ensureDialog();decorateConfig();
+  }
+
+  function boot(){
+    patch();setTimeout(patch,700);setInterval(patch,8000);
+  }
+
+  window.SPUsersV1178={open,load,setCompany,resetPin,toggle,decorateConfig,version:'V11.7.8'};
+  if(window.SPBootLater)window.SPBootLater(boot);
+  else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+

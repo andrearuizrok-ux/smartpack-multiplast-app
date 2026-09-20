@@ -1,5 +1,5 @@
-/* V11.7.7 FINANCE READONLY · static-33 */
-const CACHE='spmp-v117-static-33';
+/* V11.7.8 USERS FINANCE UI · static-34 */
+const CACHE='spmp-v117-static-34';
 
 const CORE_STATIC=[
   './access-v11.5.js',
