@@ -1,0 +1,45 @@
+SMART PACK · MULTIPLAST — V11.7.2
+ANALISI SPIEGATA DEGLI INDICATORI ECONOMICO-FINANZIARI
+
+NOVITÀ
+Gli indicatori della schermata Economico-finanziario sono cliccabili.
+
+GRUPPO
+- Ricavi
+- Costi operativi
+- EBITDA
+- EBIT
+- Margine EBITDA
+- Crediti - Debiti
+
+SINGOLA AZIENDA
+- Ricavi
+- EBITDA
+- EBIT
+- Margine EBITDA
+
+CLICCANDO SI APRE
+- significato dell'indicatore
+- formula
+- valore del periodo
+- interpretazione automatica
+- stato positivo / attenzione / negativo
+- composizione dei costi
+- principali voci di costo
+- scostamento dal pareggio, a costi invariati
+- domande/controlli amministrativi consigliati
+
+L'analisi è gestionale interna e non sostituisce bilancio o contabilità ufficiale.
+
+FILE DA CARICARE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+MANTENERE ANCHE I FILE PERFORMANCE V11.7.1
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/group-logo.webp
+app/src/main/assets/smartpack-logo.webp
+app/src/main/assets/multiplast-logo.webp
+
+CACHE
+spmp-v117-static-28

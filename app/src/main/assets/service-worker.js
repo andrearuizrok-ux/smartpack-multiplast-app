@@ -1,5 +1,5 @@
-/* V11.7.1 PERFORMANCE · static-27 */
-const CACHE='spmp-v117-static-27';
+/* V11.7.2 FINANCE EXPLAIN · static-28 */
+const CACHE='spmp-v117-static-28';
 
 const STATIC=[
   './',

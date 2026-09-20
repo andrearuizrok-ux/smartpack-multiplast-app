@@ -4363,3 +4363,349 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+
+
+
+/* ========================================================================
+   V11.7.2 · ANALISI SPIEGATA KPI ECONOMICO-FINANZIARI
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinanceExplainV1172)return;
+
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const n=v=>Number(v||0);
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n(v));
+  const pct=v=>`${n(v).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}%`;
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function records(){
+    return Array.isArray(state?.adminFinanceV1170?.records)?state.adminFinanceV1170.records:[];
+  }
+  function period(){
+    return $('#financePeriodV1170')?.value || new Date().toISOString().slice(0,7);
+  }
+  function record(company,p=period()){
+    return records().find(x=>x.company===company&&x.period===p)||null;
+  }
+  function combined(p=period()){
+    const rs=['smartpack','multiplast'].map(c=>record(c,p)).filter(Boolean);
+    if(!rs.length)return null;
+    const sum=k=>rs.reduce((s,r)=>s+n(r[k]),0);
+    return {
+      company:'group',period:p,
+      revenue:sum('revenue'),materials:sum('materials'),personnel:sum('personnel'),
+      energy:sum('energy'),transport:sum('transport'),otherOpex:sum('otherOpex'),
+      depreciation:sum('depreciation'),receivables:sum('receivables'),
+      payables:sum('payables'),cash:sum('cash')
+    };
+  }
+  function calc(r){
+    if(!r)return null;
+    const opex=n(r.materials)+n(r.personnel)+n(r.energy)+n(r.transport)+n(r.otherOpex);
+    const ebitda=n(r.revenue)-opex;
+    const ebit=ebitda-n(r.depreciation);
+    const margin=n(r.revenue)?ebitda/n(r.revenue)*100:0;
+    const working=n(r.receivables)-n(r.payables);
+    return {...r,opex,ebitda,ebit,margin,working};
+  }
+  function labelCompany(company){
+    return company==='smartpack'?'Smart Pack':company==='multiplast'?'Multiplast':'Gruppo Smart Pack · Multiplast';
+  }
+
+  function ensureDialog(){
+    if($('#financeExplainV1172Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="financeExplainV1172Dialog" class="v1172-fin-dialog">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">ANALISI ECONOMICO-FINANZIARIA</span>
+            <h3 id="financeExplainV1172Title">Indicatore</h3>
+            <p id="financeExplainV1172Sub"></p>
+          </div>
+          <button type="button" class="close" onclick="document.getElementById('financeExplainV1172Dialog').close()">×</button>
+        </div>
+        <div class="modal-body" id="financeExplainV1172Body"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick="document.getElementById('financeExplainV1172Dialog').close()">Chiudi</button>
+        </div>
+      </dialog>`);
+  }
+
+  function largestCosts(z){
+    const arr=[
+      ['Materie / acquisti',n(z.materials)],
+      ['Personale',n(z.personnel)],
+      ['Energia',n(z.energy)],
+      ['Trasporti',n(z.transport)],
+      ['Altri costi operativi',n(z.otherOpex)]
+    ].sort((a,b)=>b[1]-a[1]);
+    return arr;
+  }
+
+  function barRows(z){
+    const base=Math.max(1,n(z.revenue),n(z.opex));
+    return largestCosts(z).map(([name,val])=>{
+      const w=Math.max(0,Math.min(100,val/base*100));
+      const rev=n(z.revenue)?val/n(z.revenue)*100:0;
+      return `<div class="v1172-cost-row">
+        <div><span>${esc(name)}</span><b>${money(val)}</b></div>
+        <div class="v1172-bar"><i style="width:${w}%"></i></div>
+        <small>${n(z.revenue)?pct(rev)+' dei ricavi':'Ricavi non inseriti'}</small>
+      </div>`;
+    }).join('');
+  }
+
+  function statusBox(metric,z){
+    let title='',text='',cls='neutral';
+    if(metric==='revenue'){
+      title='Lettura del dato';
+      text=n(z.revenue)>0
+        ? `Nel periodo sono stati registrati ricavi per ${money(z.revenue)}. Il dato va letto insieme ai costi: ricavi elevati non significano automaticamente utile.`
+        : 'Non risultano ricavi inseriti per il periodo selezionato.';
+    }
+    if(metric==='opex'){
+      const ratio=n(z.revenue)?z.opex/z.revenue*100:0;
+      title='Peso dei costi';
+      cls=ratio>100?'loss':ratio>85?'warn':'ok';
+      text=n(z.revenue)
+        ? `I costi operativi rappresentano il ${pct(ratio)} dei ricavi. ${ratio>100?'Superano i ricavi operativi del periodo.':ratio>85?'Assorbono una quota molto alta dei ricavi.':'Restano sotto i ricavi operativi.'}`
+        : `Costi operativi registrati: ${money(z.opex)}. Inserisci i ricavi per misurarne il peso percentuale.`;
+    }
+    if(metric==='ebitda'){
+      title=z.ebitda<0?'EBITDA negativo':'EBITDA positivo';
+      cls=z.ebitda<0?'loss':z.ebitda>0?'ok':'neutral';
+      text=z.ebitda<0
+        ? `L'attività operativa non sta coprendo i costi operativi: mancano ${money(Math.abs(z.ebitda))} per arrivare a EBITDA zero, ipotizzando costi invariati.`
+        : z.ebitda>0
+          ? `L'attività operativa genera ${money(z.ebitda)} prima di ammortamenti, interessi e imposte.`
+          : 'Il periodo è esattamente in pareggio a livello EBITDA.';
+    }
+    if(metric==='ebit'){
+      title=z.ebit<0?'EBIT negativo':'EBIT positivo';
+      cls=z.ebit<0?'loss':z.ebit>0?'ok':'neutral';
+      text=z.ebit<0
+        ? `Dopo gli ammortamenti il risultato operativo è negativo di ${money(Math.abs(z.ebit))}. Gli ammortamenti incidono per ${money(z.depreciation)}.`
+        : `Dopo gli ammortamenti resta un risultato operativo di ${money(z.ebit)}.`;
+    }
+    if(metric==='margin'){
+      title='Margine EBITDA';
+      cls=z.margin<0?'loss':z.margin<8?'warn':'ok';
+      text=n(z.revenue)
+        ? `Per ogni 100 € di ricavi, l'azienda genera ${z.margin>=0?'circa '+money(z.margin).replace('€','€').trim():'una perdita operativa di circa '+money(Math.abs(z.margin)).replace('€','€').trim()} prima di ammortamenti, interessi e imposte.`
+        : 'Il margine non è significativo finché non vengono inseriti i ricavi.';
+    }
+    if(metric==='working'){
+      title=z.working<0?'Debiti superiori ai crediti':'Crediti superiori ai debiti';
+      cls=z.working<0?'warn':'ok';
+      text=z.working<0
+        ? `I debiti fornitori superano i crediti clienti di ${money(Math.abs(z.working))}. È utile verificare scadenze, liquidità disponibile e tempi medi di incasso/pagamento.`
+        : `I crediti clienti superano i debiti fornitori di ${money(z.working)}. Questo non equivale a liquidità disponibile: occorre considerare quando i crediti saranno effettivamente incassati.`;
+    }
+    return {title,text,cls};
+  }
+
+  const info={
+    revenue:{
+      title:'Ricavi',
+      meaning:'Valore delle vendite/ricavi registrati nel periodo.',
+      formula:'Somma dei ricavi del periodo.',
+      why:'Serve come base per confrontare quanto l’azienda genera rispetto ai costi sostenuti.'
+    },
+    opex:{
+      title:'Costi operativi',
+      meaning:'Costi necessari per far funzionare l’attività prima di ammortamenti, interessi e imposte.',
+      formula:'Materie + Personale + Energia + Trasporti + Altri costi operativi.',
+      why:'Permette di capire quali voci stanno assorbendo maggiormente i ricavi.'
+    },
+    ebitda:{
+      title:'EBITDA',
+      meaning:'Misura il risultato della gestione operativa prima di ammortamenti, interessi e imposte.',
+      formula:'Ricavi − Costi operativi.',
+      why:'È utile per capire se il core business, prima degli ammortamenti, sta generando o assorbendo risorse.'
+    },
+    ebit:{
+      title:'EBIT',
+      meaning:'Risultato operativo dopo aver considerato anche gli ammortamenti.',
+      formula:'EBITDA − Ammortamenti.',
+      why:'Mostra se l’attività rimane economicamente sostenibile dopo il costo economico degli investimenti.'
+    },
+    margin:{
+      title:'Margine EBITDA',
+      meaning:'Percentuale dei ricavi che rimane come EBITDA.',
+      formula:'EBITDA ÷ Ricavi × 100.',
+      why:'Consente di confrontare periodi o aziende di dimensione diversa senza guardare solo ai valori assoluti.'
+    },
+    working:{
+      title:'Crediti − Debiti',
+      meaning:'Differenza semplice tra crediti verso clienti e debiti verso fornitori registrati.',
+      formula:'Crediti clienti − Debiti fornitori.',
+      why:'Aiuta a leggere la pressione sul capitale circolante, ma non sostituisce un’analisi completa dei flussi di cassa e delle scadenze.'
+    }
+  };
+
+  function value(metric,z){
+    if(metric==='revenue')return money(z.revenue);
+    if(metric==='opex')return money(z.opex);
+    if(metric==='ebitda')return money(z.ebitda);
+    if(metric==='ebit')return money(z.ebit);
+    if(metric==='margin')return pct(z.margin);
+    if(metric==='working')return money(z.working);
+    return '—';
+  }
+
+  function interpretationQuestions(metric,z){
+    const base=[
+      'Il dato è coerente con lo stesso periodo dell’anno precedente?',
+      'Ci sono costi straordinari che stanno alterando il periodo?',
+      'I dati inseriti corrispondono alla contabilità/gestionale?'
+    ];
+    if(metric==='revenue')base.unshift('Il volume di vendita sta crescendo o i prezzi medi stanno cambiando?');
+    if(metric==='opex'||metric==='ebitda')base.unshift('Qual è la voce di costo cresciuta di più rispetto ai ricavi?','I prezzi di vendita coprono ancora materia, energia, personale e trasporto?');
+    if(metric==='ebit')base.unshift('Quanto incidono gli ammortamenti sul risultato operativo?');
+    if(metric==='margin')base.unshift('Il margine sta migliorando o peggiorando mese su mese?');
+    if(metric==='working')base.unshift('Quali crediti sono scaduti?','Quali debiti scadono prima degli incassi previsti?');
+    return base.slice(0,5);
+  }
+
+  function open(metric,company='group'){
+    ensureDialog();
+    const r=company==='group'?combined():record(company);
+    const z=calc(r),i=info[metric];
+    $('#financeExplainV1172Title').textContent=i?.title||'Indicatore';
+    $('#financeExplainV1172Sub').textContent=`${labelCompany(company)} · ${period()}`;
+
+    if(!z){
+      $('#financeExplainV1172Body').innerHTML=`
+        <div class="v1172-empty">
+          <b>Dati non ancora inseriti</b>
+          <span>Inserisci i dati economici del periodo per ottenere l’analisi automatica di questo indicatore.</span>
+        </div>`;
+      $('#financeExplainV1172Dialog').showModal();return;
+    }
+
+    const s=statusBox(metric,z);
+    const topCosts=largestCosts(z).filter(x=>x[1]>0).slice(0,3);
+    const gapEbitda=z.ebitda<0?Math.abs(z.ebitda):0;
+    const gapEbit=z.ebit<0?Math.abs(z.ebit):0;
+
+    $('#financeExplainV1172Body').innerHTML=`
+      <div class="v1172-value-card">
+        <span>${esc(i.title)}</span>
+        <b class="${(metric==='ebitda'&&z.ebitda<0)||(metric==='ebit'&&z.ebit<0)||(metric==='margin'&&z.margin<0)||(metric==='working'&&z.working<0)?'loss':''}">${value(metric,z)}</b>
+        <small>${labelCompany(company)} · periodo ${esc(period())}</small>
+      </div>
+
+      <div class="v1172-explain-grid">
+        <section><span>Cosa significa</span><p>${esc(i.meaning)}</p></section>
+        <section><span>Formula</span><p><b>${esc(i.formula)}</b></p></section>
+        <section class="full"><span>Perché è utile</span><p>${esc(i.why)}</p></section>
+      </div>
+
+      <div class="v1172-status ${s.cls}">
+        <b>${esc(s.title)}</b><span>${esc(s.text)}</span>
+      </div>
+
+      ${['opex','ebitda','ebit','margin'].includes(metric)?`
+      <div class="v1172-analysis-section">
+        <div class="v1172-section-head"><b>Composizione dei costi</b><span>Quali voci stanno incidendo sul periodo</span></div>
+        ${barRows(z)}
+        ${topCosts.length?`<div class="v1172-top-costs"><b>Voci principali:</b> ${topCosts.map(x=>`${esc(x[0])} ${money(x[1])}`).join(' · ')}</div>`:''}
+      </div>`:''}
+
+      <div class="v1172-number-grid">
+        <div><span>Ricavi</span><b>${money(z.revenue)}</b></div>
+        <div><span>Costi operativi</span><b>${money(z.opex)}</b></div>
+        <div><span>EBITDA</span><b class="${z.ebitda<0?'loss':''}">${money(z.ebitda)}</b></div>
+        <div><span>Ammortamenti</span><b>${money(z.depreciation)}</b></div>
+        <div><span>EBIT</span><b class="${z.ebit<0?'loss':''}">${money(z.ebit)}</b></div>
+        <div><span>Margine EBITDA</span><b class="${z.margin<0?'loss':''}">${pct(z.margin)}</b></div>
+      </div>
+
+      ${(gapEbitda>0||gapEbit>0)?`
+      <div class="v1172-break-even">
+        <b>Scostamento dal pareggio</b>
+        ${gapEbitda>0?`<span>Per portare l'EBITDA a zero servirebbero ${money(gapEbitda)} in più di margine operativo, assumendo invariati i costi.</span>`:''}
+        ${gapEbit>0?`<span>Per portare l'EBIT a zero servirebbero ${money(gapEbit)} di miglioramento del risultato operativo, a parità delle altre condizioni.</span>`:''}
+      </div>`:''}
+
+      <div class="v1172-questions">
+        <b>Cosa controllare</b>
+        ${interpretationQuestions(metric,z).map(q=>`<div><i>✓</i><span>${esc(q)}</span></div>`).join('')}
+      </div>
+
+      <div class="v1172-disclaimer">
+        Analisi gestionale interna. Non sostituisce la contabilità ufficiale, il bilancio o la valutazione del commercialista.
+      </div>`;
+    $('#financeExplainV1172Dialog').showModal();
+  }
+
+  function decorate(){
+    ensureDialog();
+    const view=$('#adminFinanceV1170View');
+    if(!view)return;
+
+    // Gruppo: KPI row.
+    const groupCards=$$('.v1170-fin-group>div',view);
+    const groupMetrics=['revenue','opex','ebitda','ebit','margin','working'];
+    groupCards.forEach((card,i)=>{
+      if(card.dataset.v1172==='1')return;
+      const metric=groupMetrics[i];if(!metric)return;
+      card.dataset.v1172='1';card.dataset.metric=metric;
+      card.classList.add('v1172-clickable');
+      card.tabIndex=0;card.setAttribute('role','button');
+      card.title='Apri analisi spiegata';
+      card.onclick=()=>open(metric,'group');
+      card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(metric,'group')}};
+      card.insertAdjacentHTML('beforeend','<small class="v1172-open-hint">Apri analisi ↗</small>');
+    });
+
+    // Single companies: four mini cards.
+    $$('.v1170-fin-company',view).forEach(companyBox=>{
+      const heading=companyBox.querySelector('.v1170-fin-company-head span')?.textContent?.trim().toUpperCase()||'';
+      const company=heading.includes('SMART')?'smartpack':'multiplast';
+      const metrics=['revenue','ebitda','ebit','margin'];
+      $$('.v1170-fin-mini>div',companyBox).forEach((card,i)=>{
+        if(card.dataset.v1172==='1')return;
+        const metric=metrics[i];if(!metric)return;
+        card.dataset.v1172='1';card.classList.add('v1172-clickable');
+        card.tabIndex=0;card.setAttribute('role','button');card.title='Apri analisi spiegata';
+        card.onclick=()=>open(metric,company);
+        card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(metric,company)}};
+        card.insertAdjacentHTML('beforeend','<small class="v1172-open-hint">Dettagli ↗</small>');
+      });
+    });
+  }
+
+  function injectStyles(){
+    if($('#v1172Styles'))return;
+    const st=document.createElement('style');st.id='v1172Styles';st.textContent=`
+      .v1172-clickable{cursor:pointer;position:relative;transition:.16s ease}.v1172-clickable:hover{transform:translateY(-1px);border-color:#a9c9d5!important;box-shadow:0 6px 16px rgba(26,72,89,.08)}.v1172-clickable:focus{outline:2px solid rgba(22,145,190,.25);outline-offset:2px}
+      .v1172-open-hint{display:block!important;margin-top:5px!important;color:var(--primary)!important;font-size:6.5px!important;font-weight:900!important}
+      .v1172-fin-dialog{width:min(820px,95vw);max-height:90vh}
+      .v1172-value-card{padding:16px 18px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(135deg,#fff,#f5faf9)}.v1172-value-card>span{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:950}.v1172-value-card>b{display:block;font-size:30px;margin:4px 0;color:var(--ink)}.v1172-value-card>small{font-size:8px;color:var(--muted)}
+      .v1172-explain-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.v1172-explain-grid section{padding:12px;border:1px solid var(--line);border-radius:12px}.v1172-explain-grid section.full{grid-column:1/-1}.v1172-explain-grid section>span{font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:950}.v1172-explain-grid p{font-size:8.5px;line-height:1.5;margin:5px 0 0}
+      .v1172-status{margin-top:10px;padding:12px 14px;border-radius:12px;background:#f4f7f8;border:1px solid #dce6e9}.v1172-status b,.v1172-status span{display:block}.v1172-status b{font-size:9px}.v1172-status span{font-size:8px;color:#536a74;margin-top:3px;line-height:1.45}.v1172-status.loss{background:#fff3f4;border-color:#edc5c9}.v1172-status.loss b{color:#a73e47}.v1172-status.warn{background:#fff8e9;border-color:#efdaa9}.v1172-status.warn b{color:#926318}.v1172-status.ok{background:#edf9f3;border-color:#c5e7d5}.v1172-status.ok b{color:#1d7456}
+      .v1172-analysis-section{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:13px}.v1172-section-head b{display:block;font-size:9px}.v1172-section-head span{display:block;font-size:7px;color:var(--muted);margin-top:2px}.v1172-cost-row{display:grid;grid-template-columns:170px 1fr 90px;gap:9px;align-items:center;margin-top:9px}.v1172-cost-row>div:first-child{display:flex;justify-content:space-between;gap:6px;font-size:7.5px}.v1172-cost-row>div:first-child span{color:var(--muted)}.v1172-cost-row>small{font-size:7px;color:var(--muted);text-align:right}.v1172-bar{height:7px;border-radius:99px;background:#edf2f3;overflow:hidden}.v1172-bar i{display:block;height:100%;background:currentColor;color:var(--primary);border-radius:99px}.v1172-top-costs{margin-top:10px;font-size:7.5px;color:var(--muted)}
+      .v1172-number-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.v1172-number-grid>div{padding:10px;border-radius:10px;background:#f7fafb}.v1172-number-grid span{display:block;font-size:7px;color:var(--muted)}.v1172-number-grid b{display:block;font-size:10px;margin-top:3px}
+      .v1172-break-even{margin-top:10px;padding:12px;border:1px solid #efdaa9;background:#fff9ec;border-radius:12px}.v1172-break-even b{display:block;font-size:9px;color:#8f6219}.v1172-break-even span{display:block;font-size:8px;color:#705b37;margin-top:4px;line-height:1.45}
+      .v1172-questions{margin-top:12px}.v1172-questions>b{display:block;font-size:9px;margin-bottom:6px}.v1172-questions>div{display:flex;gap:7px;padding:6px 0;border-bottom:1px solid #edf2f3}.v1172-questions i{font-style:normal;color:#1f7a5c;font-size:8px}.v1172-questions span{font-size:8px;color:#536a74}
+      .v1172-disclaimer{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:7px;color:#83949c}
+      .v1172-empty{padding:24px;text-align:center}.v1172-empty b{display:block;font-size:11px}.v1172-empty span{display:block;font-size:8px;color:var(--muted);margin-top:5px}
+      @media(max-width:680px){.v1172-explain-grid{grid-template-columns:1fr}.v1172-explain-grid section.full{grid-column:auto}.v1172-number-grid{grid-template-columns:1fr 1fr}.v1172-cost-row{grid-template-columns:1fr}.v1172-cost-row>small{text-align:left}}
+    `;document.head.appendChild(st);
+  }
+
+  function boot(){
+    injectStyles();ensureDialog();decorate();
+    const obs=new MutationObserver(()=>decorate());
+    const start=()=>{const v=$('#adminFinanceV1170View');if(v)obs.observe(v,{childList:true,subtree:true})};
+    start();setTimeout(start,500);
+    setInterval(decorate,2500);
+  }
+
+  window.SPFinanceExplainV1172={open,decorate,version:'V11.7.2'};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
