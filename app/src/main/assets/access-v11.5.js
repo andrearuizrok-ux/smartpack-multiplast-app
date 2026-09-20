@@ -1028,7 +1028,22 @@
   function decorateAuth(){
     const auth=$('#poiCloudAuth');
     if(!auth)return;
-    auth.classList.add('poi1188-global-auth');
+    auth.classList.add('poi1188-global-auth','poi1190-login-home');
+
+    if(!$('#poi1190LoginDecor')){
+      const year=new Date().getFullYear();
+      auth.insertAdjacentHTML('afterbegin',`
+        <div id="poi1190LoginDecor" aria-hidden="true">
+          <div class="poi1190-top-slogan">
+            <span>CLARITY TO OPERATE.</span>
+            <span>INTELLIGENCE TO GROW.</span>
+          </div>
+          <div class="poi1190-login-footer">
+            <b>© ${year} NOMYRA · Tutti i diritti riservati</b>
+            <span>Piattaforma Operativa Integrata</span>
+          </div>
+        </div>`);
+    }
 
     const brand=$('#poiCloudAuth .poi-cloud-auth-brand');
     if(brand){
@@ -1703,145 +1718,433 @@
 
 
 /* ========================================================================
-   V11.8.8 · PORTALE ACCESSO GLOBALE
+   V11.9.0 · HOME ACCESSO NOMYRA — SOLO SCHERMATA PRE-LOGIN
    ======================================================================== */
 (()=>{
-  if(document.getElementById('poi1188GlobalAuthStyles'))return;
+  if(document.getElementById('poi1190LoginHomeStyles'))return;
+  document.getElementById('poi1188GlobalAuthStyles')?.remove();
+
   const st=document.createElement('style');
-  st.id='poi1188GlobalAuthStyles';
+  st.id='poi1190LoginHomeStyles';
   st.textContent=`
-    #poiCloudAuth.poi1188-global-auth{
+    /* Questa regola è volutamente limitata a #poiCloudAuth:
+       nessun'altra schermata della piattaforma viene modificata. */
+    #poiCloudAuth.poi1190-login-home{
       position:fixed!important;
       inset:0!important;
       z-index:2147483500!important;
       width:100vw!important;
       min-height:100dvh!important;
-      padding:24px!important;
       box-sizing:border-box!important;
+      padding:90px 24px 96px!important;
+      display:grid!important;
       place-items:center!important;
-      background:
-        radial-gradient(circle at 18% 14%,rgba(31,90,93,.08),transparent 28%),
-        radial-gradient(circle at 86% 82%,rgba(185,120,80,.07),transparent 26%),
-        #f5f7f6!important;
+      overflow:auto!important;
+      isolation:isolate!important;
       backdrop-filter:none!important;
       -webkit-backdrop-filter:none!important;
+
+      background:
+        radial-gradient(circle at -7% 112%,
+          rgba(20,32,51,.99) 0 20%,
+          rgba(20,32,51,0) 20.25%),
+        radial-gradient(circle at -7% 112%,
+          rgba(31,90,93,.78) 0 28%,
+          rgba(31,90,93,0) 28.25%),
+        radial-gradient(circle at -7% 112%,
+          rgba(220,228,225,.86) 0 36%,
+          rgba(220,228,225,0) 36.25%),
+        radial-gradient(circle at 104% -8%,
+          rgba(220,228,225,.66) 0 28%,
+          rgba(220,228,225,0) 28.25%),
+        radial-gradient(circle at 88% 84%,
+          rgba(185,120,80,.065) 0 13%,
+          rgba(185,120,80,0) 31%),
+        linear-gradient(135deg,#f9fbfa 0%,#f4f8f8 46%,#fbfaf7 100%)!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth::before{
+    /* Linee Copper sottili che richiamano il visual NOMYRA */
+    #poiCloudAuth.poi1190-login-home::before{
       content:"NOMYRA · ACCESSO RISERVATO";
-      position:fixed;
-      top:28px;left:34px;
-      font-size:11px;font-weight:900;letter-spacing:.12em;
-      color:#53656e;
+      position:fixed!important;
+      top:34px!important;
+      left:54px!important;
+      z-index:4!important;
+      padding-left:42px!important;
+      font-size:11px!important;
+      font-weight:900!important;
+      letter-spacing:.18em!important;
+      color:#324b5a!important;
+      white-space:nowrap!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth::after{
-      content:"Piattaforma Operativa Integrata";
+    #poiCloudAuth.poi1190-login-home::after{
+      content:"";
       position:fixed;
-      bottom:26px;left:0;right:0;
+      z-index:0;
+      left:-5vw;
+      bottom:13vh;
+      width:36vw;
+      height:1px;
+      background:#b97850;
+      transform:rotate(36deg);
+      transform-origin:left center;
+      opacity:.8;
+      pointer-events:none;
+    }
+
+    #poiCloudAuth.poi1190-login-home #poi1190LoginDecor::before{
+      content:"";
+      position:fixed;
+      top:40px;
+      left:54px;
+      width:25px;
+      height:1.5px;
+      background:#b97850;
+      z-index:5;
+    }
+
+    .poi1190-top-slogan{
+      position:fixed;
+      top:40px;
+      right:58px;
+      z-index:4;
+      display:grid;
+      gap:3px;
+      text-align:left;
+      color:#82949e;
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:.20em;
+      line-height:1.45;
+      pointer-events:none;
+    }
+
+    .poi1190-top-slogan::after{
+      content:"";
+      width:27px;
+      height:1.5px;
+      margin-top:8px;
+      background:#b97850;
+    }
+
+    .poi1190-login-footer{
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:25px;
+      z-index:5;
+      display:grid;
+      justify-items:center;
+      gap:4px;
+      pointer-events:none;
+      color:#526b78;
       text-align:center;
-      font-size:10px;font-weight:750;letter-spacing:.04em;
-      color:#87969d;
     }
 
-    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-card{
-      width:min(560px,calc(100vw - 40px))!important;
-      max-width:560px!important;
+    .poi1190-login-footer b{
+      position:relative;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.025em;
+    }
+
+    .poi1190-login-footer b::before,
+    .poi1190-login-footer b::after{
+      content:"";
+      position:absolute;
+      top:50%;
+      width:42px;
+      height:1px;
+      background:#8da0a8;
+      opacity:.72;
+    }
+    .poi1190-login-footer b::before{right:calc(100% + 18px)}
+    .poi1190-login-footer b::after{left:calc(100% + 18px)}
+
+    .poi1190-login-footer span{
+      font-size:9px;
+      color:#85949a;
+      font-weight:650;
+    }
+
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card{
+      position:relative!important;
+      z-index:3!important;
+      width:min(720px,calc(100vw - 44px))!important;
+      max-width:720px!important;
       margin:0!important;
-      padding:34px 36px 28px!important;
-      border:1px solid #dce5e3!important;
-      border-radius:22px!important;
-      background:#fff!important;
-      box-shadow:0 22px 70px rgba(20,43,51,.11)!important;
+      box-sizing:border-box!important;
+      padding:40px 46px 34px!important;
+      border:1px solid #d7e2e4!important;
+      border-radius:23px!important;
+      background:rgba(255,255,255,.97)!important;
+      box-shadow:
+        0 28px 78px rgba(20,32,51,.12),
+        0 2px 8px rgba(20,32,51,.03)!important;
+      overflow:hidden!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-brand{
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card::before{
+      content:"";
+      position:absolute;
+      top:0;left:0;right:0;
+      height:3px;
+      background:linear-gradient(90deg,#142033 0 43%,#1f5a5d 43% 87%,#b97850 87% 100%);
+      opacity:.96;
+    }
+
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-brand{
       display:flex!important;
       align-items:center!important;
-      gap:12px!important;
-      margin-bottom:26px!important;
+      gap:17px!important;
+      margin:0 0 25px!important;
     }
 
-    .poi1188-brandmark{
-      width:46px;height:46px;border-radius:13px;
-      display:grid;place-items:center;
-      background:#142033;color:#fff;
-      font-size:19px;font-weight:950;
+    #poiCloudAuth.poi1190-login-home .poi1188-brandmark{
+      position:relative;
+      flex:0 0 auto;
+      width:62px!important;
+      height:62px!important;
+      border-radius:16px!important;
+      display:grid!important;
+      place-items:center!important;
+      background:linear-gradient(145deg,#1a2b43,#0f1d33)!important;
+      color:#fff!important;
+      box-shadow:0 8px 22px rgba(20,32,51,.16)!important;
+      font-size:25px!important;
+      font-weight:950!important;
+      letter-spacing:.02em!important;
     }
 
-    .poi1188-brandcopy strong{
-      display:block;color:#142033;
-      font-size:18px;letter-spacing:.06em;
+    #poiCloudAuth.poi1190-login-home .poi1188-brandmark::after{
+      content:"";
+      position:absolute;
+      bottom:12px;
+      width:22px;
+      height:2px;
+      border-radius:2px;
+      background:#b97850;
     }
 
-    .poi1188-brandcopy span{
-      display:block;margin-top:2px;
-      font-size:10px;color:#76878d;
-    }
-
-    #poiCloudAuth.poi1188-global-auth h2{
-      margin:0 0 8px!important;
-      font-size:28px!important;
-      line-height:1.12!important;
+    #poiCloudAuth.poi1190-login-home .poi1188-brandcopy strong{
+      display:block!important;
       color:#142033!important;
+      font-size:25px!important;
+      line-height:1!important;
+      letter-spacing:.09em!important;
+      font-weight:900!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-card>p{
-      margin:0 0 24px!important;
-      max-width:460px;
-      color:#637780!important;
+    #poiCloudAuth.poi1190-login-home .poi1188-brandcopy span{
+      display:block!important;
+      margin-top:7px!important;
+      color:#687d89!important;
+      font-size:11px!important;
+      font-weight:550!important;
+    }
+
+    /* L'h2 legacy non serve nel visual approvato */
+    #poiCloudAuth.poi1190-login-home h2{
+      display:none!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card>p{
+      position:relative!important;
+      margin:0 0 28px!important;
+      padding-top:17px!important;
+      max-width:none!important;
+      color:#506a79!important;
       font-size:12px!important;
       line-height:1.55!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth label{
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card>p::before{
+      content:"";
+      position:absolute;
+      top:0;
+      left:0;
+      width:30px;
+      height:2px;
+      border-radius:2px;
+      background:#b97850;
+    }
+
+    #poiCloudAuth.poi1190-login-home #poiCloudLoginForm{
+      display:grid!important;
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+      gap:17px 18px!important;
+      align-items:end!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home label{
+      position:relative!important;
+      display:block!important;
+      margin:0!important;
+      color:#233d4b!important;
       font-size:10px!important;
       font-weight:850!important;
-      color:#4c6069!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth input{
-      min-height:50px!important;
-      margin-top:6px!important;
-      border:1px solid #d5e0e3!important;
-      border-radius:11px!important;
-      background:#fbfcfc!important;
+    #poiCloudAuth.poi1190-login-home input{
+      width:100%!important;
+      min-height:54px!important;
+      box-sizing:border-box!important;
+      margin-top:8px!important;
+      border:1px solid #cfdde2!important;
+      border-radius:12px!important;
+      background-color:#fbfcfc!important;
+      color:#17313e!important;
       font-size:14px!important;
-      padding:0 13px!important;
-    }
-
-    #poiCloudAuth.poi1188-global-auth button[type="submit"]{
-      min-height:50px!important;
-      border-radius:11px!important;
-      background:#142033!important;
-      font-size:13px!important;
-      font-weight:900!important;
+      font-weight:650!important;
+      padding:0 15px 0 46px!important;
+      outline:none!important;
       box-shadow:none!important;
+      transition:border-color .18s ease,box-shadow .18s ease,background .18s ease!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-foot{
-      margin-top:16px!important;
-      padding:11px 12px!important;
-      border-radius:10px!important;
-      background:#f2f6f5!important;
-      color:#64777e!important;
-      font-size:9px!important;
-      line-height:1.5!important;
+    #poiCloudAuth.poi1190-login-home input[type="email"]{
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237a909b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='m3 7 9 6 9-6'/%3E%3C/svg%3E")!important;
+      background-repeat:no-repeat!important;
+      background-position:15px center!important;
     }
 
-    #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-foot b{
+    #poiCloudAuth.poi1190-login-home input[type="password"]{
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237a909b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='10' width='16' height='11' rx='2'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E")!important;
+      background-repeat:no-repeat!important;
+      background-position:15px center!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home input:focus{
+      border-color:#1f5a5d!important;
+      background-color:#fff!important;
+      box-shadow:0 0 0 3px rgba(31,90,93,.10)!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home button[type="submit"]{
+      position:relative!important;
+      grid-column:1/-1!important;
+      width:100%!important;
+      min-height:56px!important;
+      margin:5px 0 0!important;
+      border:0!important;
+      border-radius:12px!important;
+      background:linear-gradient(105deg,#173e52,#142033)!important;
+      color:#fff!important;
+      font-size:14px!important;
+      font-weight:900!important;
+      letter-spacing:.01em!important;
+      box-shadow:0 8px 18px rgba(20,32,51,.12)!important;
+      cursor:pointer!important;
+      transition:transform .15s ease,box-shadow .15s ease!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home button[type="submit"]::after{
+      content:"→";
+      position:absolute;
+      right:23px;
+      top:50%;
+      transform:translateY(-53%);
+      font-size:21px;
+      font-weight:400;
+    }
+
+    #poiCloudAuth.poi1190-login-home button[type="submit"]:hover{
+      transform:translateY(-1px)!important;
+      box-shadow:0 11px 24px rgba(20,32,51,.17)!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-foot{
+      grid-column:1/-1!important;
+      position:relative!important;
+      margin:2px 0 0!important;
+      padding:13px 15px 13px 52px!important;
+      border:0!important;
+      border-radius:12px!important;
+      background:linear-gradient(90deg,#eef6f5,#f4f7f6)!important;
+      color:#58717c!important;
+      font-size:9.5px!important;
+      line-height:1.55!important;
+    }
+
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-foot::before{
+      content:"✓";
+      position:absolute;
+      left:17px;
+      top:50%;
+      transform:translateY(-50%);
+      width:24px;
+      height:24px;
+      border:1.5px solid #1f5a5d;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
       color:#1f5a5d;
+      font-size:13px;
+      font-weight:950;
     }
 
-    @media(max-width:620px){
-      #poiCloudAuth.poi1188-global-auth{padding:14px!important}
-      #poiCloudAuth.poi1188-global-auth::before{top:17px;left:18px;font-size:9px}
-      #poiCloudAuth.poi1188-global-auth .poi-cloud-auth-card{
-        width:100%!important;
-        padding:28px 20px 22px!important;
-        border-radius:18px!important;
+    #poiCloudAuth.poi1190-login-home .poi-cloud-auth-foot b{
+      color:#1f5a5d!important;
+      font-weight:900!important;
+    }
+
+    /* Nasconde soltanto elementi legacy della schermata pre-login */
+    #poiCloudAuth.poi1190-login-home #poiShowRegister{
+      display:none!important;
+    }
+
+    @media(max-width:760px){
+      #poiCloudAuth.poi1190-login-home{
+        padding:76px 18px 88px!important;
+        align-items:center!important;
       }
-      #poiCloudAuth.poi1188-global-auth h2{font-size:24px!important}
+      #poiCloudAuth.poi1190-login-home::before{
+        top:23px!important;
+        left:22px!important;
+        padding-left:31px!important;
+        font-size:8px!important;
+      }
+      #poiCloudAuth.poi1190-login-home #poi1190LoginDecor::before{
+        top:29px;left:22px;width:19px;
+      }
+      .poi1190-top-slogan{
+        display:none;
+      }
+      #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card{
+        width:min(100%,590px)!important;
+        padding:31px 25px 26px!important;
+        border-radius:19px!important;
+      }
+      #poiCloudAuth.poi1190-login-home .poi1188-brandmark{
+        width:54px!important;height:54px!important;border-radius:14px!important;
+      }
+      #poiCloudAuth.poi1190-login-home .poi1188-brandcopy strong{
+        font-size:21px!important;
+      }
+      #poiCloudAuth.poi1190-login-home #poiCloudLoginForm{
+        grid-template-columns:1fr!important;
+        gap:14px!important;
+      }
+      #poiCloudAuth.poi1190-login-home button[type="submit"],
+      #poiCloudAuth.poi1190-login-home .poi-cloud-auth-foot{
+        grid-column:1!important;
+      }
+      .poi1190-login-footer{bottom:16px}
+      .poi1190-login-footer b{font-size:8.5px}
+      .poi1190-login-footer span{font-size:8px}
+      .poi1190-login-footer b::before,
+      .poi1190-login-footer b::after{width:24px}
+    }
+
+    @media(max-height:720px) and (min-width:761px){
+      #poiCloudAuth.poi1190-login-home{padding-top:66px!important;padding-bottom:72px!important}
+      #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card{
+        padding-top:29px!important;padding-bottom:25px!important;
+      }
+      #poiCloudAuth.poi1190-login-home .poi-cloud-auth-brand{margin-bottom:18px!important}
+      #poiCloudAuth.poi1190-login-home .poi-cloud-auth-card>p{margin-bottom:20px!important}
+      .poi1190-login-footer{bottom:13px}
     }
   `;
   document.head.appendChild(st);

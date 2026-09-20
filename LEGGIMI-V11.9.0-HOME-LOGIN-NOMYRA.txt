@@ -1,0 +1,46 @@
+SMART PACK · MULTIPLAST — V11.9.0
+RESTYLING ESCLUSIVO HOME PRE-LOGIN NOMYRA
+
+IMPORTANTE
+Questa patch modifica ESCLUSIVAMENTE la schermata iniziale:
+email + password PRIMA dell'accesso del cliente.
+
+NON MODIFICA:
+- Home Smart Pack / Multiplast dopo login
+- Produzione
+- USER + PIN
+- Area uffici
+- Amministrazione
+- Menu
+- Finanza
+- Dashboard
+- Routing
+- Permessi
+- Sessioni
+
+DESIGN
+- palette ufficiale NOMYRA
+- Midnight / Petrol / Copper / Mist / Ivory
+- card login centrale più ampia
+- curve grafiche astratte realizzate in CSS
+- nessuna immagine pesante da caricare
+- top label "NOMYRA · ACCESSO RISERVATO"
+- slogan NOMYRA:
+  CLARITY TO OPERATE.
+  INTELLIGENCE TO GROW.
+- campi e-mail/password con icone
+- pulsante Accesso premium con freccia
+- box Accesso sicuro
+- footer:
+  © 2026 NOMYRA · Tutti i diritti riservati
+  Piattaforma Operativa Integrata
+
+RESPONSIVE
+Desktop, tablet e smartphone.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v119-static-46
