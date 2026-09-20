@@ -1,5 +1,5 @@
-/* V11.7.2 FINANCE EXPLAIN · static-28 */
-const CACHE='spmp-v117-static-28';
+/* V11.7.3 SPRING BALANCE · static-29 */
+const CACHE='spmp-v117-static-29';
 
 const STATIC=[
   './',

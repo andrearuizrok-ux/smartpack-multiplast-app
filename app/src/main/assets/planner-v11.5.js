@@ -4709,3 +4709,604 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+
+
+
+/* ========================================================================
+   V11.7.3 · IMPORT BILANCIO A 4 SEZIONI SPRING
+   - baseline iniziale
+   - snapshot mensili
+   - progressivo YTD → movimento periodo
+   - mappatura conti persistente per azienda
+   - aggiornamento automatico KPI economico-finanziari
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPSpringBalanceV1173)return;
+
+  const VERSION='V11.7.3';
+  const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const compact=v=>norm(v).replace(/\s+/g,'');
+  const n=v=>{
+    if(typeof v==='number')return Number.isFinite(v)?v:0;
+    let s=String(v??'').trim();
+    if(!s)return 0;
+    s=s.replace(/\s/g,'').replace(/€/g,'');
+    if(/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s))s=s.replace(/\./g,'').replace(',','.');
+    else if(/^-?\d+,\d+$/.test(s))s=s.replace(',','.');
+    else if(/^-?\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+    const x=Number(s);
+    return Number.isFinite(x)?x:0;
+  };
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n(v));
+  const monthNow=()=>new Date().toISOString().slice(0,7);
+  const now=()=>new Date().toISOString();
+
+  const FLOW=new Set(['revenue','materials','personnel','energy','transport','otherOpex','depreciation']);
+  const STOCK=new Set(['receivables','payables','cash']);
+  const CAT=[
+    ['','Da classificare / ignora'],
+    ['revenue','Ricavi'],
+    ['materials','Materie / acquisti'],
+    ['personnel','Personale'],
+    ['energy','Energia / utenze produttive'],
+    ['transport','Trasporti / spedizioni'],
+    ['otherOpex','Altri costi operativi'],
+    ['depreciation','Ammortamenti'],
+    ['receivables','Crediti clienti'],
+    ['payables','Debiti fornitori'],
+    ['cash','Liquidità / banche / cassa']
+  ];
+
+  let pending=null;
+
+  function ensureState(){
+    state.financeSpringV1173=state.financeSpringV1173&&typeof state.financeSpringV1173==='object'
+      ?state.financeSpringV1173:{snapshots:[],mappings:{smartpack:{},multiplast:{}},imports:[]};
+    state.financeSpringV1173.snapshots=Array.isArray(state.financeSpringV1173.snapshots)?state.financeSpringV1173.snapshots:[];
+    state.financeSpringV1173.imports=Array.isArray(state.financeSpringV1173.imports)?state.financeSpringV1173.imports:[];
+    state.financeSpringV1173.mappings=state.financeSpringV1173.mappings||{smartpack:{},multiplast:{}};
+    state.financeSpringV1173.mappings.smartpack=state.financeSpringV1173.mappings.smartpack||{};
+    state.financeSpringV1173.mappings.multiplast=state.financeSpringV1173.mappings.multiplast||{};
+    state.adminFinanceV1170=state.adminFinanceV1170&&typeof state.adminFinanceV1170==='object'?state.adminFinanceV1170:{records:[]};
+    state.adminFinanceV1170.records=Array.isArray(state.adminFinanceV1170.records)?state.adminFinanceV1170.records:[];
+  }
+
+  function ensureXLSX(){
+    if(window.XLSX)return Promise.resolve(window.XLSX);
+    if(window.__springBalanceXlsxPromise)return window.__springBalanceXlsxPromise;
+    window.__springBalanceXlsxPromise=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src=XLSX_URL;s.async=true;s.referrerPolicy='no-referrer';
+      s.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('Impossibile inizializzare il lettore Excel'));
+      s.onerror=()=>reject(new Error('Impossibile caricare il lettore Excel'));
+      document.head.appendChild(s);
+    });
+    return window.__springBalanceXlsxPromise;
+  }
+
+  function companyName(c){return c==='smartpack'?'Smart Pack':'Multiplast'}
+  function mapping(company){ensureState();return state.financeSpringV1173.mappings[company]||{}}
+
+  function autoCategory(description,code=''){
+    const d=norm(description),c=compact(code);
+    const has=(...xs)=>xs.some(x=>d.includes(norm(x)));
+
+    if(has('ricavi','vendite','vendita prodotti','corrispettivi','prestazioni','fatturato'))return 'revenue';
+    if(has('ammortamento','ammortamenti'))return 'depreciation';
+    if(has('salari','stipendi','retribuzioni','personale','contributi inps','contributi previdenziali','inail','tfr','trattamento fine rapporto'))return 'personnel';
+    if(has('energia elettrica','energia','enel','gas metano','metano','utenza elettrica'))return 'energy';
+    if(has('trasporti','trasporto','spedizioni','spedizione','corriere','corrieri','autotrasporto','autotrasporti'))return 'transport';
+    if(has('materie prime','materia prima','acquisti merci','acquisti materie','merci c acquisti','imballaggi','granulo','polipropilene','polietilene','masterbatch'))return 'materials';
+    if(has('crediti verso clienti','crediti v clienti','clienti c crediti','clienti nazionali'))return 'receivables';
+    if(has('debiti verso fornitori','debiti v fornitori','fornitori c debiti','fornitori nazionali'))return 'payables';
+    if(has('cassa contanti','cassa','banca c c attivo','banche c c attivi','depositi bancari','conto corrente attivo'))return 'cash';
+    if(has('consulenze','telefonia','telefono','internet','assicurazioni','manutenzioni','manutenzione','affitti','locazioni','servizi','cancelleria','software','commercialista','compensi professionali'))return 'otherOpex';
+
+    // Codici palesemente non economici non vengono forzati in categorie KPI.
+    if(/^1|^2|^3/.test(c) && !has('clienti','fornitori','cassa','banca'))return '';
+    return '';
+  }
+
+  function headerScore(row){
+    const t=row.map(norm);
+    let s=0;
+    if(t.some(x=>/codice|conto|mastro/.test(x)))s+=3;
+    if(t.some(x=>/descrizione|denominazione|intestazione/.test(x)))s+=3;
+    if(t.some(x=>/dare|avere|saldo|progressiv|finale/.test(x)))s+=4;
+    return s;
+  }
+
+  function findHeader(rows){
+    let best={idx:-1,score:0};
+    for(let i=0;i<Math.min(rows.length,35);i++){
+      const score=headerScore(rows[i]||[]);
+      if(score>best.score)best={idx:i,score};
+    }
+    return best.score>=5?best.idx:-1;
+  }
+
+  function colIndex(headers,patterns){
+    const hs=headers.map(norm);
+    for(const p of patterns){
+      const i=hs.findIndex(x=>p.test(x));
+      if(i>=0)return i;
+    }
+    return -1;
+  }
+
+  function parseSheet(ws,sheetName){
+    const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+    const hi=findHeader(rows);
+    if(hi<0)return [];
+    const h=rows[hi].map(x=>String(x??'').trim());
+
+    let codeI=colIndex(h,[/^codice.*conto/,/^codice$/,/\bcod\b/,/^conto$/,/mastro/]);
+    let descI=colIndex(h,[/descrizione/,/denominazione/,/intestazione/,/descr.*conto/]);
+
+    // Se "Conto" è testuale e non esiste descrizione, proviamo a separare codice e descrizione.
+    if(descI<0){
+      const contoI=colIndex(h,[/^conto$/]);
+      if(contoI>=0 && contoI!==codeI)descI=contoI;
+    }
+
+    const finalD=colIndex(h,[/saldo.*final.*dare/,/finale.*dare/,/saldo dare/]);
+    const finalA=colIndex(h,[/saldo.*final.*avere/,/finale.*avere/,/saldo avere/]);
+    const progD=colIndex(h,[/progressiv.*dare/,/totale.*dare/,/^dare$/]);
+    const progA=colIndex(h,[/progressiv.*avere/,/totale.*avere/,/^avere$/]);
+    const saldoI=colIndex(h,[/saldo finale/,/^saldo$/,/saldo progressivo/,/progressivo$/]);
+
+    const numericCandidates=h.map((x,i)=>({i,x:norm(x)}))
+      .filter(o=>/dare|avere|saldo|progressiv|finale|importo|totale/.test(o.x)).map(o=>o.i);
+
+    const out=[];
+    for(let r=hi+1;r<rows.length;r++){
+      const row=rows[r]||[];
+      const joined=row.map(x=>String(x??'').trim()).join(' ').trim();
+      if(!joined)continue;
+
+      let code=codeI>=0?String(row[codeI]??'').trim():'';
+      let description=descI>=0?String(row[descI]??'').trim():'';
+
+      if(!code){
+        const candidate=row.find(x=>/^[A-Za-z]?\d[\d./-]{2,}$/.test(String(x??'').trim()));
+        code=candidate?String(candidate).trim():'';
+      }
+      if(!description){
+        const candidate=row.find(x=>typeof x==='string'&&/[A-Za-zÀ-ÿ]{3}/.test(x)&&String(x).trim()!==code);
+        description=candidate?String(candidate).trim():'';
+      }
+
+      if(!code || !description)continue;
+      if(/totale|totali|saldo generale|utile|perdita esercizio/i.test(description) && !/ammort/i.test(description))continue;
+
+      let debit=0,credit=0,balance=0,hasPair=false;
+      if(finalD>=0||finalA>=0){
+        debit=n(row[finalD]);credit=n(row[finalA]);hasPair=true;
+      }else if(progD>=0||progA>=0){
+        debit=n(row[progD]);credit=n(row[progA]);hasPair=true;
+      }else if(saldoI>=0){
+        balance=n(row[saldoI]);
+      }else{
+        const vals=numericCandidates.map(i=>n(row[i])).filter(v=>v!==0);
+        if(vals.length)balance=vals[vals.length-1];
+      }
+
+      if(hasPair)balance=debit-credit;
+      if(!debit&&!credit&&!balance)continue;
+
+      out.push({
+        sheet:sheetName,code,description,debit,credit,balance,
+        sourceHeaders:h.slice(),
+        sourceRow:r+1
+      });
+    }
+    return out;
+  }
+
+  function parseWorkbook(wb,fileName){
+    let accounts=[];
+    for(const name of wb.SheetNames){
+      accounts.push(...parseSheet(wb.Sheets[name],name));
+    }
+
+    // Deduplica per codice sommando eventuali righe duplicate tra sezioni/fogli.
+    const map=new Map();
+    for(const a of accounts){
+      const k=String(a.code).trim();
+      if(!map.has(k))map.set(k,{...a});
+      else{
+        const x=map.get(k);
+        x.debit+=a.debit;x.credit+=a.credit;x.balance+=a.balance;
+        if(!x.description&&a.description)x.description=a.description;
+      }
+    }
+    accounts=[...map.values()];
+    return {fileName,accounts};
+  }
+
+  function amountForCategory(account,cat){
+    if(!cat)return 0;
+    if(account.debit||account.credit){
+      if(cat==='revenue'||cat==='payables'){
+        const v=account.credit-account.debit;
+        return v>=0?v:Math.abs(v);
+      }
+      const v=account.debit-account.credit;
+      return v>=0?v:Math.abs(v);
+    }
+    return Math.abs(n(account.balance));
+  }
+
+  function previousSnapshot(company,period){
+    ensureState();
+    return state.financeSpringV1173.snapshots
+      .filter(x=>x.company===company&&x.period<period)
+      .sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0]||null;
+  }
+
+  function snapshotAccountMap(snap){
+    const m=new Map();
+    for(const a of snap?.accounts||[])m.set(String(a.code),a);
+    return m;
+  }
+
+  function aggregate(snapshot,prev,mappings){
+    const values={revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,receivables:0,payables:0,cash:0};
+    const prevMap=snapshotAccountMap(prev);
+    const mode=snapshot.mode;
+
+    for(const a of snapshot.accounts){
+      const cat=mappings[String(a.code)]||a.category||'';
+      if(!cat)continue;
+      const curr=amountForCategory(a,cat);
+      if(FLOW.has(cat)){
+        let value=curr;
+        if(mode==='cumulative' && prev){
+          const pa=prevMap.get(String(a.code));
+          const old=pa?amountForCategory(pa,cat):0;
+          value=curr-old;
+        }
+        values[cat]+=value;
+      }else if(STOCK.has(cat)){
+        values[cat]+=curr;
+      }
+    }
+    return values;
+  }
+
+  function financeRecord(company,period,create=true){
+    ensureState();
+    let r=state.adminFinanceV1170.records.find(x=>x.company===company&&x.period===period);
+    if(!r&&create){
+      r={company,period,revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,receivables:0,payables:0,cash:0,notes:''};
+      state.adminFinanceV1170.records.push(r);
+    }
+    return r;
+  }
+
+  function applySnapshotToFinance(snapshot){
+    const prev=snapshot.mode==='cumulative'?previousSnapshot(snapshot.company,snapshot.period):null;
+    const vals=aggregate(snapshot,prev,mapping(snapshot.company));
+    const r=financeRecord(snapshot.company,snapshot.period,true);
+    Object.assign(r,vals,{
+      source:'SPRING · Bilancio 4 sezioni',
+      sourceFile:snapshot.fileName,
+      sourceImportedAt:snapshot.importedAt,
+      sourceMode:snapshot.mode,
+      sourceBaseline:!!snapshot.baseline,
+      springSnapshotId:snapshot.id,
+      notes:r.notes||''
+    });
+    return {record:r,values:vals,prev};
+  }
+
+  function selectOptions(selected=''){
+    return CAT.map(([v,l])=>`<option value="${v}" ${v===selected?'selected':''}>${esc(l)}</option>`).join('');
+  }
+
+  function ensureDialog(){
+    if($('#springBalanceV1173Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="springBalanceV1173Dialog" class="v1173-dialog">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">SPRING · IMPORT CONTABILITÀ</span>
+            <h3>Importa Bilancio a 4 sezioni</h3>
+            <p>Il file diventa una fotografia del periodo. I conti già mappati vengono riconosciuti automaticamente.</p>
+          </div>
+          <button type="button" class="close" onclick="document.getElementById('springBalanceV1173Dialog').close()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="v1173-setup">
+            <label class="field">Azienda
+              <select id="springCompanyV1173"><option value="smartpack">Smart Pack</option><option value="multiplast">Multiplast</option></select>
+            </label>
+            <label class="field">Periodo
+              <input id="springPeriodV1173" type="month" required>
+            </label>
+            <label class="field">Tipo valori
+              <select id="springModeV1173">
+                <option value="cumulative">Progressivo da inizio esercizio</option>
+                <option value="month">Solo movimento del mese</option>
+              </select>
+            </label>
+            <label class="v1173-check"><input id="springBaselineV1173" type="checkbox"><span><b>Bilancio di partenza / baseline</b><small>Usalo per il primo periodo storico che vuoi conservare come punto iniziale.</small></span></label>
+          </div>
+          <label class="v1173-upload">
+            <b>Bilancio SPRING (.xlsx, .xls o .csv)</b>
+            <span>Carica il Bilancio a 4 sezioni esportato da SPRING.</span>
+            <input id="springFileV1173" type="file" accept=".xlsx,.xls,.csv">
+          </label>
+          <div id="springPreviewV1173" class="v1173-preview">
+            <div class="empty"><b>Nessun file selezionato</b>Seleziona il bilancio del periodo.</div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" type="button" onclick="document.getElementById('springBalanceV1173Dialog').close()">Annulla</button>
+          <button class="btn primary" id="springApplyV1173" type="button" disabled>Importa e aggiorna analisi</button>
+        </div>
+      </dialog>`);
+    $('#springFileV1173').onchange=e=>preview(e.target.files?.[0]);
+    $('#springCompanyV1173').onchange=()=>{if(pending)renderPreview()};
+    $('#springApplyV1173').onclick=applyImport;
+  }
+
+  async function preview(file){
+    if(!file)return;
+    ensureDialog();
+    const box=$('#springPreviewV1173');
+    box.innerHTML='<div class="v1173-reading"><b>Lettura del bilancio…</b><span>Analisi fogli, colonne e piano dei conti.</span></div>';
+    $('#springApplyV1173').disabled=true;
+    try{
+      await ensureXLSX();
+      const wb=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+      const parsed=parseWorkbook(wb,file.name);
+      if(!parsed.accounts.length)throw new Error('Non sono riuscito a individuare righe conto con saldi. Il formato potrebbe richiedere una mappatura specifica.');
+      pending=parsed;
+      renderPreview();
+      $('#springApplyV1173').disabled=false;
+    }catch(e){
+      pending=null;
+      box.innerHTML=`<div class="v1173-error"><b>File non riconosciuto automaticamente</b><span>${esc(e?.message||e)}</span><small>Se il Bilancio SPRING ha un layout particolare, potremo adattare il parser sul file reale senza modificare la logica finanziaria.</small></div>`;
+    }
+  }
+
+  function renderPreview(){
+    if(!pending)return;
+    const company=$('#springCompanyV1173').value;
+    const mp=mapping(company);
+    const accounts=pending.accounts.map(a=>({
+      ...a,
+      category:mp[String(a.code)] ?? autoCategory(a.description,a.code)
+    }));
+    pending.accounts=accounts;
+
+    const auto=accounts.filter(a=>a.category).length;
+    const unmapped=accounts.length-auto;
+    const rows=accounts.slice(0,350);
+
+    $('#springPreviewV1173').innerHTML=`
+      <div class="v1173-summary">
+        <div><span>File</span><b>${esc(pending.fileName)}</b></div>
+        <div><span>Conti letti</span><b>${accounts.length}</b></div>
+        <div><span>Già classificati</span><b>${auto}</b></div>
+        <div><span>Da verificare / ignorati</span><b>${unmapped}</b></div>
+      </div>
+      <div class="v1173-help">
+        <b>Prima importazione:</b> controlla la categoria dei conti che alimentano i KPI.
+        I conti lasciati su “Da classificare / ignora” non entrano nei calcoli.
+        La scelta viene memorizzata per i mesi successivi.
+      </div>
+      <div class="v1173-map-toolbar">
+        <input id="springMapSearchV1173" placeholder="Cerca codice o descrizione conto…">
+        <select id="springMapFilterV1173"><option value="all">Tutti</option><option value="mapped">Classificati</option><option value="unmapped">Da verificare</option></select>
+      </div>
+      <div class="v1173-table">
+        <div class="v1173-th"><span>Conto</span><span>Descrizione</span><span>Saldo letto</span><span>Categoria KPI</span></div>
+        <div id="springMapBodyV1173">
+          ${rows.map((a,i)=>mapRow(a,i)).join('')}
+        </div>
+      </div>
+      ${accounts.length>350?`<div class="v1173-limit">Mostrati i primi 350 conti. Usa la ricerca per filtrare il piano dei conti.</div>`:''}`;
+
+    $('#springMapSearchV1173').oninput=drawFiltered;
+    $('#springMapFilterV1173').onchange=drawFiltered;
+  }
+
+  function mapRow(a,i){
+    const saldo=(a.debit||a.credit)?Math.abs(a.debit-a.credit):Math.abs(a.balance);
+    return `<div class="v1173-tr" data-index="${i}" data-search="${esc(norm(a.code+' '+a.description))}">
+      <span><b>${esc(a.code)}</b><small>${esc(a.sheet||'')}</small></span>
+      <span>${esc(a.description)}</span>
+      <span>${money(saldo)}</span>
+      <span><select onchange="SPSpringBalanceV1173.setCategory(${i},this.value)">${selectOptions(a.category||'')}</select></span>
+    </div>`;
+  }
+
+  function drawFiltered(){
+    if(!pending)return;
+    const q=norm($('#springMapSearchV1173')?.value||''),f=$('#springMapFilterV1173')?.value||'all';
+    const arr=pending.accounts.map((a,i)=>({a,i})).filter(({a})=>{
+      const mq=!q||norm(a.code+' '+a.description).includes(q);
+      const mf=f==='all'||(f==='mapped'&&a.category)||(f==='unmapped'&&!a.category);
+      return mq&&mf;
+    }).slice(0,350);
+    $('#springMapBodyV1173').innerHTML=arr.map(({a,i})=>mapRow(a,i)).join('')||'<div class="empty">Nessun conto con questi filtri.</div>';
+  }
+
+  function setCategory(i,value){
+    if(!pending?.accounts?.[i])return;
+    pending.accounts[i].category=value;
+  }
+
+  function openImport(){
+    if(currentRole!=='admin')return;
+    ensureState();ensureDialog();
+    pending=null;
+    $('#springPeriodV1173').value=$('#financePeriodV1170')?.value||monthNow();
+    $('#springCompanyV1173').value='smartpack';
+    $('#springModeV1173').value='cumulative';
+    $('#springBaselineV1173').checked=state.financeSpringV1173.snapshots.length===0;
+    $('#springFileV1173').value='';
+    $('#springPreviewV1173').innerHTML='<div class="empty"><b>Nessun file selezionato</b>Seleziona il Bilancio a 4 sezioni esportato da SPRING.</div>';
+    $('#springApplyV1173').disabled=true;
+    $('#springBalanceV1173Dialog').showModal();
+  }
+
+  function applyImport(){
+    if(!pending)return;
+    ensureState();
+    const company=$('#springCompanyV1173').value;
+    const period=$('#springPeriodV1173').value;
+    const mode=$('#springModeV1173').value;
+    const baseline=$('#springBaselineV1173').checked;
+    if(!period){alert('Seleziona il periodo del bilancio.');return}
+
+    const mp=mapping(company);
+    for(const a of pending.accounts)mp[String(a.code)]=a.category||'';
+
+    const snapshot={
+      id:`spring_${company}_${period}_${Date.now()}`,
+      company,period,mode,baseline,
+      fileName:pending.fileName,
+      importedAt:now(),
+      accounts:pending.accounts.map(a=>({
+        code:a.code,description:a.description,debit:n(a.debit),credit:n(a.credit),balance:n(a.balance),
+        category:a.category||'',sheet:a.sheet||''
+      }))
+    };
+
+    // Sostituisce una precedente importazione dello stesso periodo/azienda.
+    state.financeSpringV1173.snapshots=state.financeSpringV1173.snapshots.filter(x=>!(x.company===company&&x.period===period));
+    state.financeSpringV1173.snapshots.push(snapshot);
+    state.financeSpringV1173.snapshots.sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+
+    const result=applySnapshotToFinance(snapshot);
+    state.financeSpringV1173.imports.unshift({
+      id:snapshot.id,company,period,mode,baseline,fileName:snapshot.fileName,
+      importedAt:snapshot.importedAt,accounts:snapshot.accounts.length,
+      previousPeriod:result.prev?.period||''
+    });
+    state.financeSpringV1173.imports=state.financeSpringV1173.imports.slice(0,60);
+
+    try{addAudit('Bilancio SPRING importato',companyName(company),`${period} · ${snapshot.fileName} · ${mode==='cumulative'?'progressivo':'solo mese'}`)}catch(_){}
+    try{save()}catch(_){}
+
+    $('#springBalanceV1173Dialog').close();
+    pending=null;
+    try{toast(`Bilancio ${companyName(company)} · ${period} importato`)}catch(_){}
+    try{
+      if(window.SPReleaseV1170?.renderFinance){
+        const fp=$('#financePeriodV1170');
+        if(fp)fp.value=period;
+        window.SPReleaseV1170.renderFinance(period);
+      }
+    }catch(_){}
+    setTimeout(decorateFinance,50);
+  }
+
+  function rebuildFromSnapshots(company){
+    ensureState();
+    const snaps=state.financeSpringV1173.snapshots.filter(x=>x.company===company).sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+    for(const s of snaps)applySnapshotToFinance(s);
+    try{save()}catch(_){}
+  }
+
+  function importHistoryHTML(){
+    ensureState();
+    const rows=state.financeSpringV1173.imports.slice(0,12);
+    return `<div class="v1173-history">
+      ${rows.map(x=>`<div class="v1173-history-row">
+        <div><b>${esc(companyName(x.company))} · ${esc(x.period)}</b><span>${esc(x.fileName)}</span></div>
+        <div><span>${x.mode==='cumulative'?'Progressivo YTD':'Solo mese'}${x.baseline?' · BASELINE':''}</span><small>${x.previousPeriod?'Differenza da '+esc(x.previousPeriod):'Primo periodo disponibile'}</small></div>
+        <div><b>${x.accounts} conti</b><span>${esc(new Date(x.importedAt).toLocaleString('it-IT'))}</span></div>
+      </div>`).join('')||'<div class="empty"><b>Nessun bilancio SPRING importato</b></div>'}
+    </div>`;
+  }
+
+  function lastImport(company,period){
+    ensureState();
+    return state.financeSpringV1173.imports.find(x=>x.company===company&&x.period===period)||null;
+  }
+
+  function sourceBanner(period){
+    const sp=lastImport('smartpack',period),mp=lastImport('multiplast',period);
+    if(!sp&&!mp)return `<div class="v1173-source-banner empty-source">
+      <div><b>Fonte dati finanziari</b><span>Nessun Bilancio SPRING importato per ${esc(period)}. Puoi ancora inserire i valori manualmente.</span></div>
+      <button class="btn primary" onclick="SPSpringBalanceV1173.openImport()">Importa Bilancio SPRING</button>
+    </div>`;
+    return `<div class="v1173-source-banner">
+      <div><b>Fonte dati · SPRING Bilancio 4 sezioni</b><span>
+        ${sp?`Smart Pack: ${esc(sp.fileName)} · ${sp.mode==='cumulative'?'progressivo':'mese'}`:'Smart Pack: non importato'}
+        &nbsp; | &nbsp;
+        ${mp?`Multiplast: ${esc(mp.fileName)} · ${mp.mode==='cumulative'?'progressivo':'mese'}`:'Multiplast: non importato'}
+      </span></div>
+      <button class="btn" onclick="SPSpringBalanceV1173.openImport()">Importa / aggiorna</button>
+    </div>`;
+  }
+
+  function decorateFinance(){
+    if(currentRole!=='admin')return;
+    ensureState();ensureDialog();
+    const view=$('#adminFinanceV1170View');
+    if(!view||!view.classList.contains('active'))return;
+    const p=$('#financePeriodV1170')?.value||monthNow();
+
+    view.querySelector('.v1173-source-banner')?.remove();
+    const hero=view.querySelector('.v1170-fin-hero');
+    if(hero)hero.insertAdjacentHTML('afterend',sourceBanner(p));
+
+    let history=view.querySelector('[data-v1173-history]');
+    if(!history){
+      history=document.createElement('section');history.dataset.v1173History='1';history.className='section panel';
+      history.innerHTML=`<div class="panel-head"><div><h3>Importazioni SPRING</h3><p>Storico delle fotografie contabili utilizzate per alimentare l'analisi.</p></div><div class="right"><button class="btn small" onclick="SPSpringBalanceV1173.openImport()">+ Importa</button></div></div><div class="panel-body" id="springHistoryBodyV1173"></div>`;
+      view.appendChild(history);
+    }
+    const hb=$('#springHistoryBodyV1173',view);if(hb)hb.innerHTML=importHistoryHTML();
+  }
+
+  function injectStyles(){
+    if($('#v1173Styles'))return;
+    const st=document.createElement('style');st.id='v1173Styles';st.textContent=`
+      .v1173-dialog{width:min(1060px,96vw);max-height:92vh}
+      .v1173-setup{display:grid;grid-template-columns:1fr 1fr 1.25fr 1.4fr;gap:8px;align-items:end}
+      .v1173-check{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:11px;padding:9px;background:#f9fbfc}.v1173-check input{margin-top:3px}.v1173-check b,.v1173-check small{display:block}.v1173-check b{font-size:8px}.v1173-check small{font-size:7px;color:var(--muted);margin-top:2px;line-height:1.3}
+      .v1173-upload{display:block;margin-top:12px;border:1px dashed #b7cbd2;border-radius:13px;padding:13px;background:#f8fbfc}.v1173-upload b,.v1173-upload span{display:block}.v1173-upload b{font-size:9px}.v1173-upload span{font-size:7.5px;color:var(--muted);margin:3px 0 8px}
+      .v1173-preview{margin-top:12px}.v1173-reading,.v1173-error{padding:18px;border:1px solid var(--line);border-radius:13px}.v1173-reading b,.v1173-error b,.v1173-reading span,.v1173-error span,.v1173-error small{display:block}.v1173-reading span,.v1173-error span,.v1173-error small{font-size:8px;color:var(--muted);margin-top:4px}.v1173-error{border-color:#e9c6c9;background:#fff5f6}
+      .v1173-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.v1173-summary>div{padding:10px;background:#f7fafb;border-radius:10px}.v1173-summary span{display:block;font-size:7px;color:var(--muted)}.v1173-summary b{display:block;font-size:10px;margin-top:3px}
+      .v1173-help{margin-top:8px;padding:10px 11px;border-radius:10px;background:#eef7fa;font-size:7.5px;line-height:1.45;color:#45626e}
+      .v1173-map-toolbar{display:grid;grid-template-columns:1fr 190px;gap:7px;margin-top:9px}.v1173-map-toolbar input,.v1173-map-toolbar select{border:1px solid var(--line);border-radius:9px;padding:8px;font:inherit}
+      .v1173-table{margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden}.v1173-th,.v1173-tr{display:grid;grid-template-columns:.65fr 1.8fr .75fr 1.15fr;gap:8px;align-items:center}.v1173-th{padding:8px 10px;background:#f4f8f9;font-size:7px;text-transform:uppercase;color:#70848d;font-weight:950}.v1173-tr{padding:7px 10px;border-top:1px solid #edf2f3;font-size:7.5px}.v1173-tr b,.v1173-tr small{display:block}.v1173-tr small{font-size:6.5px;color:var(--muted);margin-top:2px}.v1173-tr select{width:100%;padding:6px;border:1px solid #d5e1e5;border-radius:8px;background:#fff;font-size:7.5px}.v1173-limit{padding:8px;font-size:7px;color:var(--muted);text-align:center}
+      .v1173-source-banner{display:flex;gap:12px;align-items:center;margin-top:10px;padding:10px 12px;border:1px solid #cfe1e7;border-radius:12px;background:#f5fafb}.v1173-source-banner>div{flex:1}.v1173-source-banner b,.v1173-source-banner span{display:block}.v1173-source-banner b{font-size:8.5px}.v1173-source-banner span{font-size:7.5px;color:var(--muted);margin-top:3px}.v1173-source-banner.empty-source{background:#fff9ec;border-color:#efdcaf}
+      .v1173-history-row{display:grid;grid-template-columns:1.5fr 1fr .8fr;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #edf2f3;font-size:8px}.v1173-history-row b,.v1173-history-row span,.v1173-history-row small{display:block}.v1173-history-row span,.v1173-history-row small{font-size:7px;color:var(--muted);margin-top:2px}
+      @media(max-width:850px){.v1173-setup{grid-template-columns:1fr 1fr}.v1173-summary{grid-template-columns:1fr 1fr}.v1173-th{display:none}.v1173-tr{grid-template-columns:1fr 1fr}.v1173-map-toolbar{grid-template-columns:1fr}.v1173-history-row{grid-template-columns:1fr}}
+    `;document.head.appendChild(st);
+  }
+
+  function patch(){
+    ensureState();ensureDialog();injectStyles();decorateFinance();
+  }
+
+  function boot(){
+    patch();
+    const obs=new MutationObserver(()=>decorateFinance());
+    const start=()=>{
+      const v=$('#adminFinanceV1170View');
+      if(v)obs.observe(v,{childList:true,subtree:true});
+    };
+    start();setTimeout(start,500);
+    setInterval(patch,3000);
+  }
+
+  window.SPSpringBalanceV1173={
+    openImport,preview,applyImport,setCategory,decorateFinance,
+    rebuildFromSnapshots,version:VERSION
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+

@@ -1,0 +1,78 @@
+SMART PACK · MULTIPLAST — V11.7.3
+IMPORT BILANCIO A 4 SEZIONI SPRING
+
+FLUSSO
+1. Apri Amministrazione > Economico-finanziario.
+2. Premi "Importa Bilancio SPRING".
+3. Seleziona Smart Pack o Multiplast.
+4. Indica il periodo del bilancio.
+5. Scegli:
+   - Progressivo da inizio esercizio (consigliato se SPRING esporta valori YTD)
+   - Solo movimento del mese
+6. Per il primo storico puoi selezionare "Bilancio di partenza / baseline".
+7. Carica .xlsx / .xls / .csv.
+8. La piattaforma legge il piano dei conti e propone una classificazione.
+9. Verifica la mappatura dei conti che alimentano i KPI.
+10. Importa.
+
+LOGICA CONTABILE
+- I file non vengono sommati tra loro.
+- Ogni import è uno snapshot/fotografia del periodo.
+- Per le voci economiche, con bilancio progressivo:
+    MOVIMENTO PERIODO = PROGRESSIVO CORRENTE - PROGRESSIVO PRECEDENTE
+- Per le voci patrimoniali:
+    Crediti clienti, Debiti fornitori e Liquidità = SALDO DEL PERIODO
+  e non differenza tra i mesi.
+
+CATEGORIE KPI
+- Ricavi
+- Materie / acquisti
+- Personale
+- Energia
+- Trasporti
+- Altri costi operativi
+- Ammortamenti
+- Crediti clienti
+- Debiti fornitori
+- Liquidità
+
+MAPPATURA CONTI
+- La mappatura viene memorizzata per azienda e codice conto.
+- I mesi successivi riutilizzano automaticamente le associazioni.
+- I nuovi conti restano "Da classificare / ignora" finché non vengono associati.
+- I conti ignorati non entrano nei KPI.
+
+AGGIORNAMENTO DASHBOARD
+Dopo l'import vengono aggiornati automaticamente:
+- Ricavi
+- Costi operativi
+- EBITDA
+- EBIT
+- Margine EBITDA
+- Crediti - Debiti
+- Analisi spiegate V11.7.2
+
+TRACCIABILITÀ
+Per ogni periodo vengono conservati:
+- azienda
+- periodo
+- nome file
+- data/ora importazione
+- modalità progressiva/mensile
+- baseline sì/no
+- numero conti letti
+- snapshot dei saldi importati
+
+IMPORTANTE
+Il parser è volutamente flessibile e riconosce intestazioni tipiche come
+Codice conto / Descrizione / Dare / Avere / Saldo / Progressivo / Finale.
+Se il vostro export SPRING reale usa un layout proprietario diverso, la prima
+prova con il file reale servirà per adattare solo il riconoscimento colonne,
+senza cambiare tutta la logica già implementata.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v117-static-29
