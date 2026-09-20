@@ -12,17 +12,27 @@
   const COMPANY_KEY='poi_v113_company';
   const EMPLOYEE_KEY='poi_v113_employee';
   const OFFICE_ROLE_KEY='poi_v115_office_role';
+  const DEVICE_EMPLOYEE_KEY='poi_v1180_device_employee';
+  const DEVICE_OFFICE_UNLOCKED_KEY='poi_v1180_office_unlocked';
+  const DEVICE_OFFICE_ROLE_KEY='poi_v1180_office_role';
+  const DEVICE_COMPANY_KEY='poi_v1180_company';
   const activationMode=new URL(location.href).searchParams.get('attiva')==='account';
 
-  let selectedCompany=sessionStorage.getItem(COMPANY_KEY)||'';
-  let officeUnlockedFlag=false;
+  let selectedCompany=sessionStorage.getItem(COMPANY_KEY)||localStorage.getItem(DEVICE_COMPANY_KEY)||'';
+  let officeUnlockedFlag=localStorage.getItem(DEVICE_OFFICE_UNLOCKED_KEY)==='1';
   let manageCompany='smartpack';
   let recoveryCompany='smartpack';
   let directory=[];
   let pendingEntry=null;
   let pinChangeMode={forced:false,currentPin:''};
   let employee=null;
-  try{employee=JSON.parse(sessionStorage.getItem(EMPLOYEE_KEY)||'null')}catch(_){employee=null}
+  try{
+    employee=JSON.parse(
+      sessionStorage.getItem(EMPLOYEE_KEY) ||
+      localStorage.getItem(DEVICE_EMPLOYEE_KEY) ||
+      'null'
+    )
+  }catch(_){employee=null}
 
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -494,6 +504,7 @@
       }
       .poi116-subtitle{font-size:13px!important;color:#6d818b!important;margin:0!important}
 
+      .poi1180-device-note{margin:8px 0 10px;padding:8px 10px;border-radius:10px;background:#eef7f4;color:#45665b;font-size:9px;line-height:1.4}.poi1180-device-note b{font-weight:950}
       .poi116-office-login{
         margin:14px auto 0;max-width:860px;width:100%;
         border:1px solid #dce7eb;background:rgba(255,255,255,.94);
@@ -633,15 +644,85 @@
   }
 
   function closeOverlays(){ $$('.poi113-overlay').forEach(x=>x.classList.remove('open')); }
+  function rememberCompany(company){
+    if(company)localStorage.setItem(DEVICE_COMPANY_KEY,company);
+    else localStorage.removeItem(DEVICE_COMPANY_KEY);
+  }
+
+  function rememberEmployeeSession(value){
+    if(value){
+      localStorage.setItem(DEVICE_EMPLOYEE_KEY,JSON.stringify(value));
+      rememberCompany(value.company_code||'');
+    }else{
+      localStorage.removeItem(DEVICE_EMPLOYEE_KEY);
+    }
+  }
+
+  function rememberOfficeSession(role=''){
+    officeUnlockedFlag=true;
+    localStorage.setItem(DEVICE_OFFICE_UNLOCKED_KEY,'1');
+    if(role){
+      localStorage.setItem(DEVICE_OFFICE_ROLE_KEY,role);
+      const company=role==='manager'?'multiplast':'smartpack';
+      rememberCompany(company);
+    }
+  }
+
+  function clearRememberedOffice({keepUnlocked=false}={}){
+    localStorage.removeItem(DEVICE_OFFICE_ROLE_KEY);
+    if(!keepUnlocked){
+      localStorage.removeItem(DEVICE_OFFICE_UNLOCKED_KEY);
+      officeUnlockedFlag=false;
+    }
+  }
+
+  function clearRememberedDeviceSession(){
+    localStorage.removeItem(DEVICE_EMPLOYEE_KEY);
+    localStorage.removeItem(DEVICE_OFFICE_UNLOCKED_KEY);
+    localStorage.removeItem(DEVICE_OFFICE_ROLE_KEY);
+    localStorage.removeItem(DEVICE_COMPANY_KEY);
+    officeUnlockedFlag=false;
+  }
+
   function corporateLogout(){
     closeOverlays();
-    sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);sessionStorage.removeItem(OFFICE_ROLE_KEY);officeUnlockedFlag=false;
+    sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);sessionStorage.removeItem(OFFICE_ROLE_KEY);
+    sessionStorage.removeItem('industrialos_role_session');
+    clearRememberedDeviceSession();
     employee=null;selectedCompany='';
     $('#poiCloudLogout')?.click();
   }
 
-  const officeUnlocked=()=>officeUnlockedFlag===true; // solo dopo verifica password esplicita in questa sessione UI
+  const officeUnlocked=()=>officeUnlockedFlag===true; // dopo verifica password; resta valido sul dispositivo finché l'utente non blocca/esce
   const expectedProductionRole=company=>company==='multiplast'?'mpworker':'worker';
+  function hydrateRememberedSession(){
+    if(employee?.company_code){
+      selectedCompany=employee.company_code;
+      sessionStorage.setItem(EMPLOYEE_KEY,JSON.stringify(employee));
+      sessionStorage.setItem(COMPANY_KEY,selectedCompany);
+      sessionStorage.setItem('nomyra_group_company_v92',selectedCompany);
+      sessionStorage.setItem('nomyra_group_role_v92',employee.role_code);
+      sessionStorage.setItem('industrialos_role_session',employee.role_code);
+      return;
+    }
+
+    if(officeUnlocked()){
+      const role=localStorage.getItem(DEVICE_OFFICE_ROLE_KEY)||'';
+      const company=localStorage.getItem(DEVICE_COMPANY_KEY)||(role==='manager'?'multiplast':role?'smartpack':'');
+      if(company){
+        selectedCompany=company;
+        sessionStorage.setItem(COMPANY_KEY,company);
+        sessionStorage.setItem('nomyra_group_company_v92',company);
+      }
+      if(['director','manager','admin'].includes(role)){
+        sessionStorage.setItem(OFFICE_ROLE_KEY,role);
+        sessionStorage.setItem('nomyra_group_role_v92',role);
+        sessionStorage.setItem('industrialos_role_session',role);
+      }
+    }
+  }
+  hydrateRememberedSession();
+
 
   function hideLegacyProfileGate(){
     const legacy=$('#accessGate');if(legacy)legacy.style.setProperty('display','none','important');
@@ -671,6 +752,8 @@
       sessionStorage.removeItem(COMPANY_KEY);
       sessionStorage.removeItem('nomyra_group_company_v92');
       sessionStorage.removeItem('nomyra_group_role_v92');
+      localStorage.removeItem(DEVICE_OFFICE_ROLE_KEY);
+      localStorage.removeItem(DEVICE_COMPANY_KEY);
       selectedCompany='';
       showOfficeMenu();
       return false;
@@ -756,7 +839,13 @@
     $('.poi113-head p',gate).textContent='Scegli la funzione di lavoro autorizzata per questo account.';
     $('.poi113-logo',gate).textContent='UFF';
     $('#poi113CompanyLogout').style.display='inline-flex';$('#poi113CompanyLogout').textContent='Blocca';
-    $('#poi113CompanyLogout').onclick=()=>{officeUnlockedFlag=false;sessionStorage.removeItem(OFFICE_ROLE_KEY);showProductionHome()};
+    $('#poi113CompanyLogout').onclick=()=>{
+      officeUnlockedFlag=false;
+      sessionStorage.removeItem(OFFICE_ROLE_KEY);
+      sessionStorage.removeItem('industrialos_role_session');
+      clearRememberedOffice();
+      showProductionHome();
+    };
 
     body.innerHTML=`
       <div class="poi115-portal-shell">
@@ -787,7 +876,7 @@
               <span class="role">US</span><b>Utenti e accessi</b><span>Crea USER + PIN, gestisci operatori Smart Pack e Multiplast, sospendi accessi e resetta i PIN.</span><em>Gestisci →</em>
             </button>
           </div>
-          <div class="poi115-lock-note">Premi <b>Blocca</b> per chiudere la sessione uffici e tornare alla postazione Produzione. La password sarà richiesta nuovamente al prossimo accesso.</div>
+          <div class="poi115-lock-note">Questa postazione resta collegata anche dopo F5 o riapertura del browser. Premi <b>Blocca</b> quando vuoi chiudere volontariamente la sessione uffici.</div>
         </section>
       </div>
       <div class="poi115-footer"><span><strong>Area uffici</strong> · sessione protetta</span><span>Blocca quando lasci la postazione</span></div>`;
@@ -825,6 +914,7 @@
 
     wrap.innerHTML=`
       <div class="poi116-office-head"><span>Accesso uffici / amministrazione</span></div>
+      <div class="poi1180-device-note">La sessione resterà aperta su questo computer finché non premi <b>Blocca / Esci</b>.</div>
       <div class="poi116-office-login">
         <form id="poi116OfficeInlineForm" autocomplete="off">
           <label>E-mail aziendale
@@ -866,11 +956,14 @@
         if(error)throw error;
 
         officeUnlockedFlag=true;
+        rememberOfficeSession('');
         sessionStorage.removeItem(EMPLOYEE_KEY);
+        localStorage.removeItem(DEVICE_EMPLOYEE_KEY);
         employee=null;
         showOfficeMenu();
       }catch(error){
         officeUnlockedFlag=false;
+        clearRememberedOffice();
         err.textContent='E-mail o password non corretti.';
         err.classList.add('show');
         form.elements.password.value='';
@@ -891,6 +984,7 @@
     sessionStorage.setItem('nomyra_group_company_v92',company);
     sessionStorage.setItem('nomyra_group_role_v92',role);
     sessionStorage.setItem('industrialos_role_session',role);
+    rememberOfficeSession(role);
     closeOverlays();enterRole(role,false);hideLegacyProfileGate();
   }
 
@@ -976,16 +1070,39 @@
     if(logout)logout.style.display=isPlatform()?'inline-flex':'none';
     if(logout&&!logout.dataset.poi113){
       logout.dataset.poi113='1';
-      logout.addEventListener('click',()=>{closeOverlays();sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);employee=null;selectedCompany=''},true);
+      logout.addEventListener('click',()=>{closeOverlays();sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem(COMPANY_KEY);clearRememberedDeviceSession();employee=null;selectedCompany=''},true);
     }
   }
 
   function showCompanyMenu(){
     ensureUI();hideLegacyProfileGate();
     if(!profile())return;
-    if(employee&&selectedCompany&&companies().includes(selectedCompany)){enterRole(employee.role_code,true);return}
+
+    // Ripristino operatore ricordato sullo stesso dispositivo.
+    if(employee&&employee.company_code&&companies().includes(employee.company_code)){
+      selectedCompany=employee.company_code;
+      sessionStorage.setItem(COMPANY_KEY,selectedCompany);
+      sessionStorage.setItem(EMPLOYEE_KEY,JSON.stringify(employee));
+      enterRole(employee.role_code,true);
+      return;
+    }
+
     if(isPlatform()){openNomyra();return}
-    if(officeUnlocked()){showOfficeMenu();return}
+
+    // Ripristino area uffici dopo F5 / chiusura e riapertura browser.
+    if(officeUnlocked()){
+      const rememberedRole=
+        sessionStorage.getItem(OFFICE_ROLE_KEY) ||
+        localStorage.getItem(DEVICE_OFFICE_ROLE_KEY) ||
+        '';
+      if(['director','manager','admin'].includes(rememberedRole)){
+        enterOfficeRole(rememberedRole);
+        return;
+      }
+      showOfficeMenu();
+      return;
+    }
+
     showProductionHome();
   }
 
@@ -1030,6 +1147,9 @@
     selectedCompany=employee.company_code;
     sessionStorage.setItem(COMPANY_KEY,selectedCompany);
     sessionStorage.setItem(EMPLOYEE_KEY,JSON.stringify(employee));
+    rememberEmployeeSession(employee);
+    localStorage.removeItem(DEVICE_OFFICE_UNLOCKED_KEY);
+    localStorage.removeItem(DEVICE_OFFICE_ROLE_KEY);
     sessionStorage.setItem('nomyra_group_company_v92',selectedCompany);
     sessionStorage.setItem('nomyra_group_role_v92',employee.role_code);
     sessionStorage.setItem('industrialos_role_session',employee.role_code);
@@ -1037,7 +1157,11 @@
   }
 
   function enterRole(role,asEmployee=false){
-    if(!asEmployee){employee=null;sessionStorage.removeItem(EMPLOYEE_KEY)}
+    if(!asEmployee){
+      employee=null;
+      sessionStorage.removeItem(EMPLOYEE_KEY);
+      localStorage.removeItem(DEVICE_EMPLOYEE_KEY);
+    }
     const roleCompany=(role==='manager'||role==='mpworker')?'multiplast':'smartpack';
     selectedCompany=roleCompany;
     sessionStorage.setItem(COMPANY_KEY,roleCompany);
@@ -1061,7 +1185,13 @@
   }
 
   function employeeLogout(){
-    employee=null;pendingEntry=null;sessionStorage.removeItem(EMPLOYEE_KEY);sessionStorage.removeItem('industrialos_role_session');decorateCloudMenu();showProductionHome();
+    employee=null;pendingEntry=null;
+    sessionStorage.removeItem(EMPLOYEE_KEY);
+    sessionStorage.removeItem('industrialos_role_session');
+    sessionStorage.removeItem(COMPANY_KEY);
+    localStorage.removeItem(DEVICE_EMPLOYEE_KEY);
+    localStorage.removeItem(DEVICE_COMPANY_KEY);
+    decorateCloudMenu();showProductionHome();
   }
 
   function openPinChange(forced,currentPin=''){

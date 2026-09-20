@@ -1,0 +1,36 @@
+SMART PACK · MULTIPLAST — V11.8.0
+SESSIONE PERSISTENTE SULLO STESSO DISPOSITIVO
+
+OBIETTIVO
+F5 / refresh NON deve più richiedere un nuovo login.
+
+COMPORTAMENTO UFFICI
+- Login email + password una sola volta sul dispositivo.
+- F5 mantiene l'accesso.
+- Chiudere e riaprire il browser mantiene l'accesso.
+- Viene ricordata anche l'ultima area:
+  Gestione Smart Pack / Responsabile Multiplast / Amministrazione.
+- "Cambia area" torna al selettore uffici mantenendo la sessione sbloccata.
+- "Blocca" cancella l'autorizzazione locale e richiede nuovamente la password.
+
+COMPORTAMENTO OPERATORI
+- USER + PIN una sola volta sul dispositivo.
+- F5 mantiene l'operatore nella propria area Produzione.
+- Chiudere e riaprire il browser mantiene la sessione operatore.
+- "Termina sessione dipendente" elimina il ricordo locale e richiede USER + PIN.
+
+LOGOUT ACCOUNT
+- Logout esplicito dell'account aziendale cancella tutta la sessione ricordata.
+
+SICUREZZA
+- La persistenza browser non sostituisce l'autenticazione cloud.
+- L'area uffici viene ripristinata solo se esiste ancora un profilo cloud valido.
+- Il PIN non viene salvato: viene salvata solo l'identità operatore già verificata.
+- Su computer condivisi è necessario usare Blocca / Termina sessione prima di allontanarsi.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/access-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v118-static-36

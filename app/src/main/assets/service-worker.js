@@ -1,5 +1,5 @@
-/* V11.7.9 FINANCE CLOUD FORECAST · static-35 */
-const CACHE='spmp-v117-static-35';
+/* V11.8.0 PERSISTENT SESSION · static-36 */
+const CACHE='spmp-v118-static-36';
 
 const CORE_STATIC=[
   './access-v11.5.js',
