@@ -1,0 +1,44 @@
+SMART PACK · MULTIPLAST — V11.6.7
+FOGLIO CARICO CAMION → DDT AMMINISTRAZIONE
+
+FLUSSO CORRETTO
+1. Gli ordini vengono prodotti/preparati.
+2. L'operatore apre "Nuovo carico camion".
+3. Seleziona un solo cliente e conferma le quantità effettivamente caricate
+   per uno o più ordini di quel cliente.
+4. La piattaforma crea un Foglio di carico CAR-AAAA-XXX.
+5. Amministrazione vede automaticamente quel foglio in Consegne / DDT.
+6. Amministrazione NON inserisce più un DDT per ogni ordine.
+7. Inserisce un solo riferimento DDT per tutto il foglio di carico.
+8. Il sistema distribuisce automaticamente la consegna sugli ordini presenti
+   nel foglio, aggiorna le quantità consegnate e chiude solo gli ordini completati.
+
+DATI DEL FOGLIO CARICO
+- Cliente
+- Data
+- Ordini inclusi
+- Prodotti
+- Quantità caricate
+- Targa / mezzo (opzionale)
+- Autista / trasportatore (opzionale)
+- Destinazione / note
+- Operatore e data/ora chiusura
+
+AMMINISTRAZIONE
+- KPI carichi pronti per DDT
+- carichi di oggi
+- DDT già emessi
+- clienti con camion pronto
+- scheda "Da trasformare in DDT"
+- storico carico → ordini → DDT
+
+IMPORTANTE
+Il vecchio pulsante DDT sul singolo ordine viene disattivato per Amministrazione.
+Il messaggio indirizza sempre alla pagina Consegne / DDT basata sui fogli di carico.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v116-static-25

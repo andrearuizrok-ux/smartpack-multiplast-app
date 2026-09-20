@@ -2973,3 +2973,546 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+
+
+
+/* ===== V11.6.7 · FOGLIO CARICO CAMION → DDT AMMINISTRAZIONE =====
+   Flusso reale:
+   Operai preparano/caricano il camion per cliente → foglio di carico →
+   Amministrazione legge il foglio e registra UN DDT per il carico, non per singolo ordine.
+*/
+(()=>{
+  'use strict';
+  if(window.SPLoadingV1167)return;
+
+  const VERSION='V11.6.7';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const n=v=>Number(v||0);
+  const fmt=v=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:0}).format(n(v));
+  const todayISO=()=>new Date().toISOString().slice(0,10);
+  const uid=p=>`${p}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+
+  function ensureState(){
+    state.loadingSheetsV1167=Array.isArray(state.loadingSheetsV1167)?state.loadingSheetsV1167:[];
+    state.deliveryRecords=Array.isArray(state.deliveryRecords)?state.deliveryRecords:[];
+  }
+
+  function groups(){
+    const map=new Map();
+    for(const o of (state.orders||[])){
+      if(!o||o.cancelled||/annull/i.test(String(o.status||'')))continue;
+      const parent=String(o.parent??o.code??'').replace(/[A-Za-z]+$/,'').trim();
+      if(!parent)continue;
+      if(!map.has(parent))map.set(parent,[]);
+      map.get(parent).push(o);
+    }
+    return [...map.entries()].map(([parent,lines])=>{
+      const main=lines.find(x=>String(x.code||'').endsWith('A'))||lines[0]||{};
+      return {parent,lines,main};
+    });
+  }
+
+  function delivered(parent){
+    return (state.deliveryRecords||[])
+      .filter(r=>String(r.parent)===String(parent))
+      .reduce((s,r)=>s+n(r.qty),0);
+  }
+
+  function pendingLoaded(parent,ignoreId=''){
+    return (state.loadingSheetsV1167||[])
+      .filter(s=>String(s.id)!==String(ignoreId) && !['Annullato','DDT emesso'].includes(String(s.status||'')))
+      .flatMap(s=>s.lines||[])
+      .filter(l=>String(l.parent)===String(parent))
+      .reduce((s,l)=>s+n(l.qtyLoaded),0);
+  }
+
+  function flowAvailable(parent){
+    try{
+      const x=window.SPFlowV101?.availableForOrder?.(parent);
+      if(Number.isFinite(Number(x)))return Math.max(0,n(x));
+    }catch(_){}
+    const g=groups().find(x=>String(x.parent)===String(parent));
+    if(!g)return 0;
+    const a=g.main;
+    const run=(state.productionRuns||[]).find(r=>String(r.parent)===String(parent)&&r.status!=='Annullata');
+    const produced=run?Math.max(0,n(run.netProducedV104!=null?run.netProducedV104:run.produced)):0;
+    const stock=(g.lines||[]).reduce((s,o)=>s+n(o.warehousePreparedQty||0),0);
+    return Math.max(produced,stock,0);
+  }
+
+  function loadable(parent){
+    const g=groups().find(x=>String(x.parent)===String(parent));if(!g)return 0;
+    const remaining=Math.max(0,n(g.main.qty)-delivered(parent));
+    const physical=Math.max(0,flowAvailable(parent)-delivered(parent));
+    return Math.max(0,Math.min(remaining,physical)-pendingLoaded(parent));
+  }
+
+  function nextCode(){
+    const y=new Date().getFullYear();
+    const nums=(state.loadingSheetsV1167||[])
+      .filter(x=>String(x.code||'').startsWith(`CAR-${y}-`))
+      .map(x=>Number(String(x.code).split('-').pop())||0);
+    return `CAR-${y}-${String(Math.max(0,...nums)+1).padStart(3,'0')}`;
+  }
+
+  function operatorName(){
+    try{
+      const e=JSON.parse(sessionStorage.getItem('poi_v113_employee')||'null');
+      if(e?.display_name)return e.display_name;
+      if(e?.username)return e.username;
+    }catch(_){}
+    try{
+      const p=window.POICloudV10?.getProfile?.();
+      if(p?.display_name)return p.display_name;
+      if(p?.email)return p.email;
+    }catch(_){}
+    return currentRole==='worker'?'Operatore produzione':'Utente';
+  }
+
+  function clientsWithLoadable(){
+    const m=new Map();
+    for(const g of groups()){
+      const q=loadable(g.parent);
+      if(q<=0)continue;
+      const client=String(g.main.client||'').trim()||'SENZA CLIENTE';
+      if(!m.has(client))m.set(client,[]);
+      m.get(client).push({...g,loadable:q});
+    }
+    return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'it'));
+  }
+
+  function ensureUI(){
+    if($('#loadingSheetV1167Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="loadingSheetV1167Dialog" class="v1167-dialog">
+        <form id="loadingSheetV1167Form">
+          <div class="modal-head">
+            <div>
+              <span class="eyebrow">SMART PACK · LOGISTICA</span>
+              <h3 id="loadingSheetV1167Title">Nuovo foglio di carico</h3>
+              <p>Registra ciò che è stato fisicamente preparato e caricato sul camion per un singolo cliente.</p>
+            </div>
+            <button type="button" class="close" data-v1167-close="loadingSheetV1167Dialog">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="field">Cliente
+                <select name="client" id="loadingClientV1167" required></select>
+              </label>
+              <label class="field">Data carico
+                <input type="date" name="loadDate" required>
+              </label>
+              <label class="field">Targa / mezzo
+                <input name="vehicle" placeholder="Opzionale">
+              </label>
+              <label class="field">Autista / trasportatore
+                <input name="driver" placeholder="Opzionale">
+              </label>
+              <label class="field full">Destinazione / note logistiche
+                <input name="destination" placeholder="Opzionale">
+              </label>
+            </div>
+            <div id="loadingLinesV1167" class="v1167-load-lines"></div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" data-v1167-close="loadingSheetV1167Dialog">Annulla</button>
+            <button class="btn primary" type="submit">Conferma carico completato</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="ddtFromLoadV1167Dialog" class="v1167-dialog">
+        <form id="ddtFromLoadV1167Form">
+          <div class="modal-head">
+            <div>
+              <span class="eyebrow">AMMINISTRAZIONE · DDT</span>
+              <h3 id="ddtFromLoadV1167Title">Registra DDT da foglio di carico</h3>
+              <p>Le righe arrivano dal foglio compilato dagli operai: non devi reinserire gli ordini uno per uno.</p>
+            </div>
+            <button type="button" class="close" data-v1167-close="ddtFromLoadV1167Dialog">×</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" name="loadId">
+            <div id="ddtFromLoadInfoV1167"></div>
+            <div class="form-grid" style="margin-top:12px">
+              <label class="field">Riferimento DDT
+                <input name="ddtRef" required placeholder="Es. 245/2026">
+              </label>
+              <label class="field">Data DDT
+                <input type="date" name="ddtDate" required>
+              </label>
+              <label class="field full">Note amministrazione
+                <textarea name="notes" rows="3"></textarea>
+              </label>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" data-v1167-close="ddtFromLoadV1167Dialog">Annulla</button>
+            <button class="btn primary" type="submit">Registra DDT del carico</button>
+          </div>
+        </form>
+      </dialog>
+    `);
+    $$('[data-v1167-close]').forEach(b=>b.onclick=()=>{try{document.getElementById(b.dataset.v1167Close)?.close()}catch(_){}});
+
+    $('#loadingClientV1167').onchange=renderLoadLines;
+    $('#loadingSheetV1167Form').onsubmit=submitLoading;
+    $('#ddtFromLoadV1167Form').onsubmit=submitDDTFromLoad;
+  }
+
+  function renderLoadLines(){
+    const client=$('#loadingClientV1167')?.value||'';
+    const group=clientsWithLoadable().find(([c])=>c===client);
+    const rows=group?.[1]||[];
+    const box=$('#loadingLinesV1167');if(!box)return;
+    box.innerHTML=rows.length?`
+      <div class="v1167-load-head">
+        <div>Ordine</div><div>Prodotto</div><div>Disponibile</div><div>Da caricare</div>
+      </div>
+      ${rows.map(g=>`
+        <div class="v1167-load-row">
+          <div><b>${esc(g.parent)}</b><span>${esc(g.main.orderRef||'')}</span></div>
+          <div><b>${esc(g.main.product||'—')}</b><span>${esc(g.main.imlCode||'ANONIMO')}</span></div>
+          <div><b>${fmt(g.loadable)} pz</b><span>pronti e non già assegnati ad altri carichi</span></div>
+          <div><input type="number" min="0" max="${g.loadable}" name="qty_${esc(g.parent)}" value="${g.loadable}"></div>
+        </div>`).join('')}
+      <div class="notice ok" style="margin-top:10px"><strong>Regola:</strong> questo foglio rappresenta ciò che è stato realmente caricato. L'Amministrazione userà esattamente queste quantità per il DDT.</div>
+    `:'<div class="empty"><b>Nessun ordine pronto per questo cliente</b></div>';
+  }
+
+  function openLoading(){
+    if(!['worker','director'].includes(String(currentRole||'')))return;
+    ensureState();ensureUI();
+    const clients=clientsWithLoadable();
+    if(!clients.length){alert('Non ci sono ordini pronti e disponibili da caricare.');return}
+    const f=$('#loadingSheetV1167Form');f.reset();
+    f.elements.loadDate.value=todayISO();
+    $('#loadingClientV1167').innerHTML=clients.map(([c])=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    renderLoadLines();
+    $('#loadingSheetV1167Title').textContent=`Nuovo foglio di carico · ${nextCode()}`;
+    $('#loadingSheetV1167Dialog').showModal();
+  }
+
+  function submitLoading(e){
+    e.preventDefault();ensureState();
+    const f=new FormData(e.currentTarget),client=String(f.get('client')||'').trim();
+    const rows=(clientsWithLoadable().find(([c])=>c===client)?.[1]||[]);
+    const lines=[];
+    for(const g of rows){
+      const q=Math.max(0,Math.min(g.loadable,n(f.get(`qty_${g.parent}`))));
+      if(q<=0)continue;
+      lines.push({
+        parent:String(g.parent),
+        orderCode:String(g.main.code||''),
+        orderRef:String(g.main.orderRef||''),
+        client,
+        product:String(g.main.product||''),
+        productCode:String(g.main.productCode||''),
+        imlCode:String(g.main.imlCode||''),
+        qtyLoaded:q
+      });
+    }
+    if(!lines.length){alert('Inserisci almeno una quantità da caricare.');return}
+    const sheet={
+      id:uid('load'),
+      code:nextCode(),
+      companyCode:'smartpack',
+      client,
+      loadDate:String(f.get('loadDate')||todayISO()),
+      vehicle:String(f.get('vehicle')||'').trim(),
+      driver:String(f.get('driver')||'').trim(),
+      destination:String(f.get('destination')||'').trim(),
+      lines,
+      totalQty:lines.reduce((s,l)=>s+n(l.qtyLoaded),0),
+      status:'Pronto per DDT',
+      preparedBy:operatorName(),
+      preparedAt:new Date().toISOString(),
+      ddtRef:'',
+      ddtDate:'',
+      adminNotes:''
+    };
+    state.loadingSheetsV1167.unshift(sheet);
+    for(const l of lines){
+      const g=groups().find(x=>String(x.parent)===String(l.parent));
+      for(const o of g?.lines||[]){
+        o.loadingSheetRefsV1167=Array.isArray(o.loadingSheetRefsV1167)?o.loadingSheetRefsV1167:[];
+        if(!o.loadingSheetRefsV1167.includes(sheet.code))o.loadingSheetRefsV1167.push(sheet.code);
+        o.loadedPendingQtyV1167=n(o.loadedPendingQtyV1167)+n(l.qtyLoaded);
+      }
+    }
+    try{addAudit('Foglio di carico completato',sheet.code,`${client} · ${sheet.totalQty} pz · ${lines.length} ordini`)}catch(_){}
+    save();
+    $('#loadingSheetV1167Dialog').close();
+    try{toast(`${sheet.code} pronto per Amministrazione`)}catch(_){}
+    if(currentRole==='worker')setTimeout(injectWorkerLoading,40);
+    else if(currentRole==='director')setTimeout(()=>{try{renderCurrent()}catch(_){ }},40);
+  }
+
+  function loadSheet(id){return (state.loadingSheetsV1167||[]).find(x=>String(x.id)===String(id))||null}
+
+  function openDDT(id){
+    if(currentRole!=='admin')return;
+    ensureState();ensureUI();
+    const s=loadSheet(id);if(!s||s.status!=='Pronto per DDT')return;
+    const f=$('#ddtFromLoadV1167Form');f.reset();
+    f.elements.loadId.value=s.id;f.elements.ddtDate.value=todayISO();
+    $('#ddtFromLoadV1167Title').textContent=`${s.code} · DDT ${s.client}`;
+    $('#ddtFromLoadInfoV1167').innerHTML=`
+      <div class="v1167-ddt-summary">
+        <div><span>Foglio carico</span><b>${esc(s.code)}</b></div>
+        <div><span>Cliente</span><b>${esc(s.client)}</b></div>
+        <div><span>Data carico</span><b>${esc(s.loadDate)}</b></div>
+        <div><span>Totale caricato</span><b>${fmt(s.totalQty)} pz</b></div>
+      </div>
+      ${s.vehicle||s.driver?`<div class="notice" style="margin-top:10px"><strong>Trasporto:</strong> ${esc(s.vehicle||'mezzo non indicato')} ${s.driver?'· '+esc(s.driver):''}</div>`:''}
+      <div class="v1167-ddt-lines">
+        ${s.lines.map(l=>`<div><span>Ordine ${esc(l.parent)}</span><b>${esc(l.product||'—')}</b><strong>${fmt(l.qtyLoaded)} pz</strong></div>`).join('')}
+      </div>`;
+    $('#ddtFromLoadV1167Dialog').showModal();
+  }
+
+  function consumeReservedStock(parent,qty){
+    const g=groups().find(x=>String(x.parent)===String(parent));if(!g)return;
+    for(const o of g.lines){
+      const target=Math.min(n(o.warehousePreparedQty||0),qty);
+      let need=Math.max(0,target-n(o.warehouseConsumedQty||0));
+      for(const a of (state.warehouseAllocations||[]).filter(x=>String(x.orderCode)===String(o.code)&&!['Rilasciato'].includes(String(x.status||'')))){
+        if(need<=0)break;
+        const rem=Math.max(0,n(a.qty)-n(a.qtyConsumed));
+        const q=Math.min(rem,need);if(q<=0)continue;
+        const lot=(state.finishedGoodsLots||[]).find(z=>String(z.id)===String(a.lotId));
+        if(lot){lot.qtyReserved=Math.max(0,n(lot.qtyReserved)-q);lot.qtyConsumed=n(lot.qtyConsumed)+q}
+        a.qtyConsumed=n(a.qtyConsumed)+q;
+        a.status=a.qtyConsumed>=n(a.qty)?'Consumato':'Parziale';
+        a.consumedAt=new Date().toISOString();
+        o.warehouseConsumedQty=n(o.warehouseConsumedQty)+q;
+        need-=q;
+      }
+    }
+  }
+
+  function submitDDTFromLoad(e){
+    e.preventDefault();ensureState();
+    const f=new FormData(e.currentTarget),s=loadSheet(String(f.get('loadId')||''));
+    if(!s||s.status!=='Pronto per DDT'){alert('Questo foglio di carico non è più disponibile per un nuovo DDT.');return}
+    const ref=String(f.get('ddtRef')||'').trim(),date=String(f.get('ddtDate')||''),notes=String(f.get('notes')||'').trim();
+    if(!ref||!date){alert('Inserisci riferimento e data DDT.');return}
+    if((state.loadingSheetsV1167||[]).some(x=>x.id!==s.id&&String(x.ddtRef||'').toUpperCase()===ref.toUpperCase())){
+      alert('Questo riferimento DDT è già associato a un altro foglio di carico.');return;
+    }
+
+    for(const l of s.lines){
+      const g=groups().find(x=>String(x.parent)===String(l.parent));if(!g)continue;
+      const before=delivered(l.parent);
+      const orderQty=n(g.main.qty);
+      const q=Math.min(n(l.qtyLoaded),Math.max(0,orderQty-before));
+      if(q<=0)continue;
+      state.deliveryRecords.push({
+        id:uid('ddt'),
+        parent:String(l.parent),
+        ddtRef:ref,
+        date,
+        qty:q,
+        loadSheetIdV1167:s.id,
+        loadSheetCodeV1167:s.code,
+        client:s.client,
+        notes,
+        at:new Date().toISOString(),
+        role:'admin'
+      });
+      const after=delivered(l.parent);
+      consumeReservedStock(l.parent,q);
+      const closed=after>=orderQty;
+      const refs=(state.deliveryRecords||[]).filter(r=>String(r.parent)===String(l.parent)).map(r=>r.ddtRef);
+      for(const o of g.lines){
+        o.delivered=Math.min(n(o.qty),after);
+        o.deliveryRemaining=Math.max(0,n(o.qty)-o.delivered);
+        o.lastDDTRef=ref;o.lastDeliveryDate=date;
+        o.ddtRefsV101=refs.slice();
+        o.loadedPendingQtyV1167=Math.max(0,n(o.loadedPendingQtyV1167)-q);
+        if(closed){
+          o.ddtRef=refs.join(' / ');
+          o.deliveryDate=date;
+          o.status='Chiuso';
+          o.remaining=0;
+          o.closedAt=new Date().toISOString();
+          o.closedBy='Amministrazione';
+        }else{
+          o.status='Parzialmente consegnato';
+        }
+      }
+    }
+
+    s.status='DDT emesso';s.ddtRef=ref;s.ddtDate=date;s.adminNotes=notes;
+    s.ddtCreatedAt=new Date().toISOString();s.ddtCreatedBy=operatorName();
+    try{addAudit('DDT da foglio di carico',s.code,`${ref} · ${s.client} · ${s.totalQty} pz`)}catch(_){}
+    save();$('#ddtFromLoadV1167Dialog').close();
+    try{toast(`${ref} registrato da ${s.code}`)}catch(_){}
+    renderAdmin();
+  }
+
+  function cancelLoad(id){
+    if(!['worker','admin','director'].includes(String(currentRole||'')))return;
+    const s=loadSheet(id);if(!s||s.status==='DDT emesso')return;
+    const reason=prompt(`Motivo annullamento ${s.code}:`,'');if(reason===null||!reason.trim())return;
+    s.status='Annullato';s.cancelReason=reason.trim();s.cancelledAt=new Date().toISOString();
+    for(const l of s.lines){
+      const g=groups().find(x=>String(x.parent)===String(l.parent));
+      for(const o of g?.lines||[])o.loadedPendingQtyV1167=Math.max(0,n(o.loadedPendingQtyV1167)-n(l.qtyLoaded));
+    }
+    save();
+    currentRole==='admin'?renderAdmin():injectWorkerLoading();
+  }
+
+  function renderAdmin(){
+    if(currentRole!=='admin')return;
+    ensureState();ensureUI();
+    const view=$('#adminView');if(!view)return;
+    const sheets=(state.loadingSheetsV1167||[]).slice().sort((a,b)=>String(b.preparedAt||'').localeCompare(String(a.preparedAt||'')));
+    const pending=sheets.filter(x=>x.status==='Pronto per DDT');
+    const emitted=sheets.filter(x=>x.status==='DDT emesso');
+    const today=todayISO();
+    const todayLoads=sheets.filter(x=>x.loadDate===today && x.status!=='Annullato');
+    const qtyPending=pending.reduce((s,x)=>s+n(x.totalQty),0);
+
+    view.innerHTML=`
+      <div class="v1167-admin-hero">
+        <div>
+          <span class="eyebrow">SMART PACK · AMMINISTRAZIONE</span>
+          <h2>Carichi, consegne e DDT</h2>
+          <p>Il DDT nasce dal foglio di carico compilato dagli operai. Un foglio può contenere più ordini dello stesso cliente: l'Amministrazione registra un solo DDT del carico.</p>
+        </div>
+      </div>
+
+      <div class="v1167-admin-kpis">
+        <div><span>Carichi pronti per DDT</span><b>${pending.length}</b><small>${fmt(qtyPending)} pezzi già caricati</small></div>
+        <div><span>Carichi di oggi</span><b>${todayLoads.length}</b><small>Pronti o già documentati</small></div>
+        <div><span>DDT emessi da carico</span><b>${emitted.length}</b><small>Storico tracciato</small></div>
+        <div><span>Clienti da servire</span><b>${new Set(pending.map(x=>x.client)).size}</b><small>Con camion pronto</small></div>
+      </div>
+
+      <div class="section panel">
+        <div class="panel-head"><div><h3>Da trasformare in DDT</h3><p>Questi fogli sono stati chiusi dagli operai dopo il caricamento fisico del camion.</p></div></div>
+        <div class="v1167-load-cards">
+          ${pending.map(s=>`
+            <article class="v1167-load-card">
+              <div class="v1167-load-card-top">
+                <div><span>${esc(s.code)}</span><h4>${esc(s.client)}</h4><p>${esc(s.loadDate)} · ${esc(s.preparedBy||'Operatore')}</p></div>
+                <strong>${fmt(s.totalQty)} pz</strong>
+              </div>
+              <div class="v1167-load-meta">
+                ${s.vehicle?`<span>Mezzo: <b>${esc(s.vehicle)}</b></span>`:''}
+                ${s.driver?`<span>Autista: <b>${esc(s.driver)}</b></span>`:''}
+                <span>${s.lines.length} ordini nel carico</span>
+              </div>
+              <div class="v1167-load-items">
+                ${s.lines.map(l=>`<div><b>Ord. ${esc(l.parent)}</b><span>${esc(l.product||'—')}</span><strong>${fmt(l.qtyLoaded)} pz</strong></div>`).join('')}
+              </div>
+              <div class="card-actions">
+                <button class="btn primary" type="button" onclick="SPLoadingV1167.openDDT('${esc(s.id)}')">Registra DDT</button>
+                <button class="btn danger" type="button" onclick="SPLoadingV1167.cancel('${esc(s.id)}')">Annulla foglio</button>
+              </div>
+            </article>`).join('')||'<div class="empty"><b>Nessun carico in attesa</b>Quando gli operai completano un camion, il foglio apparirà qui automaticamente.</div>'}
+        </div>
+      </div>
+
+      <div class="section panel">
+        <div class="panel-head"><div><h3>Registro carichi e DDT</h3><p>Storico logistico: carico → cliente → ordini inclusi → DDT.</p></div></div>
+        <div class="v1167-history">
+          ${sheets.slice(0,100).map(s=>`
+            <div class="v1167-history-row ${s.status==='Annullato'?'cancelled':''}">
+              <div><b>${esc(s.code)}</b><span>${esc(s.loadDate)}</span></div>
+              <div><b>${esc(s.client)}</b><span>${s.lines.map(l=>`Ord. ${esc(l.parent)}`).join(' · ')}</span></div>
+              <div><b>${fmt(s.totalQty)} pz</b><span>${esc(s.vehicle||'Mezzo non indicato')}</span></div>
+              <div><span class="status ${s.status==='DDT emesso'?'ok':s.status==='Annullato'?'danger':'warn'}">${esc(s.status)}</span>${s.ddtRef?`<b>DDT ${esc(s.ddtRef)}</b><span>${esc(s.ddtDate||'')}</span>`:''}</div>
+            </div>`).join('')||'<div class="empty">Nessun foglio di carico registrato.</div>'}
+        </div>
+      </div>`;
+    const t=$('#pageTitle'),sub=$('#pageSubtitle');
+    if(t)t.textContent='Consegne / DDT';
+    if(sub)sub.textContent='Il DDT parte dal foglio di carico reale preparato dagli operai';
+  }
+
+  function workerSheetCards(){
+    const sheets=(state.loadingSheetsV1167||[]).filter(x=>x.status!=='Annullato').slice().sort((a,b)=>String(b.preparedAt||'').localeCompare(String(a.preparedAt||''))).slice(0,8);
+    return `<div class="section v1167-worker-panel" data-v1167-worker>
+      <div class="panel-head">
+        <div><h3>Caricamento camion / consegne</h3><p>Quando la merce è fisicamente caricata per un cliente, chiudi il foglio. L'Amministrazione userà quel foglio per creare il DDT.</p></div>
+        <div class="right"><button class="btn primary" type="button" onclick="SPLoadingV1167.openLoading()">+ Nuovo carico camion</button></div>
+      </div>
+      <div class="v1167-worker-loads">
+        ${sheets.map(s=>`<div class="v1167-worker-load">
+          <div><b>${esc(s.code)} · ${esc(s.client)}</b><span>${esc(s.loadDate)} · ${s.lines.length} ordini · ${fmt(s.totalQty)} pz</span></div>
+          <span class="status ${s.status==='DDT emesso'?'ok':'warn'}">${esc(s.status)}</span>
+        </div>`).join('')||'<div class="empty"><b>Nessun camion registrato</b>Crea il foglio quando il carico è pronto.</div>'}
+      </div>
+    </div>`;
+  }
+
+  function injectWorkerLoading(){
+    if(currentRole!=='worker')return;
+    ensureState();ensureUI();
+    const view=$('#productionView');if(!view)return;
+    view.querySelector('[data-v1167-worker]')?.remove();
+    view.insertAdjacentHTML('afterbegin',workerSheetCards());
+  }
+
+  function patch(){
+    ensureState();ensureUI();
+
+    // L'Amministrazione usa esclusivamente il DDT da foglio di carico.
+    window.renderAdminV53=renderAdmin;
+    try{renderAdminV53=renderAdmin}catch(_){}
+
+    // Disabilita l'apertura del vecchio DDT ordine-per-ordine.
+    window.v53OpenDDT=function(){
+      if(currentRole==='admin'){
+        alert('Il DDT non si registra più sul singolo ordine. Apri “Consegne / DDT” e usa il foglio di carico ricevuto dagli operai.');
+      }
+    };
+
+    if(Array.isArray(window.NAV?.admin)){
+      const a=window.NAV.admin.find(x=>x[0]==='admin');
+      if(a)a[2]='Consegne / DDT';
+    }
+
+    if(typeof currentRole!=='undefined'&&currentRole==='worker')injectWorkerLoading();
+    if(typeof currentView!=='undefined'&&currentRole==='admin'&&currentView==='admin'&&!$('#adminView .v1167-admin-hero'))renderAdmin();
+  }
+
+  function injectStyles(){
+    if($('#v1167Styles'))return;
+    const st=document.createElement('style');st.id='v1167Styles';st.textContent=`
+      .v1167-dialog{width:min(880px,94vw)}
+      .v1167-load-lines{margin-top:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+      .v1167-load-head,.v1167-load-row{display:grid;grid-template-columns:.65fr 1.5fr .8fr .75fr;gap:8px;align-items:center}
+      .v1167-load-head{padding:9px 11px;background:#f7fafb;font-size:7px;text-transform:uppercase;letter-spacing:.06em;color:#71858e;font-weight:950}
+      .v1167-load-row{padding:10px 11px;border-top:1px solid #edf2f3;font-size:8px}.v1167-load-row b{display:block;font-size:9px}.v1167-load-row span{display:block;color:var(--muted);font-size:7px;margin-top:2px}.v1167-load-row input{width:100%;border:1px solid #cfdee3;border-radius:9px;padding:8px}
+      .v1167-ddt-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.v1167-ddt-summary>div{padding:10px;border:1px solid var(--line);border-radius:11px;background:#f9fbfc}.v1167-ddt-summary span{display:block;font-size:7px;color:var(--muted)}.v1167-ddt-summary b{display:block;font-size:10px;margin-top:4px}
+      .v1167-ddt-lines{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}.v1167-ddt-lines>div{display:grid;grid-template-columns:.7fr 1.8fr .6fr;gap:10px;padding:9px 11px;border-bottom:1px solid #edf2f3;align-items:center;font-size:8px}.v1167-ddt-lines>div:last-child{border-bottom:0}.v1167-ddt-lines strong{text-align:right}
+      .v1167-admin-hero{padding:20px 22px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,#fff,#f4faf8);box-shadow:var(--shadow)}.v1167-admin-hero h2{margin:2px 0 5px;font-size:24px}.v1167-admin-hero p{margin:0;color:var(--muted);font-size:10px;max-width:880px;line-height:1.5}
+      .v1167-admin-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.v1167-admin-kpis>div{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px 14px}.v1167-admin-kpis span{font-size:8px;color:var(--muted);font-weight:800}.v1167-admin-kpis b{display:block;font-size:22px;margin-top:5px}.v1167-admin-kpis small{display:block;font-size:7px;color:var(--muted);margin-top:3px}
+      .v1167-load-cards{padding:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.v1167-load-card{border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}.v1167-load-card-top{display:flex;gap:10px;align-items:flex-start}.v1167-load-card-top>div{flex:1}.v1167-load-card-top span{font-size:7px;color:var(--primary);font-weight:950}.v1167-load-card-top h4{margin:3px 0;font-size:13px}.v1167-load-card-top p{margin:0;color:var(--muted);font-size:7px}.v1167-load-card-top>strong{font-size:16px}
+      .v1167-load-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;font-size:7px;color:var(--muted)}.v1167-load-items{margin-top:9px;border-top:1px solid #edf2f3}.v1167-load-items>div{display:grid;grid-template-columns:.55fr 1.4fr .5fr;gap:8px;padding:7px 0;border-bottom:1px solid #edf2f3;font-size:7.5px}.v1167-load-items strong{text-align:right}
+      .v1167-history{padding:8px 12px}.v1167-history-row{display:grid;grid-template-columns:.7fr 1.6fr .8fr 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #edf2f3;align-items:center;font-size:8px}.v1167-history-row b{display:block}.v1167-history-row span{display:block;color:var(--muted);font-size:7px;margin-top:2px}.v1167-history-row.cancelled{opacity:.55}
+      .v1167-worker-panel{background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden;margin-bottom:14px}.v1167-worker-loads{padding:10px 14px}.v1167-worker-load{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #edf2f3}.v1167-worker-load:last-child{border-bottom:0}.v1167-worker-load>div{flex:1}.v1167-worker-load b{display:block;font-size:9px}.v1167-worker-load span{display:block;font-size:7px;color:var(--muted);margin-top:2px}
+      @media(max-width:900px){.v1167-admin-kpis{grid-template-columns:repeat(2,1fr)}.v1167-load-cards{grid-template-columns:1fr}.v1167-ddt-summary{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:650px){.v1167-load-head{display:none}.v1167-load-row{grid-template-columns:1fr 1fr}.v1167-load-row>div:nth-child(4){grid-column:1/-1}.v1167-history-row{grid-template-columns:1fr 1fr}.v1167-admin-kpis{grid-template-columns:1fr 1fr}.v1167-ddt-summary{grid-template-columns:1fr 1fr}}
+    `;document.head.appendChild(st);
+  }
+
+  function boot(){
+    ensureState();injectStyles();ensureUI();patch();
+    setInterval(patch,900);
+    document.body.dataset.loadingFlow='V11.6.7';
+  }
+
+  window.SPLoadingV1167={
+    openLoading,openDDT,cancel:cancelLoad,renderAdmin,injectWorkerLoading,
+    loadable,groups,version:VERSION
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
