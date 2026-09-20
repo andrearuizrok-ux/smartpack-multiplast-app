@@ -1,0 +1,37 @@
+SMART PACK · MULTIPLAST — V11.6.6
+REGISTRO ORDINI RESPONSIVE + ANNULLAMENTO + LINK GMAIL
+
+MODIFICHE
+1. Registro ordini
+- Ridisegnato senza barra di scorrimento orizzontale su desktop.
+- 8 blocchi compatti: Ordine, Cliente, Prodotto/quantità, IML, Origine,
+  Foglio, Consegna, Stato/Azioni.
+- Su tablet passa automaticamente a schede a 2 colonne.
+- Su telefono passa a una colonna.
+- Il renderer viene forzato anche se moduli vecchi tentano di ripristinare il registro precedente.
+
+2. Annullamento ordine
+- Direzione e Amministrazione vedono il pulsante "Annulla".
+- Motivo obbligatorio.
+- L'ordine NON viene eliminato: resta nello storico come Annullato.
+- Vengono marcati annullati anche foglio e produzione ancora aperta.
+- La quota IML ancora impegnata viene liberata.
+- Gli ordini annullati non rientrano nei KPI/coda degli ordini aperti.
+
+3. Gmail
+- Il registro cerca il collegamento anche nella bozza Gmail originale.
+- Recupera e salva automaticamente Message-ID, Thread ID, mittente, oggetto e data.
+- Priorità link:
+  a) ricerca precisa con RFC Message-ID;
+  b) ricerca Gmail per mittente + oggetto + intervallo data;
+  c) thread Gmail;
+  d) collegamento salvato.
+- Anche gli ordini Gmail creati con versioni precedenti vengono retro-collegati quando
+  esiste ancora la bozza corrispondente.
+
+FILE DA SOSTITUIRE
+app/src/main/assets/planner-v11.5.js
+app/src/main/assets/service-worker.js
+
+CACHE
+spmp-v116-static-24

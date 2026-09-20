@@ -2520,3 +2520,456 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
+
+
+
+/* ===== V11.6.6 · REGISTRO RESPONSIVE + ANNULLAMENTO + LINK GMAIL ROBUSTO ===== */
+(()=>{
+  'use strict';
+  if(window.SPRegisterV1166)return;
+
+  const VERSION='V11.6.6';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>Number(v||0);
+  const fmt=v=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:0}).format(num(v));
+  let rendering=false;
+
+  function parentOf(o){
+    return String(o?.parent??o?.code??'').replace(/[A-Za-z]+$/,'').trim();
+  }
+
+  function allGroups(){
+    const map=new Map();
+    for(const o of (Array.isArray(state?.orders)?state.orders:[])){
+      if(!o||typeof o!=='object'||o.deletedV54)continue;
+      if(o.companyCode && o.companyCode!=='smartpack')continue;
+      const p=parentOf(o);if(!p)continue;
+      if(!map.has(p))map.set(p,[]);
+      map.get(p).push(o);
+    }
+    return [...map.entries()].map(([parent,lines])=>{
+      const main=lines.find(x=>String(x.code||'').endsWith('A'))||lines[0]||{};
+      return {parent,lines,main};
+    }).sort((a,b)=>{
+      const an=Number(String(a.parent).replace(/\D/g,''))||0;
+      const bn=Number(String(b.parent).replace(/\D/g,''))||0;
+      return bn-an || String(b.main?.date||'').localeCompare(String(a.main?.date||''));
+    });
+  }
+
+  function orderStatus(g){
+    const a=g.main||{};
+    if(a.cancelled||/annull/i.test(String(a.status||'')))return 'Annullato';
+    if(num(a.qty)>0 && num(a.delivered)>=num(a.qty))return 'Chiuso';
+    const raw=String(a.status||'Da preparare');
+    if(/complet|chius|soddis/i.test(raw))return 'Chiuso';
+    return raw;
+  }
+
+  function statusClass1166(s){
+    if(/annull/i.test(s))return 'danger';
+    try{return typeof statusClass==='function'?statusClass(s):''}catch(_){return ''}
+  }
+
+  function linkedDraft(g){
+    const drafts=Array.isArray(state?.emailOrderDraftsV115)?state.emailOrderDraftsV115:[];
+    const code=String(g.main?.code||'');
+    return drafts.find(d=>
+      String(d.linkedOrderParentV1164||d.linkedOrderParentV1163||'')===String(g.parent) ||
+      String(d.linkedOrderCodeV1164||d.linkedOrderCodeV1163||'')===code
+    )||null;
+  }
+
+  function normalizeRfc(v=''){
+    v=String(v||'').trim();
+    if(!v)return '';
+    return v.startsWith('<')?v:`<${v}>`;
+  }
+
+  function searchDate(receivedAt){
+    if(!receivedAt)return '';
+    const d=new Date(receivedAt);if(isNaN(d))return '';
+    const before=new Date(d);before.setDate(before.getDate()+2);
+    const after=new Date(d);after.setDate(after.getDate()-1);
+    const f=x=>`${x.getFullYear()}/${String(x.getMonth()+1).padStart(2,'0')}/${String(x.getDate()).padStart(2,'0')}`;
+    return ` after:${f(after)} before:${f(before)}`;
+  }
+
+  function gmailMeta(g){
+    const a=g.main||{};
+    const src=a.orderSourceV1162?.email||{};
+    const d=linkedDraft(g)||{};
+    const meta={
+      rfcMessageId:src.rfcMessageId||a.sourceRfcMessageIdV1162||d.rfcMessageId||d.rfc822MessageId||'',
+      gmailThreadId:src.gmailThreadId||a.sourceGmailThreadIdV1162||d.gmailThreadId||'',
+      gmailMessageId:src.gmailMessageId||a.sourceGmailMessageIdV1162||d.gmailMessageId||'',
+      from:src.from||a.sourceEmailFromV1162||d.from||d.senderEmail||'',
+      subject:src.subject||a.sourceEmailSubjectV1162||d.subject||'',
+      receivedAt:src.receivedAt||a.sourceEmailReceivedAtV1162||d.receivedAt||'',
+      storedUrl:a.sourceEmailUrlV1162||src.gmailUrl||''
+    };
+    const rfc=normalizeRfc(meta.rfcMessageId);
+    if(rfc){
+      meta.url=`https://mail.google.com/mail/u/0/#search/${encodeURIComponent('rfc822msgid:'+rfc)}`;
+      meta.mode='originale';
+      return meta;
+    }
+    if(meta.from||meta.subject){
+      const q=[];
+      const email=String(meta.from).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||'';
+      if(email)q.push(`from:${email}`);
+      if(meta.subject)q.push(`subject:"${String(meta.subject).replace(/"/g,'')}"`);
+      let query=q.join(' ')+searchDate(meta.receivedAt);
+      if(query.trim()){
+        meta.url=`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query.trim())}`;
+        meta.mode='ricerca';
+        return meta;
+      }
+    }
+    if(meta.gmailThreadId){
+      meta.url=`https://mail.google.com/mail/u/0/#all/${encodeURIComponent(meta.gmailThreadId)}`;
+      meta.mode='thread';
+      return meta;
+    }
+    if(meta.storedUrl){
+      meta.url=meta.storedUrl;meta.mode='salvato';return meta;
+    }
+    if(meta.gmailMessageId){
+      meta.url=`https://mail.google.com/mail/u/0/#all/${encodeURIComponent(meta.gmailMessageId)}`;
+      meta.mode='messaggio';
+      return meta;
+    }
+    meta.url='';meta.mode='';
+    return meta;
+  }
+
+  function backfillEmailLinks(){
+    let changed=false;
+    for(const g of allGroups()){
+      const a=g.main||{};
+      const d=linkedDraft(g);
+      if(!d)continue;
+      if(!a.sourceTypeV1162 && (a.createdBy==='E-mail verificata'||d.gmailMessageId)){
+        a.sourceTypeV1162='email';
+        a.sourceContact='MAIL';
+        a.source='GMAIL';
+        changed=true;
+      }
+      const meta=gmailMeta(g);
+      if(meta.url && !a.sourceEmailUrlV1162){a.sourceEmailUrlV1162=meta.url;changed=true}
+      if(meta.gmailMessageId && !a.sourceGmailMessageIdV1162){a.sourceGmailMessageIdV1162=meta.gmailMessageId;changed=true}
+      if(meta.gmailThreadId && !a.sourceGmailThreadIdV1162){a.sourceGmailThreadIdV1162=meta.gmailThreadId;changed=true}
+      if(meta.rfcMessageId && !a.sourceRfcMessageIdV1162){a.sourceRfcMessageIdV1162=meta.rfcMessageId;changed=true}
+      if(meta.from && !a.sourceEmailFromV1162){a.sourceEmailFromV1162=meta.from;changed=true}
+      if(meta.subject && !a.sourceEmailSubjectV1162){a.sourceEmailSubjectV1162=meta.subject;changed=true}
+      if(meta.receivedAt && !a.sourceEmailReceivedAtV1162){a.sourceEmailReceivedAtV1162=meta.receivedAt;changed=true}
+      a.orderSourceV1162=a.orderSourceV1162||{
+        type:'email',label:'E-mail',recordedAt:a.sourceRecordedAtV1162||new Date().toISOString(),
+        recordedBy:a.sourceRecordedByV1162||'Utente ufficio',email:{},history:[]
+      };
+      if(a.orderSourceV1162?.email){
+        const e=a.orderSourceV1162.email;
+        if(!e.gmailMessageId&&meta.gmailMessageId)e.gmailMessageId=meta.gmailMessageId;
+        if(!e.gmailThreadId&&meta.gmailThreadId)e.gmailThreadId=meta.gmailThreadId;
+        if(!e.rfcMessageId&&meta.rfcMessageId)e.rfcMessageId=meta.rfcMessageId;
+        if(!e.from&&meta.from)e.from=meta.from;
+        if(!e.subject&&meta.subject)e.subject=meta.subject;
+        if(!e.receivedAt&&meta.receivedAt)e.receivedAt=meta.receivedAt;
+        if(!e.gmailUrl&&meta.url)e.gmailUrl=meta.url;
+      }
+    }
+    if(changed){try{save()}catch(_){ }}
+    return changed;
+  }
+
+  function sheetFor(parent){
+    return (state.productionSheets||[]).find(x=>String(x.parent)===String(parent))||null;
+  }
+
+  function sourceLabel(g){
+    const a=g.main||{};
+    const raw=String(a.sourceTypeV1162||a.sourceContact||a.source||'').toLowerCase();
+    if(raw.includes('mail')||raw.includes('gmail')||a.createdBy==='E-mail verificata'||linkedDraft(g))return 'E-mail';
+    if(raw.includes('call')||raw.includes('chiam'))return 'Chiamata';
+    return 'Manuale';
+  }
+
+  function releaseIML(g){
+    const seen=new Set();
+    for(const o of g.lines||[]){
+      const code=String(o.imlCode||'').trim();
+      if(!code||seen.has(code))continue;
+      seen.add(code);
+      const iml=(state.imls||[]).find(i=>String(i.code)===code);if(!iml)continue;
+      const remaining=Math.max(0,num(o.remaining!=null?o.remaining:num(o.qty)-num(o.delivered)));
+      iml.reserved=Math.max(0,num(iml.reserved)-remaining);
+    }
+  }
+
+  function cancelOrder(parent){
+    if(!['director','admin'].includes(String(currentRole||''))){
+      alert('Solo Direzione o Amministrazione possono annullare un ordine.');
+      return;
+    }
+    const g=allGroups().find(x=>String(x.parent)===String(parent));if(!g)return;
+    if(g.main?.cancelled||/annull/i.test(String(g.main?.status||''))){
+      alert(`L'ordine ${parent} risulta già annullato.`);return;
+    }
+    const produced=(state.productionRuns||[]).filter(r=>String(r.parent||parentOf({parent:r.parent,code:r.orderCode}))===String(parent))
+      .reduce((s,r)=>s+num(r.netProducedV104!=null?r.netProducedV104:r.produced),0);
+    if(produced>0 && !confirm(`Per l'ordine ${parent} risultano già ${fmt(produced)} pezzi prodotti.\nVuoi comunque annullare la parte ancora aperta?`))return;
+    const reason=prompt(`Motivo annullamento ordine ${parent}:`,'');
+    if(reason===null)return;
+    if(!String(reason).trim()){alert('Inserisci il motivo dell’annullamento per mantenere la tracciabilità.');return}
+    if(!confirm(`Confermi l'annullamento dell'ordine ${parent}?\nL'ordine resterà nello storico e non verrà eliminato.`))return;
+
+    releaseIML(g);
+    const at=new Date().toISOString();
+    const by=window.POICloudV10?.getProfile?.()?.email||String(currentRole||'Utente');
+    for(const o of g.lines){
+      o.cancelled=true;o.status='Annullato';o.cancelledAt=at;o.cancelledBy=by;o.cancelReason=String(reason).trim();
+    }
+    for(const r of (state.productionRuns||[])){
+      if(String(r.parent||'')===String(parent) && !/complet|annull/i.test(String(r.status||''))){
+        r.status='Annullata';r.cancelledAt=at;r.cancelReason=String(reason).trim();
+      }
+    }
+    for(const s of (state.productionSheets||[])){
+      if(String(s.parent)===String(parent)){
+        s.cancelled=true;s.statusV106='Annullato';s.cancelledAt=at;s.cancelReason=String(reason).trim();
+      }
+    }
+    try{addAudit('Ordine annullato',String(parent),String(reason).trim())}catch(_){}
+    try{save()}catch(_){}
+    try{toast(`Ordine ${parent} annullato`)}catch(_){}
+    render();
+    try{if(typeof renderDashboard==='function'&&currentView==='dashboard')renderDashboard()}catch(_){}
+  }
+
+  function openTrace(parent){
+    try{if(typeof traceOrder==='function'){traceOrder(parent);return}}catch(_){}
+  }
+
+  function render(){
+    if(rendering)return;
+    rendering=true;
+    try{
+      backfillEmailLinks();
+      const view=$('#ordersRegisterView');if(!view)return;
+      const all=allGroups();
+      view.innerHTML=`
+        <div class="v1166-register-root">
+          <div class="v1166-register-hero">
+            <div>
+              <span class="eyebrow">SMART PACK · REGISTRO UFFICIALE</span>
+              <h2>Registro ordini</h2>
+              <p>Ordini manuali e ordini ricevuti da Gmail nello stesso registro. L'annullamento conserva sempre lo storico.</p>
+            </div>
+            <div class="v1166-hero-actions">
+              ${currentRole==='director'?'<button class="btn primary" type="button" onclick="openNewOrder()">+ Nuovo ordine</button>':''}
+              <button class="btn" type="button" onclick="SPRegisterV1166.render()">Aggiorna</button>
+            </div>
+          </div>
+
+          <div class="v1166-toolbar">
+            <label class="field v1166-search">Cerca
+              <input id="regSearchV1166" placeholder="Ordine, rif., cliente, codice, prodotto, IML...">
+            </label>
+            <label class="field v1166-state">Stato
+              <select id="regStatusV1166">
+                <option value="all">Tutti</option>
+                <option value="open">Aperti</option>
+                <option value="closed">Chiusi</option>
+                <option value="cancelled">Annullati</option>
+              </select>
+            </label>
+            <div class="v1166-count" id="regCountV1166">${all.length} ordini</div>
+          </div>
+
+          <div class="v1166-register">
+            <div class="v1166-row v1166-head">
+              <div>Ordine</div><div>Cliente</div><div>Prodotto / quantità</div><div>IML</div>
+              <div>Origine</div><div>Foglio</div><div>Consegna</div><div>Stato / azioni</div>
+            </div>
+            <div id="regBodyV1166"></div>
+          </div>
+        </div>`;
+
+      function draw(){
+        const query=String($('#regSearchV1166')?.value||'').trim().toLowerCase();
+        const filter=$('#regStatusV1166')?.value||'all';
+        const groups=allGroups();
+        const arr=groups.filter(g=>{
+          const a=g.main||{},st=orderStatus(g);
+          const ok=filter==='all'||
+            (filter==='open'&&!['Chiuso','Annullato'].includes(st))||
+            (filter==='closed'&&st==='Chiuso')||
+            (filter==='cancelled'&&st==='Annullato');
+          const hay=[g.parent,a.code,a.orderRef,a.clientCode,a.client,a.productCode,a.product,a.imlCode,a.dueDate].join(' ').toLowerCase();
+          return ok&&(!query||hay.includes(query));
+        });
+        const count=$('#regCountV1166');if(count)count.textContent=`${arr.length} di ${groups.length} ordini`;
+
+        $('#regBodyV1166').innerHTML=arr.map(g=>{
+          const a=g.main||{},st=orderStatus(g),sh=sheetFor(g.parent),src=sourceLabel(g),mail=gmailMeta(g);
+          const cancelled=st==='Annullato';
+          const mailHtml=src==='E-mail'
+            ? `<div class="v1166-origin"><span class="v1166-chip mail">E-mail</span>${mail.url?`<a class="v1166-mail-link" href="${esc(mail.url)}" target="_blank" rel="noopener">${mail.mode==='originale'?'Apri e-mail':'Cerca e-mail'} ↗</a>`:'<small>E-mail non collegata</small>'}</div>`
+            : `<span class="v1166-chip">${esc(src)}</span>`;
+
+          return `<article class="v1166-row ${cancelled?'cancelled':''}">
+            <div class="v1166-cell order" data-label="Ordine">
+              <b>${esc(g.parent)}</b>
+              <span>${esc(a.date||'Data non indicata')}</span>
+              ${a.orderRef?`<small>Rif. ${esc(a.orderRef)}</small>`:''}
+            </div>
+            <div class="v1166-cell" data-label="Cliente">
+              <b>${esc(a.client||'—')}</b>
+              <span>${a.clientCode?esc(a.clientCode):'Codice da associare'}</span>
+            </div>
+            <div class="v1166-cell product" data-label="Prodotto / quantità">
+              <b>${esc(a.product||'—')}</b>
+              <span>${a.productCode?esc(a.productCode)+' · ':''}${fmt(a.qty)} pz</span>
+            </div>
+            <div class="v1166-cell" data-label="IML"><b>${esc(a.imlCode||'ANONIMO')}</b></div>
+            <div class="v1166-cell" data-label="Origine">${mailHtml}</div>
+            <div class="v1166-cell" data-label="Foglio">
+              ${sh?`<button class="btn small" type="button" onclick="openSheet('${esc(sh.id)}')">N. ${esc(sh.sheetNo||'—')}</button>`:'<span class="v1166-warn">Da generare</span>'}
+            </div>
+            <div class="v1166-cell" data-label="Consegna">
+              <b>${esc(a.dueDate||'—')}</b>
+              ${num(a.delivered)>0?`<span>${fmt(a.delivered)} / ${fmt(a.qty)} consegnati</span>`:''}
+            </div>
+            <div class="v1166-cell actions" data-label="Stato / azioni">
+              <span class="status ${statusClass1166(st)}">${esc(st)}</span>
+              <div class="v1166-actions">
+                ${typeof window.v53OpenEditOrder==='function'&&!cancelled&&currentRole==='director'?`<button class="btn small" type="button" onclick="v53OpenEditOrder('${esc(g.parent)}')">Modifica</button>`:''}
+                <button class="btn small" type="button" onclick="SPRegisterV1166.trace('${esc(g.parent)}')">Traccia</button>
+                ${!cancelled&&['director','admin'].includes(String(currentRole||''))?`<button class="btn small danger" type="button" onclick="SPRegisterV1166.cancel('${esc(g.parent)}')">Annulla</button>`:''}
+              </div>
+              ${cancelled&&a.cancelReason?`<small class="v1166-cancel-reason">${esc(a.cancelReason)}</small>`:''}
+            </div>
+          </article>`;
+        }).join('')||'<div class="empty"><b>Nessun ordine</b>Nessun ordine corrisponde ai filtri selezionati.</div>';
+      }
+
+      $('#regSearchV1166').oninput=draw;
+      $('#regStatusV1166').onchange=draw;
+      draw();
+
+      const t=$('#pageTitle'),s=$('#pageSubtitle');
+      if(t)t.textContent='Registro ordini';
+      if(s)s.textContent='Ordini, riferimenti, origine e stato in un’unica schermata';
+    }finally{
+      rendering=false;
+    }
+  }
+
+  function forceOpen(parent=''){
+    try{
+      currentView='ordersRegister';
+      $$('.view').forEach(x=>x.classList.remove('active'));
+      $('#ordersRegisterView')?.classList.add('active');
+      render();
+      const search=$('#regSearchV1166');
+      if(search&&parent){search.value=String(parent);search.dispatchEvent(new Event('input',{bubbles:true}))}
+    }catch(e){console.warn('[V11.6.6] apertura registro',e)}
+  }
+
+  function injectStyles(){
+    if($('#v1166RegisterStyles'))return;
+    const st=document.createElement('style');
+    st.id='v1166RegisterStyles';
+    st.textContent=`
+      #ordersRegisterView .table-wrap{overflow:visible!important}
+      .v1166-register-root{width:100%;min-width:0}
+      .v1166-register-hero{display:flex;align-items:center;gap:20px;padding:18px 20px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,#fff,#f5faf9);box-shadow:var(--shadow)}
+      .v1166-register-hero h2{margin:2px 0 5px;font-size:22px}.v1166-register-hero p{margin:0;color:var(--muted);font-size:10px;line-height:1.45}
+      .v1166-hero-actions{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
+      .v1166-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 180px auto;gap:8px;align-items:end;margin:14px 0 10px}
+      .v1166-count{height:38px;display:flex;align-items:center;justify-content:center;padding:0 12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--muted);font-size:8px;font-weight:900;white-space:nowrap}
+      .v1166-register{width:100%;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 7px 20px rgba(25,64,79,.05);overflow:hidden}
+      .v1166-row{display:grid;grid-template-columns:.72fr 1.15fr 1.45fr .78fr 1fr .7fr .82fr 1.35fr;gap:0;align-items:stretch;border-bottom:1px solid #edf2f3;min-width:0}
+      .v1166-row:last-child{border-bottom:0}.v1166-head{background:#f7fafb;color:#6e818b;font-size:7px;font-weight:950;text-transform:uppercase;letter-spacing:.055em}
+      .v1166-head>div{padding:9px 8px}
+      .v1166-cell{padding:10px 8px;min-width:0;font-size:8px;line-height:1.35;overflow-wrap:anywhere}
+      .v1166-cell b{display:block;color:var(--ink);font-size:8.5px}.v1166-cell>span,.v1166-cell small{display:block;color:var(--muted);font-size:7px;margin-top:3px}
+      .v1166-cell.actions{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+      .v1166-actions{display:flex;gap:4px;flex-wrap:wrap}.v1166-actions .btn{min-height:25px!important;padding:5px 7px!important;font-size:7px!important}
+      .v1166-chip{display:inline-flex!important;width:max-content;padding:4px 6px;border-radius:999px;background:#eef3f5;color:#566d78!important;font-size:7px!important;font-weight:950;margin:0!important}
+      .v1166-chip.mail{background:#e9f5fb;color:#176a91!important}.v1166-origin{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+      .v1166-mail-link{font-size:7px;font-weight:950;color:var(--primary);text-decoration:none}.v1166-mail-link:hover{text-decoration:underline}
+      .v1166-warn{color:#9a6815!important;font-weight:900}.v1166-row.cancelled{background:#fafafa;opacity:.72}
+      .v1166-cancel-reason{color:#9d4a4f!important;line-height:1.35}.v1166-row:hover:not(.v1166-head){background:#fbfdfd}
+      @media(max-width:1250px){
+        .v1166-row{grid-template-columns:.72fr 1.05fr 1.35fr .7fr .88fr .62fr .76fr 1.25fr}
+        .v1166-cell{padding:9px 6px}.v1166-register-hero{padding:15px 16px}.v1166-register-hero h2{font-size:19px}
+      }
+      @media(max-width:1050px){
+        .v1166-head{display:none}
+        .v1166-register{border:0;background:transparent;box-shadow:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        #regBodyV1166{display:contents}
+        .v1166-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+        .v1166-cell{padding:9px 10px;border-bottom:1px solid #edf2f3}
+        .v1166-cell::before{content:attr(data-label);display:block;font-size:6.5px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;color:#7b8e97;margin-bottom:3px}
+        .v1166-cell.actions{grid-column:1/-1;border-bottom:0}
+      }
+      @media(max-width:720px){
+        .v1166-toolbar{grid-template-columns:1fr}.v1166-count{justify-content:flex-start}
+        .v1166-register{grid-template-columns:1fr}.v1166-register-hero{display:block}.v1166-hero-actions{margin:12px 0 0}
+        .v1166-row{grid-template-columns:1fr}.v1166-cell.actions{grid-column:auto}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function patchGlobalFlows(){
+    // Gli annullati non devono tornare nei KPI/coda come ordini aperti.
+    if(typeof groupOrders==='function'&&!window.__v1166GroupPatched){
+      window.__v1166GroupPatched=true;
+      const old=groupOrders;
+      const wrapped=function(){return old().filter(g=>!g?.main?.cancelled&&!/annull/i.test(String(g?.main?.status||'')))};
+      try{groupOrders=wrapped}catch(_){}
+    }
+
+    // Forza il registro canonico anche se un vecchio modulo prova a ripristinare il renderer precedente.
+    window.renderOrdersRegisterV53=render;
+    try{renderOrdersRegisterV53=render}catch(_){}
+    if(window.SPMPV1164)window.SPMPV1164.openRegister=forceOpen;
+    if(window.SPRegisterV1165)window.SPRegisterV1165.open=forceOpen;
+  }
+
+  function keepRegisterCurrent(){
+    patchGlobalFlows();
+    if(typeof currentView!=='undefined'&&currentView==='ordersRegister'){
+      const view=$('#ordersRegisterView');
+      if(view&&!view.querySelector('.v1166-register-root'))render();
+    }
+  }
+
+  function boot(){
+    injectStyles();
+    backfillEmailLinks();
+    patchGlobalFlows();
+    setInterval(keepRegisterCurrent,450);
+    const view=$('#ordersRegisterView');
+    if(view){
+      new MutationObserver(()=>{
+        if(typeof currentView!=='undefined'&&currentView==='ordersRegister'&&!view.querySelector('.v1166-register-root')){
+          setTimeout(render,0);
+        }
+      }).observe(view,{childList:true});
+    }
+    document.body.dataset.registerFix='V11.6.6';
+  }
+
+  window.SPRegisterV1166={
+    render,open:forceOpen,cancel:cancelOrder,trace:openTrace,
+    groups:allGroups,gmailMeta,backfillEmailLinks,version:VERSION
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
