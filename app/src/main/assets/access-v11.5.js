@@ -1268,15 +1268,34 @@
     sb.auth.onAuthStateChange(event=>{
       if(event==='SIGNED_IN'&&activationMode){setTimeout(()=>location.replace(location.origin+location.pathname),500);return}
       if(event==='SIGNED_IN'&&!activationMode){
-        // V11.9.4: signInWithPassword viene usato anche per riconfermare
-        // la password uffici. In quel caso non deve partire il routing
-        // del login globale, altrimenti su mobile la home Produzione può
-        // sovrascrivere l'Area uffici appena sbloccata.
-        if(officeReauthInProgress || sessionStorage.getItem(OFFICE_REAUTH_KEY)==='1') return;
+        // V11.9.7:
+        // Supabase può riemettere SIGNED_IN quando il browser torna in primo piano
+        // o ripristina una sessione. Non deve essere interpretato come un nuovo
+        // login globale se l'utente è già dentro Produzione/Uffici.
+        const activeOfficeRole=
+          sessionStorage.getItem(OFFICE_ROLE_KEY) ||
+          localStorage.getItem(DEVICE_OFFICE_ROLE_KEY) ||
+          '';
 
-        // Il login globale è il gateway NOMYRA / cliente.
-        // Per tenant_admin identifica l'azienda ma NON sblocca gli uffici:
-        // lo sblocco uffici richiede una conferma password separata.
+        if(
+          officeReauthInProgress ||
+          sessionStorage.getItem(OFFICE_REAUTH_KEY)==='1' ||
+          officeUnlocked() ||
+          !!employee ||
+          ['director','manager','admin'].includes(activeOfficeRole)
+        ){
+          return;
+        }
+
+        // Esegui il routing iniziale solo quando il portale di login è realmente aperto.
+        const authGate=$('#poiCloudAuth');
+        const authIsOpen=!!authGate && (
+          authGate.classList.contains('open') ||
+          getComputedStyle(authGate).display!=='none'
+        );
+
+        if(!authIsOpen && profile()) return;
+
         setTimeout(()=>routeAfterGlobalLogin(),100);
         return;
       }
@@ -1725,10 +1744,58 @@
       if(!profile()||$('.poi113-overlay.open'))return;
       if(employee){showCompanyMenu();return}
       if(isPlatform()){showCompanyMenu();return}
-      if(!officeUnlocked()){sessionStorage.removeItem('industrialos_role_session');sessionStorage.removeItem(OFFICE_ROLE_KEY);showProductionHome();return}
-      showOfficeMenu();
+      if(!officeUnlocked()){
+        sessionStorage.removeItem('industrialos_role_session');
+        sessionStorage.removeItem(OFFICE_ROLE_KEY);
+        showProductionHome();
+        return;
+      }
+
+      // Ripristina il ruolo ufficio ricordato (es. Amministrazione) invece
+      // di tornare sempre al selettore uffici dopo refresh/ripristino browser.
+      showCompanyMenu();
     },950);
   }
+
+  // V11.9.7 · Tab/focus stability
+  // Non effettua logout né routing; riallinea solo la UI al ruolo già memorizzato.
+  let focusRestoreTimerV1197=0;
+  function restoreAfterFocusV1197(){
+    clearTimeout(focusRestoreTimerV1197);
+    focusRestoreTimerV1197=setTimeout(()=>{
+      if(document.visibilityState==='hidden')return;
+      if(!profile())return;
+
+      if(employee){
+        try{
+          const remembered=employee.role_code||sessionStorage.getItem('industrialos_role_session')||'';
+          if(remembered && typeof currentRole!=='undefined' && currentRole!==remembered){
+            enterRole(remembered,true);
+          }
+        }catch(_){}
+        return;
+      }
+
+      if(!officeUnlocked())return;
+      const rememberedRole=
+        sessionStorage.getItem(OFFICE_ROLE_KEY) ||
+        localStorage.getItem(DEVICE_OFFICE_ROLE_KEY) ||
+        '';
+      if(!['director','manager','admin'].includes(rememberedRole))return;
+
+      try{
+        if(typeof currentRole!=='undefined' && currentRole!==rememberedRole){
+          enterOfficeRole(rememberedRole);
+        }
+      }catch(_){}
+    },180);
+  }
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')restoreAfterFocusV1197();
+  },{passive:true});
+  window.addEventListener('focus',restoreAfterFocusV1197,{passive:true});
+  window.addEventListener('pageshow',restoreAfterFocusV1197,{passive:true});
 
   const publicApi={
     showCompanyMenu,selectCompany,showProductionHome,openProductionLogin,openOfficeLogin,cancelOfficeLogin:resetOfficeInlineLogin,showOfficeMenu,enterOfficeRole,

@@ -1,0 +1,29 @@
+SMART PACK · MULTIPLAST — V11.9.7
+FIX CAMBIO SCHEDA / SESSIONE PERSISTENTE
+
+PROBLEMA
+Quando Chrome tornava sulla scheda della piattaforma, Supabase poteva
+riemettere SIGNED_IN. Il listener lo interpretava come un nuovo login
+generale e riportava il tenant alla home operativa, azzerando l'accesso uffici.
+
+CORREZIONE
+- SIGNED_IN viene ignorato se esiste già:
+  * sessione uffici sbloccata;
+  * ruolo ufficio attivo;
+  * sessione operatore USER+PIN;
+  * riconferma password in corso.
+- Il routing globale parte solo se la schermata login NOMYRA è realmente aperta.
+- Cambio scheda / ritorno su Chrome non esegue logout né torna alla home.
+- Focus, visibilitychange e pageshow riallineano soltanto il ruolo già ricordato.
+- Dopo F5 viene ripristinato il ruolo ufficio ricordato (es. Amministrazione)
+  invece di tornare al selettore uffici.
+
+RESTANO VALIDI
+- V11.9.6 accesso uffici con client Supabase temporaneo.
+- Fix Panoramica Amministrazione.
+- USER + PIN.
+- Blocca = chiude uffici.
+- Esci = logout completo.
+
+CACHE
+spmp-v119-static-52
