@@ -35,6 +35,8 @@
 
   let selectedCompany=sessionStorage.getItem(COMPANY_KEY)||localStorage.getItem(DEVICE_COMPANY_KEY)||'';
   let officeUnlockedFlag=localStorage.getItem(DEVICE_OFFICE_UNLOCKED_KEY)==='1';
+  let officeReauthInProgress=false;
+  const OFFICE_REAUTH_KEY='poi_v1194_office_reauth';
   let manageCompany='smartpack';
   let recoveryCompany='smartpack';
   let directory=[];
@@ -569,8 +571,24 @@
       @media(max-width:560px){
         .poi116-brand-clean img{width:235px!important;max-width:78vw!important}
         .poi116-title{font-size:31px!important}
+        .poi116-office-login{
+          margin-top:10px!important;
+          padding:13px!important;
+          border-radius:14px!important;
+          scroll-margin-top:12px;
+        }
         .poi116-office-login form{grid-template-columns:1fr}
-        .poi116-office-login .poi116-office-error{grid-column:1}
+        .poi116-office-login input{
+          min-height:50px!important;
+          height:50px!important;
+          font-size:16px!important;
+        }
+        .poi116-office-login .poi116-office-submit,
+        .poi116-office-login .poi116-office-cancel{
+          min-height:50px!important;height:50px!important;font-size:14px!important;
+          touch-action:manipulation;
+        }
+        .poi116-office-login .poi116-office-error{grid-column:1;font-size:12px!important;line-height:1.4}
       }
 
       @media(max-width:760px){.poi113-company-grid,.poi113-admin-grid,.poi113-form-grid,.poi115-production-grid,.poi115-office-grid{grid-template-columns:1fr}.poi113-form-grid .full{grid-column:auto}.poi113-card{padding:16px}.poi113-overlay{padding:10px}.poi113-employee,.poi113-request{grid-template-columns:1fr}.poi113-row-actions{justify-content:flex-start}.poi113-request select{min-width:100%;max-width:100%}}
@@ -914,6 +932,98 @@
       </button>`;
   }
 
+  async function resolveAuthenticatedEmailV1195(){
+    // 1) Fast local source: profile / cloud wrapper.
+    try{
+      const email=String(api()?.getUser?.()?.email||'').trim().toLowerCase();
+      if(email)return email;
+    }catch(_){}
+
+    // 2) Local Supabase session: does not require a network roundtrip.
+    try{
+      const sb=client();
+      const {data}=await sb.auth.getSession();
+      const email=String(data?.session?.user?.email||'').trim().toLowerCase();
+      if(email)return email;
+    }catch(_){}
+
+    // 3) Server-validated user as final fallback.
+    try{
+      const sb=client();
+      const {data}=await sb.auth.getUser();
+      return String(data?.user?.email||'').trim().toLowerCase();
+    }catch(_){
+      return '';
+    }
+  }
+
+  async function verifyOfficePasswordV1196(email,password){
+    const primary=client();
+    if(!primary)throw new Error('Connessione cloud non disponibile.');
+
+    // Verifica password su un client Supabase SEPARATO.
+    // Così il client principale resta autenticato e non riceve SIGNED_IN.
+    const base=String(primary.supabaseUrl||'').replace(/\/+$/,'');
+    const key=String(primary.supabaseKey||'');
+
+    const createClient=
+      window.supabase?.createClient ||
+      window.Supabase?.createClient ||
+      null;
+
+    if(base && key && typeof createClient==='function'){
+      const temp=createClient(base,key,{
+        auth:{
+          persistSession:false,
+          autoRefreshToken:false,
+          detectSessionInUrl:false,
+          storage:{
+            getItem:()=>null,
+            setItem:()=>{},
+            removeItem:()=>{}
+          }
+        },
+        global:{
+          headers:{'X-Client-Info':'nomyra-office-reauth/1.0'}
+        }
+      });
+
+      const timeout=new Promise((_,reject)=>{
+        setTimeout(()=>reject(new Error('Verifica timeout')),12000);
+      });
+
+      const authCall=temp.auth.signInWithPassword({email,password});
+      const result=await Promise.race([authCall,timeout]);
+
+      if(result?.error)throw result.error;
+      if(!result?.data?.session)throw new Error('Sessione di verifica non creata.');
+
+      // Il client temporaneo non deve conservare alcuna sessione.
+      try{await temp.auth.signOut({scope:'local'})}catch(_){}
+      return true;
+    }
+
+    // Fallback compatibile: client principale, protetto dal guard.
+    // Usato soltanto se la libreria globale non espone createClient.
+    officeReauthInProgress=true;
+    sessionStorage.setItem(OFFICE_REAUTH_KEY,'1');
+    try{
+      const timeout=new Promise((_,reject)=>{
+        setTimeout(()=>reject(new Error('Verifica timeout')),12000);
+      });
+      const authCall=primary.auth.signInWithPassword({email,password});
+      const result=await Promise.race([authCall,timeout]);
+      if(result?.error)throw result.error;
+      if(!result?.data?.session)throw new Error('Sessione non creata.');
+      return true;
+    }finally{
+      setTimeout(()=>{
+        officeReauthInProgress=false;
+        sessionStorage.removeItem(OFFICE_REAUTH_KEY);
+      },1500);
+    }
+  }
+
   async function openOfficeLogin(){
     ensureUI();hideLegacyProfileGate();
 
@@ -958,21 +1068,26 @@
       </div>`;
 
     const form=$('#poi116OfficeInlineForm');
-    let authenticatedEmail='';
-    try{
-      const {data}=await client().auth.getUser();
-      authenticatedEmail=String(data?.user?.email||'').trim().toLowerCase();
-      if(authenticatedEmail)form.elements.email.value=authenticatedEmail;
-    }catch(_){}
+    let authenticatedEmail=await resolveAuthenticatedEmailV1195();
+    if(authenticatedEmail)form.elements.email.value=authenticatedEmail;
 
     if(!authenticatedEmail){
       const err=$('#poi116OfficeInlineError');
-      err.textContent='Sessione account non disponibile. Esci e accedi nuovamente dal portale principale.';
+      err.textContent='Non riesco a leggere l’account collegato su questo browser. Torna alla home, esci e accedi nuovamente.';
       err.classList.add('show');
       form.querySelector('.poi116-office-submit').disabled=true;
     }
 
-    setTimeout(()=>form?.elements?.password?.focus(),60);
+    // Chrome Android sometimes scrolls the page while focusing immediately
+    // after DOM replacement. Delay slightly and scroll the form into view.
+    setTimeout(()=>{
+      try{
+        form?.scrollIntoView?.({block:'center',behavior:'smooth'});
+        form?.elements?.password?.focus?.({preventScroll:true});
+      }catch(_){
+        try{form?.elements?.password?.focus?.()}catch(__){}
+      }
+    },180);
 
     form.onsubmit=async e=>{
       e.preventDefault();
@@ -987,27 +1102,41 @@
       btn.textContent='Verifica…';
 
       try{
-        const sb=client();
-        if(!sb)throw new Error('Connessione cloud non disponibile.');
-        const {error}=await sb.auth.signInWithPassword({email,password});
-        if(error)throw error;
+        if(!email)throw new Error('Account collegato non disponibile.');
+        if(!password)throw new Error('Inserisci la password.');
+
+        await verifyOfficePasswordV1196(email,password);
 
         officeUnlockedFlag=true;
         rememberOfficeSession('');
         sessionStorage.removeItem(EMPLOYEE_KEY);
         localStorage.removeItem(DEVICE_EMPLOYEE_KEY);
         employee=null;
+
+        // Remove the inline form before opening the office selector.
+        // This avoids Chrome Android keeping focus/keyboard ownership.
+        try{form.elements.password.blur()}catch(_){}
         showOfficeMenu();
       }catch(error){
         officeUnlockedFlag=false;
         clearRememberedOffice();
-        err.textContent='Password non corretta. L’area uffici resta bloccata.';
+
+        const message=String(error?.message||'').toLowerCase();
+        if(message.includes('timeout')){
+          err.textContent='La verifica ha impiegato troppo tempo. Controlla la connessione e riprova.';
+        }else if(message.includes('invalid')||message.includes('credentials')||error?.status===400){
+          err.textContent='Password non corretta. L’area uffici resta bloccata.';
+        }else{
+          err.textContent='Non è stato possibile verificare la password. Riprova tra qualche secondo.';
+        }
         err.classList.add('show');
         form.elements.password.value='';
-        form.elements.password.focus();
+        try{form.elements.password.focus()}catch(_){}
       }finally{
-        btn.disabled=false;
-        btn.textContent='Accedi';
+        if(document.contains(btn)){
+          btn.disabled=false;
+          btn.textContent='Sblocca uffici';
+        }
       }
     };
   }
@@ -1023,6 +1152,20 @@
     sessionStorage.setItem('industrialos_role_session',role);
     rememberOfficeSession(role);
     closeOverlays();enterRole(role,false);hideLegacyProfileGate();
+
+    // V11.9.4: V11.8.6 può essersi avviato prima che currentRole fosse admin.
+    // Riapplicalo esattamente quando si entra in Amministrazione.
+    if(role==='admin'){
+      setTimeout(()=>{
+        try{
+          window.SPAdminCoreNavV1186?.patch?.();
+          window.SPAdminCoreNavV1186?.restore?.();
+        }catch(e){console.warn('[V11.9.4] admin nav restore',e)}
+      },60);
+      setTimeout(()=>{
+        try{window.SPAdminCoreNavV1186?.patch?.()}catch(_){}
+      },650);
+    }
   }
 
   function decorateAuth(){
@@ -1125,6 +1268,12 @@
     sb.auth.onAuthStateChange(event=>{
       if(event==='SIGNED_IN'&&activationMode){setTimeout(()=>location.replace(location.origin+location.pathname),500);return}
       if(event==='SIGNED_IN'&&!activationMode){
+        // V11.9.4: signInWithPassword viene usato anche per riconfermare
+        // la password uffici. In quel caso non deve partire il routing
+        // del login globale, altrimenti su mobile la home Produzione può
+        // sovrascrivere l'Area uffici appena sbloccata.
+        if(officeReauthInProgress || sessionStorage.getItem(OFFICE_REAUTH_KEY)==='1') return;
+
         // Il login globale è il gateway NOMYRA / cliente.
         // Per tenant_admin identifica l'azienda ma NON sblocca gli uffici:
         // lo sblocco uffici richiede una conferma password separata.
@@ -1586,6 +1735,21 @@
     openNomyra,openRecoveryAdmin,setManageCompany,setRecoveryCompany,
     openRecoveryRequest,resetPin,toggleEmployee,resolveRecovery,dismissRecovery,openPinChange
   };
+  // V11.9.4 · Stabilizzatore menu Amministrazione
+  // I moduli legacy possono richiamare renderNav diversi secondi dopo il boot.
+  // Interveniamo soltanto quando il ruolo attivo è admin.
+  let lastAdminNavReassertV1194=0;
+  function reassertAdminNavV1194(){
+    let role='';
+    try{role=String(typeof currentRole!=='undefined'?currentRole:'')}catch(_){}
+    if(role!=='admin')return;
+    const now=Date.now();
+    if(now-lastAdminNavReassertV1194<700)return;
+    lastAdminNavReassertV1194=now;
+    try{window.SPAdminCoreNavV1186?.patch?.()}catch(_){}
+  }
+  setInterval(reassertAdminNavV1194,1200);
+
   window.POIV113=publicApi;
   window.POIV112=publicApi;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
