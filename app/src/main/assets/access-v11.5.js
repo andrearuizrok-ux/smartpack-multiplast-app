@@ -1,5 +1,305 @@
 
 /* ========================================================================
+   V11.9.11 · SALUTE DELL'AZIENDA
+   Sintesi gestionale spiegabile basata sui dati economico-finanziari già
+   disponibili. Nessun punteggio opaco: ogni stato espone motivazione e KPI.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPCompanyHealthV11911)return;
+
+  const $=(s,r=document)=>r.querySelector(s);
+  const n=v=>Number.isFinite(Number(v))?Number(v):0;
+  const money=v=>new Intl.NumberFormat('it-IT',{
+    style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2
+  }).format(n(v));
+  const pct=v=>`${new Intl.NumberFormat('it-IT',{
+    minimumFractionDigits:1,maximumFractionDigits:1
+  }).format(n(v))}%`;
+
+  function S(){try{return state}catch(_){return window.state||null}}
+  function period(){
+    const input=$('#financePeriodV1170');
+    const p=input?.value ||
+      sessionStorage.getItem('poi_finance_period_v1179') ||
+      localStorage.getItem('poi_finance_period_v1179') || '';
+    if(/^\d{4}-\d{2}$/.test(p))return p;
+    const xs=(S()?.adminFinanceV1170?.records||[])
+      .map(x=>String(x.period||''))
+      .filter(x=>/^\d{4}-\d{2}$/.test(x))
+      .sort().reverse();
+    return xs[0]||'';
+  }
+  function record(company,p){
+    return (S()?.adminFinanceV1170?.records||[])
+      .find(x=>x.company===company&&x.period===p)||null;
+  }
+  function aggregateRecord(scope,p){
+    if(scope!=='group')return record(scope,p)||{};
+    const rs=['smartpack','multiplast'].map(c=>record(c,p)).filter(Boolean);
+    const sum=k=>rs.reduce((s,r)=>s+n(r[k]),0);
+    return {
+      depreciation:sum('depreciation'),
+      receivables:sum('receivables'),
+      payables:sum('payables'),
+      cash:sum('cash'),
+      inventory:sum('inventory'),
+      financialCharges:sum('financialCharges')
+    };
+  }
+  function scope(){
+    const overview=$('#adminOverviewV1170View');
+    if(overview?.classList.contains('active')){
+      return sessionStorage.getItem('poi_admin_overview_scope_v1182')||'group';
+    }
+    return 'group';
+  }
+  function labelScope(s){return s==='smartpack'?'Smart Pack':s==='multiplast'?'Multiplast':'Gruppo'}
+
+  function health(scopeName,p){
+    const clarity=window.SPFinanceClarityV1199;
+    if(!clarity)return null;
+    const d=scopeName==='group'?clarity.groupDerived(p):clarity.derived(scopeName,p);
+    if(!d?.configured)return null;
+
+    const r=aggregateRecord(scopeName,p);
+    const prod=Math.max(0,n(d.productionValue));
+    const ebitda=n(d.ebitda),ebit=n(d.ebit),margin=n(d.marginProduction);
+    const depreciation=n(r.depreciation);
+    const receivables=n(r.receivables),payables=n(r.payables),cash=n(r.cash);
+    const working=receivables-payables;
+    const cashCover=payables>0?cash/payables:null;
+
+    const signals=[];
+
+    // Redditività operativa
+    if(ebitda<0){
+      signals.push({key:'profit',cls:'risk',title:'Redditività operativa',
+        value:money(ebitda),text:'EBITDA negativo: i ricavi operativi non stanno coprendo i costi operativi del periodo.'});
+    }else if(margin>=10){
+      signals.push({key:'profit',cls:'good',title:'Redditività operativa',
+        value:`EBITDA ${money(ebitda)} · ${pct(margin)}`,text:'La gestione operativa genera un margine positivo prima di ammortamenti e componenti non operative.'});
+    }else if(margin>=5){
+      signals.push({key:'profit',cls:'watch',title:'Redditività operativa',
+        value:`EBITDA ${money(ebitda)} · ${pct(margin)}`,text:'Margine operativo positivo, ma non ampio: conviene monitorare costi e prezzi di vendita.'});
+    }else{
+      signals.push({key:'profit',cls:'watch',title:'Redditività operativa',
+        value:`EBITDA ${money(ebitda)} · ${pct(margin)}`,text:'EBITDA positivo ma con margine contenuto rispetto al valore della produzione.'});
+    }
+
+    // Risultato operativo
+    if(ebit>=0){
+      signals.push({key:'ebit',cls:'good',title:'Risultato operativo',
+        value:money(ebit),text:'Dopo gli ammortamenti il risultato operativo resta positivo.'});
+    }else if(ebitda>0){
+      signals.push({key:'ebit',cls:'watch',title:'Risultato operativo',
+        value:money(ebit),text:`L'EBIT è negativo nonostante EBITDA positivo. Gli ammortamenti incidono per ${money(depreciation)}.`});
+    }else{
+      signals.push({key:'ebit',cls:'risk',title:'Risultato operativo',
+        value:money(ebit),text:'Il risultato operativo è negativo già a partire da una gestione operativa debole o negativa.'});
+    }
+
+    // Crediti / debiti
+    if(working>=0){
+      signals.push({key:'working',cls:'good',title:'Crediti vs debiti fornitori',
+        value:`+${money(working)}`,text:'I crediti clienti risultano superiori ai debiti fornitori registrati. La qualità dipende però dai tempi effettivi di incasso.'});
+    }else{
+      const ratio=prod?Math.abs(working)/prod:0;
+      signals.push({key:'working',cls:ratio>=.10?'risk':'watch',title:'Crediti vs debiti fornitori',
+        value:money(working),text:'I debiti fornitori superano i crediti clienti registrati nel periodo disponibile.'});
+    }
+
+    // Liquidità
+    if(payables<=0){
+      signals.push({key:'cash',cls:cash>0?'good':'neutral',title:'Liquidità',
+        value:money(cash),text:'Non risultano debiti fornitori valorizzati con cui confrontare la liquidità disponibile.'});
+    }else if(cashCover>=.35){
+      signals.push({key:'cash',cls:'good',title:'Liquidità',
+        value:`${money(cash)} · ${pct(cashCover*100)} dei debiti fornitori`,text:'La liquidità disponibile offre una copertura significativa dei debiti fornitori registrati.'});
+    }else if(cashCover>=.15){
+      signals.push({key:'cash',cls:'watch',title:'Liquidità',
+        value:`${money(cash)} · ${pct(cashCover*100)} dei debiti fornitori`,text:'Liquidità presente, ma da monitorare insieme alle scadenze di pagamento e ai tempi di incasso dei crediti.'});
+    }else{
+      signals.push({key:'cash',cls:'risk',title:'Liquidità',
+        value:`${money(cash)} · ${pct((cashCover||0)*100)} dei debiti fornitori`,text:'Liquidità contenuta rispetto ai debiti fornitori: è importante verificare scadenze e incassi attesi.'});
+    }
+
+    const risks=signals.filter(x=>x.cls==='risk').length;
+    const watches=signals.filter(x=>x.cls==='watch').length;
+
+    let overall;
+    if(ebitda<0 || risks>=2){
+      overall={cls:'risk',label:'Criticità da approfondire',
+        text:'I dati disponibili mostrano più segnali di tensione. Conviene analizzare subito margini, costi, scadenze e liquidità.'};
+    }else if(ebit<0 || watches>=2 || risks===1){
+      overall={cls:'watch',label:'Da monitorare',
+        text:'L’azienda genera attività economica, ma alcuni indicatori richiedono attenzione prima di considerare la situazione pienamente equilibrata.'};
+    }else{
+      overall={cls:'good',label:'Situazione favorevole',
+        text:'I principali indicatori disponibili risultano positivi. Continua a monitorare margini, liquidità e tempi di incasso.'};
+    }
+
+    // Messaggio specifico più utile quando EBITDA > 0 ed EBIT < 0.
+    if(ebitda>0 && ebit<0){
+      overall.text=`La gestione operativa genera un EBITDA positivo (${money(ebitda)}), ma dopo ${money(depreciation)} di ammortamenti l’EBIT scende a ${money(ebit)}. Crediti e liquidità vanno letti insieme alle relative scadenze.`;
+    }
+
+    return {scope:scopeName,p,overall,signals,metrics:{prod,ebitda,ebit,margin,depreciation,receivables,payables,cash,working,cashCover}};
+  }
+
+  function cardHtml(h){
+    return `
+      <section class="v11911-health ${h.overall.cls}" data-v11911-health>
+        <div class="v11911-health-head">
+          <div>
+            <span class="eyebrow">SALUTE DELL'AZIENDA · ${labelScope(h.scope).toUpperCase()}</span>
+            <h3>Quadro gestionale del periodo</h3>
+            <p>${h.p} · sintesi costruita sui dati economico-finanziari disponibili</p>
+          </div>
+          <div class="v11911-health-status ${h.overall.cls}">
+            <i></i><span>${h.overall.label}</span>
+          </div>
+        </div>
+
+        <div class="v11911-health-summary">${h.overall.text}</div>
+
+        <div class="v11911-health-grid">
+          ${h.signals.map(s=>`
+            <article class="${s.cls}">
+              <div class="v11911-health-label"><i></i><span>${s.title}</span></div>
+              <b>${s.value}</b>
+              <p>${s.text}</p>
+            </article>
+          `).join('')}
+        </div>
+
+        <div class="v11911-health-foot">
+          <span><b>Come leggerlo:</b> questa è una sintesi gestionale automatica, non un rating creditizio né una valutazione contabile ufficiale.</span>
+          <button type="button" onclick="SPFinanceClarityV1199?.open?.('ebit','${h.scope}','${h.p}')">Apri dettaglio economico →</button>
+        </div>
+      </section>`;
+  }
+
+  function decorateFinance(){
+    const view=$('#adminFinanceV1170View');
+    if(!view?.classList.contains('active'))return;
+    const p=period();if(!p)return;
+    const h=health('group',p);if(!h)return;
+
+    let box=$('[data-v11911-health]',view);
+    const anchor=$('.v1199-group-production',view) || $('.v1170-fin-group',view);
+    if(!anchor)return;
+
+    if(!box){
+      anchor.insertAdjacentHTML('afterend',cardHtml(h));
+    }else{
+      const temp=document.createElement('div');temp.innerHTML=cardHtml(h);
+      box.replaceWith(temp.firstElementChild);
+    }
+  }
+
+  function decorateOverview(){
+    const view=$('#adminOverviewV1170View');
+    if(!view?.classList.contains('active'))return;
+    const p=period();if(!p)return;
+    const sc=scope(),h=health(sc,p);if(!h)return;
+
+    let box=$('[data-v11911-health]',view);
+    const anchor=$('.v1182-economic-panel',view) || $('.v1182-main-grid',view);
+    if(!anchor)return;
+
+    if(!box){
+      anchor.insertAdjacentHTML('afterend',cardHtml(h));
+    }else{
+      const temp=document.createElement('div');temp.innerHTML=cardHtml(h);
+      box.replaceWith(temp.firstElementChild);
+    }
+  }
+
+  function injectStyles(){
+    if($('#v11911HealthStyles'))return;
+    const st=document.createElement('style');
+    st.id='v11911HealthStyles';
+    st.textContent=`
+      .v11911-health{
+        margin-top:16px;padding:18px 19px;background:#fff;border:1px solid #dbe6ea;
+        border-radius:18px;box-shadow:0 7px 20px rgba(25,64,79,.045)
+      }
+      .v11911-health.good{border-top:4px solid #2f8a69}
+      .v11911-health.watch{border-top:4px solid #c58a2a}
+      .v11911-health.risk{border-top:4px solid #b8464e}
+      .v11911-health-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+      .v11911-health-head h3{margin:4px 0 3px;font-size:20px;line-height:1.2}
+      .v11911-health-head p{margin:0;color:#667a84;font-size:12.5px}
+      .v11911-health-status{
+        display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;
+        font-size:12px;font-weight:900;white-space:nowrap
+      }
+      .v11911-health-status i,.v11911-health-label i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+      .v11911-health-status.good{background:#eaf7f1;color:#206f57}.v11911-health-status.good i{background:#2f8a69}
+      .v11911-health-status.watch{background:#fff6e6;color:#8a5d17}.v11911-health-status.watch i{background:#c58a2a}
+      .v11911-health-status.risk{background:#fff0f1;color:#9e343c}.v11911-health-status.risk i{background:#b8464e}
+      .v11911-health-summary{
+        margin-top:13px;padding:13px 14px;border-radius:12px;background:#f7fafb;color:#344d59;
+        font-size:13.5px;line-height:1.55;font-weight:600
+      }
+      .v11911-health-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:11px}
+      .v11911-health-grid article{padding:12px;border:1px solid #e0e9ec;border-radius:13px;background:#fff;min-width:0}
+      .v11911-health-grid article.good{background:#f7fcf9}.v11911-health-grid article.watch{background:#fffaf1}.v11911-health-grid article.risk{background:#fff7f7}
+      .v11911-health-label{display:flex;align-items:center;gap:6px;color:#617680;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+      .v11911-health-grid article.good .v11911-health-label i{background:#2f8a69}
+      .v11911-health-grid article.watch .v11911-health-label i{background:#c58a2a}
+      .v11911-health-grid article.risk .v11911-health-label i{background:#b8464e}
+      .v11911-health-grid article.neutral .v11911-health-label i{background:#83959d}
+      .v11911-health-grid article>b{display:block;margin-top:7px;font-size:16px;line-height:1.25;color:#142d39}
+      .v11911-health-grid article.risk>b{color:#a63740}
+      .v11911-health-grid article p{margin:6px 0 0;color:#5d707a;font-size:11.5px;line-height:1.5}
+      .v11911-health-foot{
+        margin-top:11px;padding-top:10px;border-top:1px solid #e8eef0;
+        display:flex;justify-content:space-between;align-items:center;gap:16px
+      }
+      .v11911-health-foot>span{color:#71838b;font-size:10.5px;line-height:1.45}
+      .v11911-health-foot button{border:0;background:transparent;color:var(--primary);font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;white-space:nowrap}
+      @media(max-width:1200px){.v11911-health-grid{grid-template-columns:1fr 1fr}}
+      @media(max-width:700px){
+        .v11911-health{padding:15px}
+        .v11911-health-head{display:block}.v11911-health-status{margin-top:10px}
+        .v11911-health-head h3{font-size:20px}.v11911-health-head p{font-size:13px}
+        .v11911-health-summary{font-size:14px}
+        .v11911-health-grid{grid-template-columns:1fr}
+        .v11911-health-grid article>b{font-size:18px}
+        .v11911-health-grid article p{font-size:13px}
+        .v11911-health-label{font-size:11px}
+        .v11911-health-foot{display:block}.v11911-health-foot>span{font-size:12px}.v11911-health-foot button{margin-top:8px;font-size:12px}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function decorate(){
+    injectStyles();
+    decorateFinance();
+    decorateOverview();
+  }
+
+  function boot(){
+    injectStyles();
+    [350,800,1600,3000].forEach(ms=>setTimeout(decorate,ms));
+    setInterval(()=>{
+      if($('#adminFinanceV1170View')?.classList.contains('active') ||
+         $('#adminOverviewV1170View')?.classList.contains('active')){
+        decorate();
+      }
+    },2000);
+  }
+
+  window.SPCompanyHealthV11911={health,decorate,version:'V11.9.11'};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
+
+
+/* ========================================================================
    V11.9.10 · FINANCE ALERT READABILITY
    Migliora leggibilità e gerarchia degli alert economico-finanziari.
    ======================================================================== */

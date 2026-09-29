@@ -1,5 +1,5 @@
-/* V11.9.10 MOBILE OFFICE AUTH · static-50 */
-const CACHE='spmp-v119-static-55';
+/* V11.9.11 MOBILE OFFICE AUTH · static-50 */
+const CACHE='spmp-v119-static-56';
 
 const CORE_STATIC=[
   './access-v11.5.js',
