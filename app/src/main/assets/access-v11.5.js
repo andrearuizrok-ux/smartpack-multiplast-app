@@ -1,3 +1,109 @@
+
+/* ========================================================================
+   V11.9.10 · FINANCE ALERT READABILITY
+   Migliora leggibilità e gerarchia degli alert economico-finanziari.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.__poiFinanceAlertReadabilityV11910)return;
+  window.__poiFinanceAlertReadabilityV11910=true;
+
+  function inject(){
+    if(document.getElementById('poiFinanceAlertReadabilityV11910Styles'))return;
+    const st=document.createElement('style');
+    st.id='poiFinanceAlertReadabilityV11910Styles';
+    st.textContent=`
+      /* Alert principale risultato operativo */
+      .v1170-loss-alert{
+        padding:18px 20px!important;
+        border-radius:16px!important;
+        border-width:1px!important;
+        min-height:74px!important;
+        display:flex!important;
+        flex-direction:column!important;
+        justify-content:center!important;
+        gap:5px!important;
+        background:#fff4f4!important;
+        border-color:#efc7ca!important;
+      }
+      .v1170-loss-alert b{
+        color:#a72f38!important;
+        font-size:15px!important;
+        line-height:1.35!important;
+        font-weight:850!important;
+        letter-spacing:0!important;
+      }
+      .v1170-loss-alert span{
+        color:#4d5961!important;
+        font-size:13.5px!important;
+        line-height:1.55!important;
+        font-weight:500!important;
+      }
+
+      /* Badge "Risultato operativo negativo" */
+      .v1170-fin-status.loss{
+        color:#9d2f38!important;
+        background:#fff0f1!important;
+        border:1px solid #efc7ca!important;
+        font-size:12px!important;
+        line-height:1.25!important;
+        font-weight:850!important;
+        padding:7px 11px!important;
+        border-radius:999px!important;
+        white-space:normal!important;
+        text-align:center!important;
+      }
+
+      /* Valori negativi nei KPI */
+      .v1170-fin-mini b.loss,
+      .v1170-fin-group b.loss,
+      .v1170-readonly-grid b.loss,
+      .v1182-economic-grid b.loss,
+      .v1182-forecast b.loss{
+        color:#a72f38!important;
+        font-weight:850!important;
+      }
+
+      /* Alert / stato nel popup di analisi */
+      .v1172-status.loss{
+        padding:15px 16px!important;
+        background:#fff4f4!important;
+        border-color:#efc7ca!important;
+      }
+      .v1172-status.loss b{
+        color:#a72f38!important;
+        font-size:14px!important;
+        line-height:1.35!important;
+        font-weight:850!important;
+      }
+      .v1172-status.loss span{
+        color:#4d5961!important;
+        font-size:13px!important;
+        line-height:1.5!important;
+        margin-top:5px!important;
+      }
+
+      @media(max-width:700px){
+        .v1170-loss-alert{
+          padding:16px!important;
+          min-height:auto!important;
+        }
+        .v1170-loss-alert b{font-size:16px!important}
+        .v1170-loss-alert span{font-size:14px!important}
+        .v1170-fin-status.loss{font-size:12.5px!important;padding:8px 10px!important}
+      }
+    `;
+    (document.head||document.documentElement).appendChild(st);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',inject,{once:true});
+  }else inject();
+
+  setTimeout(inject,300);
+})();
+
+
 /* ========================================================================
    V11.9.8 · FAST BOOT STAGING
    Sblocca la schermata iniziale appena login/portale/app sono realmente pronti.
