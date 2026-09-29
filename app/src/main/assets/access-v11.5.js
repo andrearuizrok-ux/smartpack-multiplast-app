@@ -1,3 +1,87 @@
+/* ========================================================================
+   V11.9.8 · FAST BOOT STAGING
+   Sblocca la schermata iniziale appena login/portale/app sono realmente pronti.
+   La sincronizzazione cloud continua in background.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.__poiFastBootV1198)return;
+  window.__poiFastBootV1198=true;
+
+  const started=performance.now();
+  let released=false;
+  let pollTimer=0;
+
+  function visible(el){
+    if(!el)return false;
+    try{
+      const s=getComputedStyle(el);
+      return s.display!=='none' && s.visibility!=='hidden' && s.opacity!=='0';
+    }catch(_){
+      return true;
+    }
+  }
+
+  function firstScreenReady(){
+    // Login globale NOMYRA già mostrato.
+    const auth=document.querySelector('#poiCloudAuth');
+    if(auth && (auth.classList.contains('open') || visible(auth)))return true;
+
+    // Portale azienda / accesso produzione-uffici già mostrato.
+    const portal=document.querySelector('.poi113-overlay.open,#poi113CompanyGate.open,#poi113AccessGate.open');
+    if(portal && visible(portal))return true;
+
+    // Sessione esistente + shell operativa disponibile.
+    try{
+      const p=window.POICloudV10?.getProfile?.();
+      const shell=document.querySelector('.app,.main,#dashboardView,#productionView,#adminView');
+      if(p && shell)return true;
+    }catch(_){}
+
+    return false;
+  }
+
+  function release(reason){
+    if(released)return;
+    released=true;
+    clearInterval(pollTimer);
+    try{clearTimeout(window.__poiBootSafety)}catch(_){}
+    document.documentElement.classList.remove('poi-booting');
+    document.documentElement.dataset.bootReleasedBy='v1198';
+    document.documentElement.dataset.bootReleaseReason=reason||'ready';
+    document.documentElement.dataset.bootMs=String(Math.round(performance.now()-started));
+
+    // Non bloccare il resto dell'avvio: segnala solo che la UI può essere usata.
+    try{
+      window.dispatchEvent(new CustomEvent('poi:first-screen-ready',{
+        detail:{reason:reason||'ready',ms:Math.round(performance.now()-started)}
+      }));
+    }catch(_){}
+  }
+
+  function check(){
+    if(firstScreenReady())release('first-screen-ready');
+  }
+
+  // Controlli rapidi: nessun polling pesante.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>{
+      requestAnimationFrame(()=>requestAnimationFrame(check));
+    },{once:true});
+  }else{
+    requestAnimationFrame(()=>requestAnimationFrame(check));
+  }
+
+  pollTimer=setInterval(check,80);
+
+  // Limite UX: la schermata bloccante non deve restare oltre 1.8 s.
+  // Il caricamento dati prosegue comunque dietro le quinte.
+  setTimeout(()=>release('ux-timeout'),1800);
+
+  window.addEventListener('pageshow',()=>setTimeout(check,0),{passive:true});
+})();
+
+
 /* V11.8.3 · BUILD CONSISTENCY */
 (()=>{
   if(window.__spmpBuildConsistencyV1183)return;
@@ -2430,3 +2514,312 @@
   document.head.appendChild(st);
 })();
 
+/* ========================================================================
+   NOMYRA / Smart Pack · Multiplast — V11.9.9 FINANCE CLARITY
+   - "Ricavi" = conto 70 (vendite e prestazioni)
+   - "Valore della produzione" = 70 + 71 + 73
+   - EBITDA/EBIT restano calcolati sul valore della produzione già importato
+   - composizione cliccabile degli importi aggregati SPRING
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinanceClarityV1199)return;
+
+  const VERSION='V11.9.9';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>Number.isFinite(Number(v))?Number(v):0;
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v));
+  const pct=v=>`${new Intl.NumberFormat('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(num(v))}%`;
+
+  function S(){try{return state}catch(_){return window.state||null}}
+  function keyOf(a){return String(a?.mapKey||(a?.partitario?`${a.code}|${a.partitario}`:a?.code||''))}
+  function period(){
+    const input=$('#financePeriodV1170');
+    const p=input?.value||sessionStorage.getItem('poi_finance_period_v1179')||localStorage.getItem('poi_finance_period_v1179')||'';
+    if(/^\d{4}-\d{2}$/.test(p))return p;
+    const xs=(S()?.adminFinanceV1170?.records||[]).map(x=>String(x.period||'')).filter(x=>/^\d{4}-\d{2}$/.test(x)).sort().reverse();
+    return xs[0]||'';
+  }
+  function record(company,p=period()){
+    return (S()?.adminFinanceV1170?.records||[]).find(x=>x.company===company&&x.period===p)||null;
+  }
+  function snapshots(company,p=period()){
+    return (S()?.financeSpringV1173?.snapshots||[]).filter(x=>x.company===company&&x.period===p);
+  }
+  function snapshot(company,p=period()){
+    const xs=snapshots(company,p);
+    return xs.slice().sort((a,b)=>String(b.importedAt||b.id||'').localeCompare(String(a.importedAt||a.id||'')))[0]||null;
+  }
+  function previousSnapshot(company,snap){
+    if(!snap||snap.mode!=='cumulative')return null;
+    const y=String(snap.period||'').slice(0,4);
+    return (S()?.financeSpringV1173?.snapshots||[])
+      .filter(x=>x.company===company&&x.period<snap.period&&String(x.period||'').slice(0,4)===y&&x.mode==='cumulative')
+      .sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0]||null;
+  }
+  function rawAmount(a){
+    if(Number.isFinite(Number(a?.signedAmount)))return Number(a.signedAmount);
+    if(num(a?.debit)||num(a?.credit)){
+      if(String(a?.section||'')==='revenue'||String(a?.section||'')==='liability')return num(a.credit)-num(a.debit);
+      return num(a.debit)-num(a.credit);
+    }
+    return num(a?.balance);
+  }
+  function contribution(a,snap,prev){
+    let v=rawAmount(a);
+    if(snap?.mode==='cumulative'&&prev){
+      const pa=(prev.accounts||[]).find(x=>keyOf(x)===keyOf(a));
+      v-=pa?rawAmount(pa):0;
+    }
+    return v;
+  }
+  function prefix(a,p){
+    const c=String(a?.code||'').trim();
+    return c===p||c.startsWith(p+'.');
+  }
+  function compositionByPrefixes(company,prefixes,p=period()){
+    const snap=snapshot(company,p);if(!snap)return [];
+    const prev=previousSnapshot(company,snap);
+    return (snap.accounts||[])
+      .filter(a=>prefixes.some(x=>prefix(a,x)))
+      .map(a=>({...a,amount:contribution(a,snap,prev)}))
+      .filter(a=>Math.abs(a.amount)>0.004)
+      .sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true})||String(a.partitario||'').localeCompare(String(b.partitario||'')));
+  }
+  function categoryFallback(a){
+    const c=String(a?.code||'').trim(),d=String(a?.description||'').toLowerCase(),sec=String(a?.section||'');
+    const starts=x=>c===x||c.startsWith(x+'.');
+    if(sec==='revenue'){
+      if(starts('70')||starts('71')||starts('73'))return 'revenue';
+      if(starts('87'))return 'extraordinaryIncome';
+    }
+    if(sec==='cost'){
+      if(starts('72')||starts('75'))return 'materials';
+      if(starts('81'))return 'personnel';
+      if(starts('90'))return 'depreciation';
+      if(starts('86'))return 'financialCharges';
+      if(starts('93'))return 'taxes';
+      if(starts('76')){
+        if(starts('76.03')||starts('76.05')||/trasport|spedizion/.test(d))return 'transport';
+        if(/energia elettrica|acqua potabile|\bgas\b|metano/.test(d))return 'energy';
+        return 'otherOpex';
+      }
+      if(/^7[789]\b/.test(c)||starts('80')||starts('83'))return 'otherOpex';
+    }
+    if(sec==='asset'){
+      if(starts('23.01')||starts('23.03'))return 'receivables';
+      if(starts('31'))return 'cash';
+      if(starts('21'))return 'inventory';
+    }
+    if(sec==='liability'&&starts('57'))return 'payables';
+    return '';
+  }
+  function categoryFor(a,company){
+    const maps=S()?.financeSpringV1173?.mappings?.[company]||{};
+    return maps[keyOf(a)]||a?.category||categoryFallback(a);
+  }
+  function compositionByCategory(company,category,p=period()){
+    const snap=snapshot(company,p);if(!snap)return [];
+    const prev=previousSnapshot(company,snap);
+    const stock=new Set(['receivables','payables','cash','inventory']);
+    return (snap.accounts||[])
+      .filter(a=>categoryFor(a,company)===category)
+      .map(a=>({...a,amount:stock.has(category)?rawAmount(a):contribution(a,snap,prev)}))
+      .filter(a=>Math.abs(a.amount)>0.004)
+      .sort((a,b)=>Math.abs(b.amount)-Math.abs(a.amount));
+  }
+  function derived(company,p=period()){
+    const r=record(company,p);
+    if(!r)return {configured:false,salesRevenue:0,inventoryChange:0,otherOperatingRevenue:0,productionValue:0,opex:0,ebitda:0,ebit:0,marginProduction:0};
+    const hasSnap=!!snapshot(company,p);
+    const sum=rows=>rows.reduce((s,x)=>s+num(x.amount),0);
+    const sales=hasSnap?sum(compositionByPrefixes(company,['70'],p)):num(r.salesRevenue||r.revenue);
+    const inv=hasSnap?sum(compositionByPrefixes(company,['71'],p)):num(r.inventoryProductionChange||0);
+    const other=hasSnap?sum(compositionByPrefixes(company,['73'],p)):num(r.otherOperatingRevenue||0);
+    const production=hasSnap?(sales+inv+other):num(r.productionValue||r.revenue);
+    const opex=num(r.materials)+num(r.personnel)+num(r.energy)+num(r.transport)+num(r.otherOpex);
+    // Compatibilità contabile: il record storico usa r.revenue come valore della produzione.
+    const base=num(r.revenue)||production;
+    const ebitda=base-opex,ebit=ebitda-num(r.depreciation);
+    return {configured:true,salesRevenue:sales,inventoryChange:inv,otherOperatingRevenue:other,productionValue:production||base,opex,ebitda,ebit,marginProduction:base?ebitda/base*100:0,record:r};
+  }
+  function groupDerived(p=period()){
+    const xs=['smartpack','multiplast'].map(c=>derived(c,p)).filter(x=>x.configured);
+    if(!xs.length)return {configured:false,salesRevenue:0,inventoryChange:0,otherOperatingRevenue:0,productionValue:0,opex:0,ebitda:0,ebit:0,marginProduction:0};
+    const sum=k=>xs.reduce((s,x)=>s+num(x[k]),0);
+    const productionValue=sum('productionValue'),ebitda=sum('ebitda');
+    return {configured:true,salesRevenue:sum('salesRevenue'),inventoryChange:sum('inventoryChange'),otherOperatingRevenue:sum('otherOperatingRevenue'),productionValue,opex:sum('opex'),ebitda,ebit:sum('ebit'),marginProduction:productionValue?ebitda/productionValue*100:0};
+  }
+
+  function ensureDialog(){
+    if($('#financeCompositionV1199Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="financeCompositionV1199Dialog" class="v1199-dialog">
+        <div class="modal-head"><div><span class="eyebrow">SPRING · TRASPARENZA DEL DATO</span><h3 id="financeCompositionV1199Title">Composizione importo</h3><p id="financeCompositionV1199Sub">Dettaglio delle voci che formano il valore.</p></div><button class="close" type="button" onclick="document.getElementById('financeCompositionV1199Dialog').close()">×</button></div>
+        <div class="modal-body" id="financeCompositionV1199Body"></div>
+        <div class="modal-actions"><button class="btn" type="button" onclick="document.getElementById('financeCompositionV1199Dialog').close()">Chiudi</button></div>
+      </dialog>`);
+  }
+  function rowTable(rows){
+    if(!rows.length)return '<div class="v1199-empty">Nessuna riga contabile disponibile per questo dettaglio.</div>';
+    return `<div class="v1199-table"><div class="v1199-tr head"><div>Conto</div><div>Descrizione</div><div>Importo</div></div>${rows.map(a=>`<div class="v1199-tr"><div><b>${esc(a.code||'—')}</b>${a.partitario?`<small>Partitario ${esc(a.partitario)}</small>`:''}</div><div>${esc(a.description||'—')}</div><div class="amount ${num(a.amount)<0?'neg':''}">${money(a.amount)}</div></div>`).join('')}</div>`;
+  }
+  function formulaBlock(items,total,label='Totale'){
+    return `<div class="v1199-formula">${items.map((x,i)=>`<div><span>${esc(x.label)}</span><b class="${num(x.value)<0?'neg':''}">${money(x.value)}</b></div>${i<items.length-1?'<i>+</i>':''}`).join('')}<strong>=</strong><div class="total"><span>${esc(label)}</span><b>${money(total)}</b></div></div>`;
+  }
+  function companyLabel(c){return c==='smartpack'?'Smart Pack':c==='multiplast'?'Multiplast':'Gruppo'}
+
+  function open(metric,company='smartpack',p=period()){
+    ensureDialog();
+    const d=company==='group'?groupDerived(p):derived(company,p);
+    if(!d.configured)return;
+    const dlg=$('#financeCompositionV1199Dialog'),title=$('#financeCompositionV1199Title'),sub=$('#financeCompositionV1199Sub'),body=$('#financeCompositionV1199Body');
+    sub.textContent=`${companyLabel(company)} · ${p}`;
+    let html='',label='Composizione importo';
+
+    if(metric==='sales'){
+      label='Ricavi vendite / fatturato';
+      const rows=company==='group'?[]:compositionByPrefixes(company,['70'],p);
+      html=`<div class="v1199-hero"><span>Ricavi delle vendite e delle prestazioni</span><b>${money(d.salesRevenue)}</b><small>Solo conti 70.* del Conto Economico SPRING.</small></div>${company==='group'?groupCompanyRows('salesRevenue',p):rowTable(rows)}<div class="v1199-note"><b>Nota</b>Questo valore rappresenta il fatturato/ricavi di vendita. Non include variazione rimanenze (71) né altri ricavi e proventi operativi (73).</div>`;
+    }else if(metric==='production'){
+      label='Valore della produzione';
+      const parts=[{label:'Ricavi vendite · 70',value:d.salesRevenue},{label:'Variazione rimanenze · 71',value:d.inventoryChange},{label:'Altri ricavi e proventi · 73',value:d.otherOperatingRevenue}];
+      html=`<div class="v1199-hero"><span>Valore della produzione</span><b>${money(d.productionValue)}</b><small>Indicatore operativo composto: 70 + 71 + 73.</small></div>${formulaBlock(parts,d.productionValue,'Valore produzione')}${company==='group'?groupCompanyRows('productionValue',p):`<div class="v1199-sub"><h4>Conti 70 · Ricavi vendite</h4>${rowTable(compositionByPrefixes(company,['70'],p))}<h4>Conti 71 · Variazione rimanenze</h4>${rowTable(compositionByPrefixes(company,['71'],p))}<h4>Conti 73 · Altri ricavi e proventi</h4>${rowTable(compositionByPrefixes(company,['73'],p))}</div>`}<div class="v1199-note"><b>Esclusione importante</b>I conti 87 (proventi straordinari/non operativi) non fanno parte del Valore della produzione operativo.</div>`;
+    }else if(metric==='ebitda'){
+      label='EBITDA operativo';
+      const r=d.record||{};
+      const costValue=k=>company==='group'?['smartpack','multiplast'].reduce((s,c)=>s+num(record(c,p)?.[k]),0):num(r[k]);
+      const parts=[{label:'Valore produzione',value:d.productionValue},{label:'− Materie / acquisti',value:-costValue('materials')},{label:'− Personale',value:-costValue('personnel')},{label:'− Energia',value:-costValue('energy')},{label:'− Trasporti',value:-costValue('transport')},{label:'− Altri costi operativi',value:-costValue('otherOpex')}];
+      html=`<div class="v1199-hero"><span>EBITDA operativo</span><b class="${d.ebitda<0?'neg':''}">${money(d.ebitda)}</b><small>Valore della produzione meno costi operativi prima di ammortamenti.</small></div>${formulaBlock(parts,d.ebitda,'EBITDA')}${company!=='group'?costLinks(company,p):''}`;
+    }else if(metric==='ebit'){
+      label='EBIT operativo';
+      const dep=company==='group'?['smartpack','multiplast'].reduce((s,c)=>s+num(record(c,p)?.depreciation),0):num(d.record?.depreciation);
+      html=`<div class="v1199-hero"><span>EBIT operativo</span><b class="${d.ebit<0?'neg':''}">${money(d.ebit)}</b><small>Risultato operativo dopo gli ammortamenti.</small></div>${formulaBlock([{label:'EBITDA',value:d.ebitda},{label:'− Ammortamenti',value:-dep}],d.ebit,'EBIT')}${company!=='group'?`<h4>Ammortamenti da SPRING</h4>${rowTable(compositionByCategory(company,'depreciation',p))}`:''}`;
+    }else if(metric==='margin'){
+      label='Margine EBITDA / Valore della produzione';
+      html=`<div class="v1199-hero"><span>Margine EBITDA sul Valore della produzione</span><b>${pct(d.marginProduction)}</b><small>EBITDA ÷ Valore della produzione × 100.</small></div><div class="v1199-ratio"><div><span>EBITDA</span><b>${money(d.ebitda)}</b></div><i>÷</i><div><span>Valore della produzione</span><b>${money(d.productionValue)}</b></div><i>=</i><div><span>Margine</span><b>${pct(d.marginProduction)}</b></div></div><div class="v1199-note"><b>Perché lo specifichiamo</b>Il denominatore non è il solo fatturato: comprende anche variazione rimanenze e altri ricavi operativi.</div>`;
+    }else if(metric.startsWith('cat:')&&company!=='group'){
+      const cat=metric.slice(4),labels={materials:'Materie / acquisti',personnel:'Personale',energy:'Energia',transport:'Trasporti',otherOpex:'Altri costi operativi',depreciation:'Ammortamenti',receivables:'Crediti clienti',payables:'Debiti fornitori',cash:'Liquidità',inventory:'Rimanenze',financialCharges:'Oneri finanziari'};
+      label=labels[cat]||'Composizione importo';
+      const rows=compositionByCategory(company,cat,p),total=rows.reduce((s,x)=>s+num(x.amount),0);
+      html=`<div class="v1199-hero"><span>${esc(label)}</span><b>${money(total)}</b><small>Somma delle righe SPRING associate a questa categoria.</small></div>${rowTable(rows)}`;
+    }
+
+    title.textContent=label;body.innerHTML=html;try{dlg.showModal()}catch(_){}
+  }
+  function groupCompanyRows(k,p){
+    return `<div class="v1199-company-grid">${['smartpack','multiplast'].map(c=>{const d=derived(c,p);return `<div><span>${companyLabel(c)}</span><b>${d.configured?money(d[k]):'—'}</b></div>`}).join('')}</div>`;
+  }
+  function costLinks(company,p){
+    const cats=[['materials','Materie / acquisti'],['personnel','Personale'],['energy','Energia'],['transport','Trasporti'],['otherOpex','Altri costi operativi']];
+    return `<div class="v1199-cost-buttons"><h4>Apri la composizione dei costi</h4>${cats.map(([k,l])=>`<button type="button" onclick="SPFinanceClarityV1199.open('cat:${k}','${company}','${p}')"><span>${l}</span><b>${money(record(company,p)?.[k])}</b></button>`).join('')}</div>`;
+  }
+
+  function setMetricTarget(el,metric,company,p){
+    if(!el)return;
+    el.classList.add('v1199-target');el.dataset.v1199Metric=metric;el.dataset.v1199Company=company;el.dataset.v1199Period=p;
+    el.setAttribute('title','Apri composizione del valore');
+  }
+  function setLabelValue(card,label,value){
+    if(!card)return;
+    const s=card.querySelector('span'),b=card.querySelector('b');if(s)s.textContent=label;if(b)b.textContent=value;
+  }
+  function decorateCompany(box,company,p){
+    const d=derived(company,p);if(!d.configured)return;
+    const mini=$$('.v1170-fin-mini>div',box);
+    if(mini[0]){setLabelValue(mini[0],'Ricavi vendite',money(d.salesRevenue));setMetricTarget(mini[0],'sales',company,p)}
+    if(mini[1])setMetricTarget(mini[1],'ebitda',company,p);
+    if(mini[2])setMetricTarget(mini[2],'ebit',company,p);
+    if(mini[3]){const s=mini[3].querySelector('span');if(s)s.textContent='Margine EBITDA / Valore produzione';setMetricTarget(mini[3],'margin',company,p)}
+
+    let strip=box.querySelector('.v1199-production-strip');
+    if(!strip){strip=document.createElement('button');strip.type='button';strip.className='v1199-production-strip';const miniBox=box.querySelector('.v1170-fin-mini');miniBox?.insertAdjacentElement('afterend',strip)}
+    if(strip){strip.innerHTML=`<div><span>Valore della produzione</span><b>${money(d.productionValue)}</b></div><small>70 + 71 + 73 · vedi composizione →</small>`;setMetricTarget(strip,'production',company,p)}
+
+    const readonly=$$('.v1177-readonly-grid>div',box);
+    readonly.forEach(card=>{
+      const label=String(card.querySelector('span')?.textContent||'').trim();
+      const map={'Ricavi':'sales','Materie / acquisti':'cat:materials','Personale':'cat:personnel','Energia':'cat:energy','Trasporti':'cat:transport','Altri costi operativi':'cat:otherOpex','Ammortamenti':'cat:depreciation','Crediti clienti':'cat:receivables','Debiti fornitori':'cat:payables','Liquidità':'cat:cash','Rimanenze':'cat:inventory','Oneri finanziari':'cat:financialCharges'};
+      if(label==='Ricavi')setLabelValue(card,'Ricavi vendite',money(d.salesRevenue));
+      if(map[label])setMetricTarget(card,map[label],company,p);
+    });
+
+    let note=box.querySelector('.v1199-accounting-note');
+    if(!note){note=document.createElement('div');note.className='v1199-accounting-note';const lock=box.querySelector('.v1177-source-lock');lock?.insertAdjacentElement('afterend',note)}
+    if(note)note.innerHTML='<b>Come leggiamo il bilancio:</b> Ricavi vendite = conti 70.* · Valore della produzione = 70 + 71 + 73. I proventi 87 restano separati perché non operativi.';
+  }
+  function decorateGroup(view,p){
+    const d=groupDerived(p);if(!d.configured)return;
+    const cards=$$('.v1170-fin-group>div',view);
+    if(cards[0]){setLabelValue(cards[0],'Ricavi vendite gruppo',money(d.salesRevenue));setMetricTarget(cards[0],'sales','group',p)}
+    if(cards[2])setMetricTarget(cards[2],'ebitda','group',p);
+    if(cards[3])setMetricTarget(cards[3],'ebit','group',p);
+    if(cards[4]){const s=cards[4].querySelector('span');if(s)s.textContent='Margine EBITDA / Valore produzione';const b=cards[4].querySelector('b');if(b)b.textContent=pct(d.marginProduction);setMetricTarget(cards[4],'margin','group',p)}
+    let strip=view.querySelector('.v1199-group-production');
+    const group=view.querySelector('.v1170-fin-group');
+    if(!strip&&group){strip=document.createElement('button');strip.type='button';strip.className='v1199-group-production';group.insertAdjacentElement('afterend',strip)}
+    if(strip){strip.innerHTML=`<span>Valore della produzione gruppo</span><b>${money(d.productionValue)}</b><small>Ricavi vendite + variazione rimanenze + altri ricavi operativi · Dettagli →</small>`;setMetricTarget(strip,'production','group',p)}
+  }
+  function decorateOverview(){
+    const view=$('#adminOverviewV1170View');if(!view?.classList.contains('active'))return;
+    const p=period();if(!p)return;
+    const scope=sessionStorage.getItem('poi_admin_overview_scope_v1182')||'group';
+    const d=scope==='group'?groupDerived(p):derived(scope,p);if(!d.configured)return;
+    const first=$('.v1182-economic-grid>button',view);
+    if(first){setLabelValue(first,'Ricavi vendite',money(d.salesRevenue));setMetricTarget(first,'sales',scope,p)}
+    const status=$('.v1182-economic-status span',view);if(status&&/Margine EBITDA/i.test(status.textContent||''))status.textContent=`Margine EBITDA / Valore produzione ${pct(d.marginProduction)}`;
+    let strip=$('.v1199-overview-production',view);
+    const grid=$('.v1182-economic-grid',view);
+    if(!strip&&grid){strip=document.createElement('button');strip.type='button';strip.className='v1199-overview-production';grid.insertAdjacentElement('afterend',strip)}
+    if(strip){strip.innerHTML=`<span>Valore della produzione</span><b>${money(d.productionValue)}</b><small>70 + 71 + 73 · Dettagli →</small>`;setMetricTarget(strip,'production',scope,p)}
+  }
+
+  function decorate(){
+    const view=$('#adminFinanceV1170View');
+    const p=period();
+    if(view?.classList.contains('active')&&p){
+      decorateGroup(view,p);
+      $$('.v1170-fin-company',view).forEach(box=>{
+        const h=String(box.querySelector('.v1170-fin-company-head span')?.textContent||'').toUpperCase();
+        decorateCompany(box,h.includes('SMART')?'smartpack':'multiplast',p);
+      });
+    }
+    decorateOverview();
+  }
+  function injectStyles(){
+    if($('#v1199FinanceStyles'))return;
+    const st=document.createElement('style');st.id='v1199FinanceStyles';st.textContent=`
+      .v1199-target{cursor:pointer!important;transition:.15s ease}.v1199-target:hover{border-color:#9fc4d2!important;box-shadow:0 5px 15px rgba(25,70,88,.08)!important}
+      .v1199-production-strip,.v1199-group-production,.v1199-overview-production{width:100%;border:1px solid #bed7e0;background:#f3f9fb;border-radius:12px;padding:10px 12px;margin-top:8px;text-align:left;color:var(--ink);display:flex;justify-content:space-between;gap:14px;align-items:center}.v1199-production-strip div span,.v1199-group-production>span,.v1199-overview-production>span{display:block;font-size:8px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.05em}.v1199-production-strip div b,.v1199-group-production>b,.v1199-overview-production>b{display:block;font-size:16px;margin-top:2px}.v1199-production-strip small,.v1199-group-production small,.v1199-overview-production small{font-size:8px;color:var(--primary);font-weight:900}
+      .v1199-accounting-note{margin-top:8px;padding:9px 10px;border:1px solid #d7e5e9;border-radius:10px;background:#f8fbfc;font-size:7.5px;color:#566f7a;line-height:1.45}.v1199-accounting-note b{color:#244b5d}
+      .v1199-dialog{width:min(900px,96vw);max-height:92vh}.v1199-hero{padding:15px;border:1px solid #cee1e7;border-radius:14px;background:linear-gradient(135deg,#fff,#f4fafb)}.v1199-hero span,.v1199-hero b,.v1199-hero small{display:block}.v1199-hero span{font-size:10px;color:var(--muted);font-weight:900;text-transform:uppercase}.v1199-hero b{font-size:29px;margin:4px 0}.v1199-hero small{font-size:10px;color:var(--muted)}.v1199-hero b.neg,.v1199-tr .neg,.v1199-formula .neg{color:#b54148}
+      .v1199-formula{display:flex;align-items:stretch;gap:6px;margin-top:10px;overflow-x:auto}.v1199-formula>div{min-width:140px;flex:1;padding:10px;border:1px solid var(--line);border-radius:11px;background:#fff}.v1199-formula>i,.v1199-formula>strong{display:grid;place-items:center;font-style:normal;color:#80939b}.v1199-formula span{display:block;font-size:8px;color:var(--muted)}.v1199-formula b{display:block;font-size:12px;margin-top:3px}.v1199-formula .total{background:#eef8f5;border-color:#c7e3d7}
+      .v1199-table{margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden}.v1199-tr{display:grid;grid-template-columns:130px 1fr 135px;gap:8px;padding:8px 10px;border-top:1px solid #edf2f3;align-items:center;font-size:9px}.v1199-tr.head{border-top:0;background:#f4f8f9;color:#74868e;font-size:7px;text-transform:uppercase;font-weight:950}.v1199-tr small{display:block;color:var(--muted);font-size:7px;margin-top:2px}.v1199-tr .amount{text-align:right;font-weight:900;font-variant-numeric:tabular-nums}.v1199-sub h4,.v1199-cost-buttons h4{font-size:10px;margin:14px 0 5px}.v1199-note{margin-top:10px;padding:10px 11px;border:1px solid #d8e6ea;background:#f7fafb;border-radius:10px;font-size:9px;line-height:1.45;color:#546b75}.v1199-note b{display:block;color:#244b5d;margin-bottom:2px}.v1199-company-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.v1199-company-grid>div,.v1199-ratio>div{padding:11px;border:1px solid var(--line);border-radius:11px;background:#fff}.v1199-company-grid span,.v1199-ratio span{display:block;font-size:8px;color:var(--muted)}.v1199-company-grid b,.v1199-ratio b{display:block;font-size:14px;margin-top:3px}.v1199-ratio{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:7px;align-items:center;margin-top:10px}.v1199-ratio>i{font-style:normal;color:#7f929a}.v1199-cost-buttons{margin-top:12px}.v1199-cost-buttons button{width:100%;display:flex;justify-content:space-between;gap:12px;padding:9px 10px;border:0;border-bottom:1px solid #edf2f3;background:#fff;text-align:left}.v1199-cost-buttons button:hover{background:#f7fafb}.v1199-cost-buttons span{font-size:9px}.v1199-cost-buttons b{font-size:9px}.v1199-empty{padding:18px;text-align:center;color:var(--muted);font-size:9px}
+      @media(max-width:650px){.v1199-tr{grid-template-columns:90px 1fr}.v1199-tr .amount{grid-column:1/-1;text-align:left}.v1199-formula{display:grid;grid-template-columns:1fr}.v1199-formula>i,.v1199-formula>strong{display:none}.v1199-company-grid,.v1199-ratio{grid-template-columns:1fr}.v1199-ratio>i{display:none}.v1199-production-strip,.v1199-group-production,.v1199-overview-production{display:block}.v1199-production-strip small,.v1199-group-production small,.v1199-overview-production small{display:block;margin-top:5px}}
+    `;document.head.appendChild(st);
+  }
+  function bindClicks(){
+    if(document.documentElement.dataset.v1199ClickBound==='1')return;
+    document.documentElement.dataset.v1199ClickBound='1';
+    document.addEventListener('click',e=>{
+      const t=e.target.closest?.('.v1199-target');if(!t)return;
+      const metric=t.dataset.v1199Metric,company=t.dataset.v1199Company,p=t.dataset.v1199Period;
+      if(!metric)return;
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();open(metric,company,p);
+    },true);
+  }
+  function boot(){
+    injectStyles();ensureDialog();bindClicks();
+    [250,700,1500,3000].forEach(ms=>setTimeout(decorate,ms));
+    setInterval(()=>{
+      const fin=$('#adminFinanceV1170View')?.classList.contains('active');
+      const ov=$('#adminOverviewV1170View')?.classList.contains('active');
+      if(fin||ov)decorate();
+    },1800);
+  }
+
+  window.SPFinanceClarityV1199={open,decorate,derived,groupDerived,version:VERSION};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
