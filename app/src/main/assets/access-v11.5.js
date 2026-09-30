@@ -1,5 +1,349 @@
 
 /* ========================================================================
+   V11.9.13 · DETTAGLIO FINANZIARIO UNIFICATO
+   Analisi gestionale + composizione contabile nello stesso click.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinanceUnifiedV11913)return;
+
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>Number.isFinite(Number(v))?Number(v):0;
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v));
+  const pct=v=>`${new Intl.NumberFormat('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(num(v))}%`;
+
+  let context={metric:'',company:'group',period:'',tab:'analysis'};
+  let compositionHTML='';
+
+  const companyLabel=c=>c==='smartpack'?'Smart Pack':c==='multiplast'?'Multiplast':'Gruppo';
+
+  function clarity(){return window.SPFinanceClarityV1199||null}
+
+  function derived(){
+    const c=clarity();if(!c)return null;
+    return context.company==='group'
+      ? c.groupDerived?.(context.period)
+      : c.derived?.(context.company,context.period);
+  }
+
+  function metricKey(){
+    return context.metric.startsWith('cat:')?context.metric.slice(4):context.metric;
+  }
+
+  function metricInfo(){
+    const k=metricKey();
+    const map={
+      sales:{
+        title:'Ricavi vendite / fatturato',
+        meaning:'Sono i ricavi generati dalla vendita di prodotti e servizi. Non comprendono variazioni di rimanenze o altri ricavi operativi.',
+        formula:'Conti SPRING 70.*',
+        why:'Permettono di distinguere il vero fatturato dal valore complessivo della produzione.'
+      },
+      production:{
+        title:'Valore della produzione',
+        meaning:'Rappresenta il valore complessivo generato dall’attività operativa del periodo.',
+        formula:'Ricavi vendite + variazione rimanenze + altri ricavi operativi',
+        why:'È la base utilizzata per leggere correttamente il margine operativo quando il bilancio include rimanenze e altri ricavi.'
+      },
+      ebitda:{
+        title:'EBITDA',
+        meaning:'Misura il risultato della gestione operativa prima di ammortamenti, oneri finanziari e imposte.',
+        formula:'Valore della produzione − costi operativi',
+        why:'Aiuta a capire se l’attività caratteristica dell’azienda genera margine.'
+      },
+      ebit:{
+        title:'EBIT',
+        meaning:'È il risultato operativo dopo aver considerato anche gli ammortamenti.',
+        formula:'EBITDA − ammortamenti',
+        why:'Mostra se la gestione operativa resta positiva dopo il costo economico degli investimenti.'
+      },
+      margin:{
+        title:'Margine EBITDA / Valore produzione',
+        meaning:'Indica quale percentuale del valore della produzione rimane come EBITDA.',
+        formula:'EBITDA ÷ Valore della produzione × 100',
+        why:'Permette di confrontare la redditività operativa tra periodi diversi.'
+      },
+      materials:{
+        title:'Materie / acquisti',
+        meaning:'Comprende materie prime, merci e acquisti operativi classificati in questa categoria.',
+        formula:'Somma delle righe SPRING associate a Materie / acquisti',
+        why:'Consente di capire quanto gli acquisti incidono sul valore generato dall’azienda.'
+      },
+      personnel:{
+        title:'Personale',
+        meaning:'Comprende retribuzioni, contributi, TFR e gli altri costi del personale classificati nel bilancio.',
+        formula:'Somma delle righe SPRING associate al Personale',
+        why:'Permette di leggere il peso del costo del lavoro rispetto al valore prodotto dall’azienda.'
+      },
+      energy:{
+        title:'Energia',
+        meaning:'Comprende energia elettrica, gas, acqua e altre utenze produttive classificate.',
+        formula:'Somma delle righe SPRING associate a Energia',
+        why:'Aiuta a monitorare l’incidenza delle utenze sulla gestione operativa.'
+      },
+      transport:{
+        title:'Trasporti',
+        meaning:'Comprende trasporto, spedizioni e altri costi logistici classificati.',
+        formula:'Somma delle righe SPRING associate a Trasporti',
+        why:'Consente di verificare quanto la logistica incide sul risultato operativo.'
+      },
+      otherOpex:{
+        title:'Altri costi operativi',
+        meaning:'Raccoglie i costi operativi che non rientrano nelle categorie principali.',
+        formula:'Somma delle righe SPRING associate agli altri costi operativi',
+        why:'Aiuta a individuare spese generali e servizi che possono comprimere il margine.'
+      },
+      depreciation:{
+        title:'Ammortamenti',
+        meaning:'Sono la quota di costo attribuita nel periodo agli investimenti e ai beni pluriennali.',
+        formula:'Somma delle righe SPRING associate agli Ammortamenti',
+        why:'Spiegano la differenza tra EBITDA ed EBIT e il peso della struttura produttiva sul risultato.'
+      },
+      receivables:{
+        title:'Crediti clienti',
+        meaning:'Sono gli importi ancora da incassare dai clienti alla data del bilancio.',
+        formula:'Somma delle righe SPRING associate ai Crediti clienti',
+        why:'Vanno letti insieme alle scadenze e ai tempi effettivi di incasso.'
+      },
+      payables:{
+        title:'Debiti fornitori',
+        meaning:'Sono gli importi ancora dovuti ai fornitori alla data del bilancio.',
+        formula:'Somma delle righe SPRING associate ai Debiti fornitori',
+        why:'Vanno confrontati con liquidità, crediti e calendario delle scadenze.'
+      },
+      cash:{
+        title:'Liquidità',
+        meaning:'Rappresenta la disponibilità rilevata su banche e cassa.',
+        formula:'Somma delle righe SPRING associate a Liquidità',
+        why:'Aiuta a valutare la capacità immediata di sostenere pagamenti e scadenze.'
+      },
+      inventory:{
+        title:'Rimanenze',
+        meaning:'Rappresentano il valore delle rimanenze rilevate nel bilancio.',
+        formula:'Somma delle righe SPRING associate a Rimanenze',
+        why:'Incidono sul valore della produzione e sul capitale assorbito dal ciclo operativo.'
+      },
+      financialCharges:{
+        title:'Oneri finanziari',
+        meaning:'Comprendono interessi passivi, commissioni e altri costi finanziari.',
+        formula:'Somma delle righe SPRING associate agli Oneri finanziari',
+        why:'Mostrano quanto la struttura finanziaria pesa sul risultato dell’azienda.'
+      }
+    };
+    return map[k]||{title:'Indicatore',meaning:'',formula:'',why:''};
+  }
+
+  function valueOf(z){
+    if(!z)return 0;
+    const k=metricKey();
+    if(k==='sales')return num(z.salesRevenue);
+    if(k==='production')return num(z.productionValue);
+    if(k==='ebitda')return num(z.ebitda);
+    if(k==='ebit')return num(z.ebit);
+    if(k==='margin')return num(z.marginProduction);
+    return num(z.record?.[k]);
+  }
+
+  function analysisStatus(z){
+    const k=metricKey(),v=valueOf(z),prod=num(z?.productionValue);
+    if(!z?.configured)return {cls:'neutral',title:'Dato non disponibile',text:'Non ci sono dati sufficienti per interpretare questo indicatore.'};
+
+    if(k==='ebitda'){
+      if(v<0)return {cls:'risk',title:'Gestione operativa negativa',text:'Il valore della produzione non copre i costi operativi del periodo.'};
+      if(num(z.marginProduction)<5)return {cls:'watch',title:'Margine positivo ma contenuto',text:'L’EBITDA è positivo, ma il margine operativo è ridotto rispetto al valore della produzione.'};
+      return {cls:'good',title:'Gestione operativa positiva',text:'L’attività caratteristica genera margine prima di ammortamenti, oneri finanziari e imposte.'};
+    }
+    if(k==='ebit'){
+      if(v<0&&num(z.ebitda)>0)return {cls:'watch',title:'EBIT negativo dopo gli ammortamenti',text:'La gestione produce EBITDA positivo, ma l’impatto degli ammortamenti porta il risultato operativo sotto zero.'};
+      if(v<0)return {cls:'risk',title:'Risultato operativo negativo',text:'Il risultato operativo del periodo è negativo.'};
+      return {cls:'good',title:'Risultato operativo positivo',text:'Dopo gli ammortamenti il risultato operativo resta positivo.'};
+    }
+    if(k==='margin'){
+      if(v<5)return {cls:'watch',title:'Margine da monitorare',text:'Il margine EBITDA rispetto al valore della produzione è contenuto.'};
+      if(v<10)return {cls:'watch',title:'Margine positivo',text:'Il margine è positivo, ma conviene confrontarlo con i periodi precedenti.'};
+      return {cls:'good',title:'Margine operativo favorevole',text:'Il margine EBITDA è positivo rispetto al valore della produzione.'};
+    }
+    if(['materials','personnel','energy','transport','otherOpex','depreciation'].includes(k) && prod>0){
+      const incidence=v/prod*100;
+      return {cls:'neutral',title:`Incidenza sul valore della produzione: ${pct(incidence)}`,text:'L’incidenza da sola non indica se il costo è alto o basso: va confrontata con esercizio precedente, volumi prodotti e struttura dell’azienda.'};
+    }
+    if(k==='receivables')return {cls:'neutral',title:'Dato da leggere con le scadenze',text:'Crediti elevati possono essere normali se sono recenti; diventano critici se gli incassi sono in ritardo.'};
+    if(k==='payables')return {cls:'neutral',title:'Dato da leggere con liquidità e scadenze',text:'Il totale dei debiti non basta: conta soprattutto quando devono essere pagati e quali incassi sono attesi.'};
+    if(k==='cash')return {cls:'neutral',title:'Disponibilità immediata',text:'La liquidità va confrontata con le scadenze di breve periodo, non valutata isolatamente.'};
+    return {cls:'neutral',title:'Lettura del dato',text:'Confronta il valore con i periodi precedenti e usa la composizione per verificare quali voci spiegano il totale.'};
+  }
+
+  function checks(){
+    const k=metricKey();
+    const map={
+      sales:['Il fatturato è cresciuto rispetto allo stesso periodo precedente?','La variazione deriva da volumi, prezzi o mix clienti/prodotti?'],
+      production:['Quanto del valore deriva da vendite reali e quanto da rimanenze?','La variazione delle rimanenze è coerente con produzione e magazzino?'],
+      ebitda:['Quali costi operativi incidono maggiormente sul margine?','I prezzi di vendita stanno coprendo materia, energia, personale e trasporti?'],
+      ebit:['Quanto incidono gli ammortamenti sul risultato?','Il risultato negativo è legato a investimenti recenti o a margini insufficienti?'],
+      margin:['Il margine sta migliorando o peggiorando rispetto ai periodi precedenti?','Quali costi stanno crescendo più velocemente del valore della produzione?'],
+      materials:['Il costo delle materie cresce in linea con produzione e vendite?','Ci sono variazioni di prezzo dei fornitori o consumi anomali?'],
+      personnel:['Il costo del personale cresce in linea con produzione e ricavi?','Ci sono componenti straordinarie, premi, TFR o variazioni di organico che spiegano il dato?'],
+      energy:['Il consumo/costo energia è coerente con ore macchina e volumi prodotti?','Ci sono aumenti tariffari o picchi anomali?'],
+      transport:['I trasporti crescono in linea con consegne e fatturato?','Ci sono spedizioni straordinarie o clienti/zone più costose?'],
+      otherOpex:['Quali sottovoci spiegano la maggior parte del totale?','Ci sono costi non ricorrenti o straordinari?'],
+      depreciation:['Quali investimenti generano la quota di ammortamento?','Quanto cambia l’EBIT rispetto all’EBITDA per questo effetto?'],
+      receivables:['Quali crediti sono già scaduti?','Qual è il tempo medio di incasso dei principali clienti?'],
+      payables:['Quali debiti scadono nei prossimi 30-60 giorni?','Gli incassi previsti coprono le scadenze?'],
+      cash:['La liquidità copre le scadenze immediate?','Quanto dipende l’equilibrio dagli incassi clienti attesi?'],
+      inventory:['Le rimanenze stanno aumentando più delle vendite?','Il valore è coerente con le giacenze fisiche e il ritmo produttivo?'],
+      financialCharges:['Gli oneri finanziari stanno crescendo rispetto al periodo precedente?','Quali linee di credito o commissioni spiegano il totale?']
+    };
+    return map[k]||['Il dato è coerente con il periodo precedente?','Ci sono componenti non ricorrenti che lo stanno influenzando?'];
+  }
+
+  function ensureDialog(){
+    if($('#financeUnifiedV11913Dialog'))return;
+    document.body.insertAdjacentHTML('beforeend',`
+      <dialog id="financeUnifiedV11913Dialog" class="v11913-dialog">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">ECONOMICO-FINANZIARIO · DETTAGLIO</span>
+            <h3 id="financeUnifiedV11913Title">Indicatore</h3>
+            <p id="financeUnifiedV11913Sub"></p>
+          </div>
+          <button class="close" type="button" onclick="document.getElementById('financeUnifiedV11913Dialog').close()">×</button>
+        </div>
+        <div class="v11913-tabs">
+          <button type="button" data-v11913-tab="analysis">Analisi</button>
+          <button type="button" data-v11913-tab="composition">Composizione del totale</button>
+        </div>
+        <div class="modal-body" id="financeUnifiedV11913Body"></div>
+        <div class="modal-actions">
+          <button class="btn" type="button" onclick="document.getElementById('financeUnifiedV11913Dialog').close()">Chiudi</button>
+        </div>
+      </dialog>`);
+    document.querySelectorAll('[data-v11913-tab]').forEach(b=>{
+      b.onclick=()=>{context.tab=b.dataset.v11913Tab;render()}
+    });
+  }
+
+  function analysisHTML(){
+    const z=derived(),info=metricInfo(),status=analysisStatus(z);
+    const v=valueOf(z),display=metricKey()==='margin'?pct(v):money(v);
+    return `
+      <div class="v11913-value">
+        <span>${esc(info.title)}</span>
+        <b>${esc(display)}</b>
+      </div>
+      <div class="v11913-info-grid">
+        <section><span>Cosa significa</span><p>${esc(info.meaning)}</p></section>
+        <section><span>Formula</span><p><b>${esc(info.formula)}</b></p></section>
+        <section class="full"><span>Perché è utile</span><p>${esc(info.why)}</p></section>
+      </div>
+      <div class="v11913-status ${status.cls}">
+        <b>${esc(status.title)}</b>
+        <span>${esc(status.text)}</span>
+      </div>
+      <div class="v11913-checks">
+        <b>Cosa controllare</b>
+        ${checks().map(x=>`<div><i>✓</i><span>${esc(x)}</span></div>`).join('')}
+      </div>
+      <div class="v11913-disclaimer">
+        Analisi gestionale interna. Le indicazioni aiutano a leggere i dati ma non sostituiscono bilancio ufficiale o valutazione del commercialista.
+      </div>`;
+  }
+
+  function captureComposition(){
+    const c=clarity();
+    if(!c?.open)return '<div class="empty"><b>Composizione non disponibile</b></div>';
+    try{
+      c.open(context.metric,context.company,context.period);
+      const dlg=$('#financeCompositionV1199Dialog');
+      const body=$('#financeCompositionV1199Body');
+      const html=body?.innerHTML||'<div class="empty"><b>Composizione non disponibile</b></div>';
+      if(dlg?.open)dlg.close();
+      return html;
+    }catch(_){
+      return '<div class="empty"><b>Composizione non disponibile</b></div>';
+    }
+  }
+
+  function render(){
+    ensureDialog();
+    const info=metricInfo();
+    $('#financeUnifiedV11913Title').textContent=info.title;
+    $('#financeUnifiedV11913Sub').textContent=`${companyLabel(context.company)} · ${context.period}`;
+    document.querySelectorAll('[data-v11913-tab]').forEach(b=>b.classList.toggle('active',b.dataset.v11913Tab===context.tab));
+    const body=$('#financeUnifiedV11913Body');
+    if(context.tab==='analysis'){
+      body.innerHTML=analysisHTML();
+    }else{
+      if(!compositionHTML)compositionHTML=captureComposition();
+      body.innerHTML=compositionHTML;
+    }
+  }
+
+  function open(metric,company='group',period=''){
+    context={metric,company,period:period||document.getElementById('financePeriodV1170')?.value||'',tab:'analysis'};
+    compositionHTML='';
+    ensureDialog();render();
+    try{$('#financeUnifiedV11913Dialog').showModal()}catch(_){}
+  }
+
+  function bind(){
+    if(document.documentElement.dataset.v11913ClickBound==='1')return;
+    document.documentElement.dataset.v11913ClickBound='1';
+    // Registrato prima del listener V11.9.9 perché questa patch è in testa al file.
+    document.addEventListener('click',e=>{
+      const t=e.target.closest?.('.v1199-target');if(!t)return;
+      const metric=t.dataset.v1199Metric,company=t.dataset.v1199Company||'group',period=t.dataset.v1199Period||'';
+      if(!metric)return;
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      open(metric,company,period);
+    },true);
+  }
+
+  function injectStyles(){
+    if($('#v11913Styles'))return;
+    const st=document.createElement('style');st.id='v11913Styles';
+    st.textContent=`
+      .v11913-dialog{width:min(980px,96vw);max-height:92vh}
+      .v11913-tabs{display:flex;gap:7px;padding:0 22px 11px;border-bottom:1px solid #e3ebee}
+      .v11913-tabs button{border:1px solid #d4e2e6;background:#fff;border-radius:999px;padding:9px 14px;font:inherit;font-size:11px;font-weight:900;color:#5d727c;cursor:pointer}
+      .v11913-tabs button.active{background:#173f54;color:#fff;border-color:#173f54}
+      .v11913-value{padding:16px 18px;border:1px solid #d9e6ea;border-radius:14px;background:#f7fafb}
+      .v11913-value span{display:block;font-size:10px;font-weight:900;color:#70838c;text-transform:uppercase;letter-spacing:.05em}
+      .v11913-value b{display:block;margin-top:5px;font-size:31px;color:#142f3b}
+      .v11913-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+      .v11913-info-grid section{padding:12px 13px;border:1px solid #e0e9ec;border-radius:12px;background:#fff}
+      .v11913-info-grid section.full{grid-column:1/-1}
+      .v11913-info-grid section>span{font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.05em;color:#73858e}
+      .v11913-info-grid p{margin:5px 0 0;font-size:12.5px;line-height:1.55;color:#455c66}
+      .v11913-status{margin-top:10px;padding:13px 14px;border:1px solid #dce6e9;border-radius:12px;background:#f7fafb}
+      .v11913-status b,.v11913-status span{display:block}.v11913-status b{font-size:13px}.v11913-status span{font-size:12.5px;line-height:1.5;margin-top:4px;color:#4f6670}
+      .v11913-status.good{background:#eef9f4;border-color:#c6e5d4}.v11913-status.good b{color:#247258}
+      .v11913-status.watch{background:#fff8e9;border-color:#efd9a8}.v11913-status.watch b{color:#8c611a}
+      .v11913-status.risk{background:#fff4f4;border-color:#efc7ca}.v11913-status.risk b{color:#a72f38}
+      .v11913-checks{margin-top:13px}.v11913-checks>b{font-size:12px}
+      .v11913-checks>div{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #edf2f3}
+      .v11913-checks i{font-style:normal;color:#28795e}.v11913-checks span{font-size:12px;line-height:1.45;color:#516872}
+      .v11913-disclaimer{margin-top:12px;padding-top:10px;border-top:1px solid #e5edef;font-size:10.5px;line-height:1.45;color:#7a8c94}
+      #financeUnifiedV11913Dialog .v1199-hero b{font-size:28px}
+      #financeUnifiedV11913Dialog .v1199-tr{font-size:10.5px}
+      #financeUnifiedV11913Dialog .v1199-note{font-size:11px}
+      @media(max-width:680px){
+        .v11913-info-grid{grid-template-columns:1fr}.v11913-info-grid section.full{grid-column:auto}
+        .v11913-value b{font-size:26px}.v11913-tabs{overflow-x:auto}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function boot(){injectStyles();ensureDialog();bind()}
+
+  window.SPFinanceUnifiedV11913={open,render,version:'V11.9.13'};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
+
+
+/* ========================================================================
    V11.9.12 · SALUTE AZIENDA — COMPACT + PAGINA SEPARATA
    Riduce il peso informativo della dashboard e sposta l'analisi completa
    in una vista dedicata.
