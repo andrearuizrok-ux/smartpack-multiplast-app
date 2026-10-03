@@ -1,5 +1,133 @@
 
 /* ========================================================================
+   V11.9.14 · NOMYRA FINANCE — MODULO SEPARATO
+   Accesso dal selettore aree ufficio + collegamento dall'area
+   Economico-finanziario. Apertura in nuova scheda.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPNomyraFinanceModuleV11914)return;
+
+  const FINANCE_URL='https://nomyra-finance.pages.dev/';
+  const $=(s,r=document)=>r.querySelector(s);
+
+  function moduleHTML(){
+    return `
+      <section class="v11914-modules" data-v11914-modules>
+        <div class="v11914-modules-label">
+          <span>MODULI NOMYRA</span>
+          <small>Strumenti specialistici collegati alla piattaforma operativa</small>
+        </div>
+        <a class="v11914-finance-card" href="${FINANCE_URL}" target="_blank" rel="noopener noreferrer">
+          <div class="v11914-finance-mark">NF</div>
+          <div class="v11914-finance-copy">
+            <span>NOMYRA FINANCE</span>
+            <b>Analisi finanziaria avanzata</b>
+            <p>Bilanci, indicatori, trend, confronti e report economico-finanziari approfonditi.</p>
+          </div>
+          <div class="v11914-finance-open">
+            <small>Modulo separato</small>
+            <strong>Apri Finance ↗</strong>
+          </div>
+        </a>
+      </section>`;
+  }
+
+  function injectOfficeModule(){
+    const panel=$('.poi115-portal-panel');
+    const grid=$('.poi115-office-grid',panel);
+    if(!panel||!grid||$('[data-v11914-modules]',panel))return;
+    const note=$('.poi115-lock-note',panel);
+    if(note)note.insertAdjacentHTML('beforebegin',moduleHTML());
+    else grid.insertAdjacentHTML('afterend',moduleHTML());
+  }
+
+  function financeBannerHTML(){
+    return `
+      <section class="v11914-finance-banner" data-v11914-finance-banner>
+        <div class="v11914-finance-banner-mark">NF</div>
+        <div class="v11914-finance-banner-copy">
+          <span>ANALISI FINANZIARIA AVANZATA</span>
+          <b>Approfondisci il bilancio in NOMYRA Finance</b>
+          <p>Analisi dettagliate, confronti, trend e report oltre alla lettura operativa integrata in questa piattaforma.</p>
+        </div>
+        <a href="${FINANCE_URL}" target="_blank" rel="noopener noreferrer">Apri NOMYRA Finance ↗</a>
+      </section>`;
+  }
+
+  function injectFinanceBanner(){
+    const view=$('#adminFinanceV1170View');
+    if(!view?.classList.contains('active')||$('[data-v11914-finance-banner]',view))return;
+    const hero=$('.v1170-fin-hero',view);
+    if(hero)hero.insertAdjacentHTML('afterend',financeBannerHTML());
+    else view.insertAdjacentHTML('afterbegin',financeBannerHTML());
+  }
+
+  function injectStyles(){
+    if($('#v11914FinanceModuleStyles'))return;
+    const st=document.createElement('style');
+    st.id='v11914FinanceModuleStyles';
+    st.textContent=`
+      .v11914-modules{margin-top:17px;padding-top:15px;border-top:1px solid #dfe9ec}
+      .v11914-modules-label{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:0 2px 8px}
+      .v11914-modules-label>span{font-size:8.5px;line-height:1;font-weight:950;letter-spacing:.11em;color:#1f5e78}
+      .v11914-modules-label>small{font-size:8.5px;color:#7a8e97;text-align:right}
+      .v11914-finance-card{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;text-decoration:none;color:inherit;padding:14px 15px;border:1px solid #cfdfe5;border-radius:16px;background:radial-gradient(circle at 86% 20%,rgba(185,120,80,.10),transparent 24%),linear-gradient(135deg,#ffffff 0%,#f7fafb 100%);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+      .v11914-finance-card:hover{transform:translateY(-2px);border-color:#97b8c5;box-shadow:0 12px 28px rgba(23,57,74,.09)}
+      .v11914-finance-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:#17394a;color:#fff;font-size:12px;font-weight:950;letter-spacing:.03em;box-shadow:0 7px 18px rgba(23,57,74,.14)}
+      .v11914-finance-copy>span{display:block;font-size:8px;font-weight:950;letter-spacing:.08em;color:#b97850;margin:0 0 3px}
+      .v11914-finance-copy>b{display:block;font-size:13px;line-height:1.25;color:#17303c}
+      .v11914-finance-copy>p{margin:4px 0 0;color:#687d87;font-size:9.5px;line-height:1.45}
+      .v11914-finance-open{text-align:right;min-width:120px}
+      .v11914-finance-open small{display:block;color:#82939b;font-size:8px;margin-bottom:4px}
+      .v11914-finance-open strong{display:block;color:#1f5e78;font-size:10px;white-space:nowrap}
+
+      .v11914-finance-banner{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;margin:10px 0 12px;padding:12px 14px;border:1px solid #d6e3e7;border-radius:14px;background:linear-gradient(135deg,#f8fbfc,#fff)}
+      .v11914-finance-banner-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#17394a;color:#fff;font-size:10px;font-weight:950}
+      .v11914-finance-banner-copy>span{display:block;font-size:7.5px;font-weight:950;letter-spacing:.07em;color:#b97850}
+      .v11914-finance-banner-copy>b{display:block;font-size:11.5px;color:#18323f;margin-top:2px}
+      .v11914-finance-banner-copy>p{margin:3px 0 0;color:#6c8089;font-size:9px;line-height:1.4}
+      .v11914-finance-banner>a{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 11px;border:1px solid #cfdfe4;border-radius:10px;background:#fff;color:#1f5e78;text-decoration:none;font-size:9.5px;font-weight:900;white-space:nowrap}
+      .v11914-finance-banner>a:hover{border-color:#8fb7c7;box-shadow:0 5px 14px rgba(23,57,74,.07)}
+
+      @media(max-width:900px){
+        .v11914-finance-card,.v11914-finance-banner{grid-template-columns:auto 1fr}
+        .v11914-finance-open,.v11914-finance-banner>a{grid-column:1/-1;text-align:left;justify-self:start}
+        .v11914-finance-open small{display:none}
+        .v11914-modules-label{display:block}
+        .v11914-modules-label>small{display:block;text-align:left;margin-top:4px}
+      }
+      @media(max-width:620px){
+        .v11914-finance-card{grid-template-columns:1fr}
+        .v11914-finance-mark{width:40px;height:40px}
+        .v11914-finance-copy>b{font-size:14px}
+        .v11914-finance-copy>p{font-size:11px}
+        .v11914-finance-open strong{font-size:11px}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function refresh(){injectStyles();injectOfficeModule();injectFinanceBanner()}
+
+  function boot(){
+    refresh();
+    [150,400,900,1800,3200].forEach(ms=>setTimeout(refresh,ms));
+    const observer=new MutationObserver(()=>requestAnimationFrame(refresh));
+    if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+    window.addEventListener('pageshow',()=>setTimeout(refresh,0),{passive:true});
+    window.addEventListener('focus',()=>setTimeout(refresh,0),{passive:true});
+  }
+
+  window.SPNomyraFinanceModuleV11914={refresh,url:FINANCE_URL,version:'V11.9.14'};
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+
+
+
+/* ========================================================================
    V11.9.13 · DETTAGLIO FINANZIARIO UNIFICATO
    Analisi gestionale + composizione contabile nello stesso click.
    ======================================================================== */
