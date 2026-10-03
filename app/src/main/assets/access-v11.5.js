@@ -1,3 +1,4 @@
+/* V11.9.17 · OFFICE SELECTOR VIEWPORT FIT — fix taglio superiore */
 /* V11.9.16 · VISUAL POLISH NOMYRA FINANCE — nessuna modifica funzionale */
 
 /* ========================================================================
@@ -179,6 +180,33 @@
       }
       .v11915-structural-finance{margin-top:18px!important}
       .v11915-structural-finance .v11914-finance-card{min-height:86px}
+
+      /* V11.9.17 · OFFICE SELECTOR VIEWPORT FIT
+         Evita il taglio superiore quando il contenuto supera l'altezza viewport. */
+      #poi113CompanyGate.poi115-office-menu-mode{
+        overflow-y:auto!important;
+        overflow-x:hidden!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+        justify-content:flex-start!important;
+        min-height:100vh!important;
+        height:auto!important;
+        padding-top:24px!important;
+        padding-bottom:26px!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+        margin-top:0!important;
+        margin-bottom:0!important;
+      }
+      @media(max-height:900px) and (min-width:1051px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          padding-top:18px!important;
+          padding-bottom:20px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          align-items:start!important;
+        }
+      }
 
 
       .v11914-finance-banner{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;margin:10px 0 12px;padding:12px 14px;border:1px solid #d6e3e7;border-radius:14px;background:linear-gradient(135deg,#f8fbfc,#fff)}
@@ -2293,6 +2321,7 @@
   function showProductionHome(){
     ensureUI();if(!profile())return;
     closeOverlays();hideLegacyProfileGate();
+    document.getElementById('poi113CompanyGate')?.classList.remove('poi115-office-menu-mode');
     // Non azzerare officeUnlockedFlag: l'accesso globale e-mail/password
     // è già una verifica esplicita dell'account aziendale.
     employee=null;pendingEntry=null;
@@ -2366,6 +2395,7 @@
     if(!officeUnlocked()){openOfficeLogin();return}
     closeOverlays();hideLegacyProfileGate();
     const gate=$('#poi113CompanyGate'),body=$('#poi113CompanyBody');
+    gate?.classList.add('poi115-office-menu-mode');
     $('.poi113-head h2',gate).textContent='Area uffici';
     $('.poi113-head p',gate).textContent='Scegli la funzione di lavoro autorizzata per questo account.';
     $('.poi113-logo',gate).textContent='UFF';
@@ -2660,6 +2690,7 @@
   }
 
   function enterOfficeRole(role){
+    document.getElementById('poi113CompanyGate')?.classList.remove('poi115-office-menu-mode');
     if(!officeUnlocked()||!['director','manager','admin'].includes(role)){openOfficeLogin();return}
     const company=role==='manager'?'multiplast':'smartpack';
     selectedCompany=company;
