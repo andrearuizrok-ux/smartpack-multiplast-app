@@ -1,3 +1,4 @@
+/* V11.9.19 · ADAPTIVE VERTICAL CENTERING — center when space allows */
 /* V11.9.18 · ADAPTIVE VIEWPORT RESPONSIVE — desktop/laptop/tablet */
 /* V11.9.17 · OFFICE SELECTOR VIEWPORT FIT — fix taglio superiore */
 /* V11.9.16 · VISUAL POLISH NOMYRA FINANCE — nessuna modifica funzionale */
@@ -189,7 +190,7 @@
         overflow-x:hidden!important;
       }
       #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
-        justify-content:flex-start!important;
+        justify-content:center!important;
         min-height:100vh!important;
         height:auto!important;
         padding-top:24px!important;
@@ -199,10 +200,11 @@
         margin-top:0!important;
         margin-bottom:0!important;
       }
-      @media(max-height:900px) and (min-width:1051px){
+      @media(max-height:780px) and (min-width:1051px){
         #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
-          padding-top:18px!important;
-          padding-bottom:20px!important;
+          justify-content:flex-start!important;
+          padding-top:12px!important;
+          padding-bottom:16px!important;
         }
         #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
           align-items:start!important;
@@ -220,6 +222,14 @@
         grid-template-columns:minmax(290px,.82fr) minmax(520px,1.18fr)!important;
         gap:clamp(22px,2.8vw,46px)!important;
         align-items:center!important;
+      }
+      @media (min-width:900px) and (min-height:781px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          justify-content:center!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          align-items:center!important;
+        }
       }
       #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy{
         padding:clamp(8px,1.6vh,18px) 6px!important;
@@ -321,6 +331,7 @@
 
       @media (min-width:900px) and (max-height:780px){
         #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          justify-content:flex-start!important;
           padding-top:10px!important;
           padding-bottom:12px!important;
         }
