@@ -81,6 +81,9 @@
       .v11914-finance-open{text-align:right;min-width:120px}
       .v11914-finance-open small{display:block;color:#82939b;font-size:8px;margin-bottom:4px}
       .v11914-finance-open strong{display:block;color:#1f5e78;font-size:10px;white-space:nowrap}
+      .v11915-structural-finance{margin-top:14px!important}
+      .v11915-structural-finance .v11914-finance-card{min-height:76px}
+
 
       .v11914-finance-banner{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;margin:10px 0 12px;padding:12px 14px;border:1px solid #d6e3e7;border-radius:14px;background:linear-gradient(135deg,#f8fbfc,#fff)}
       .v11914-finance-banner-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#17394a;color:#fff;font-size:10px;font-weight:950}
@@ -1197,44 +1200,90 @@
 
 
 /* ========================================================================
-   V11.9.8 · FAST BOOT STAGING
-   Sblocca la schermata iniziale appena login/portale/app sono realmente pronti.
-   La sincronizzazione cloud continua in background.
+   V11.9.15 · CLEAN BOOT + NO LEGACY FLASH
+   Mantiene coperta la UI finché non è pronta la schermata corretta.
+   Elimina il flash di viste legacy e anticipa il routing della sessione.
    ======================================================================== */
 (()=>{
   'use strict';
-  if(window.__poiFastBootV1198)return;
-  window.__poiFastBootV1198=true;
+  if(window.__poiCleanBootV11915)return;
+  window.__poiCleanBootV11915=true;
 
   const started=performance.now();
   let released=false;
   let pollTimer=0;
+  let routeTimer=0;
+
+  const qs=s=>document.querySelector(s);
 
   function visible(el){
     if(!el)return false;
     try{
       const s=getComputedStyle(el);
-      return s.display!=='none' && s.visibility!=='hidden' && s.opacity!=='0';
-    }catch(_){
-      return true;
-    }
+      const r=el.getBoundingClientRect();
+      return s.display!=='none' &&
+             s.visibility!=='hidden' &&
+             s.opacity!=='0' &&
+             r.width>0 && r.height>0;
+    }catch(_){ return true; }
   }
 
-  function firstScreenReady(){
-    // Login globale NOMYRA già mostrato.
-    const auth=document.querySelector('#poiCloudAuth');
-    if(auth && (auth.classList.contains('open') || visible(auth)))return true;
-
-    // Portale azienda / accesso produzione-uffici già mostrato.
-    const portal=document.querySelector('.poi113-overlay.open,#poi113CompanyGate.open,#poi113AccessGate.open');
-    if(portal && visible(portal))return true;
-
-    // Sessione esistente + shell operativa disponibile.
+  function rememberedEmployee(){
     try{
-      const p=window.POICloudV10?.getProfile?.();
-      const shell=document.querySelector('.app,.main,#dashboardView,#productionView,#adminView');
-      if(p && shell)return true;
-    }catch(_){}
+      return JSON.parse(
+        sessionStorage.getItem('poi_v113_employee') ||
+        localStorage.getItem('poi_v1180_device_employee') ||
+        'null'
+      );
+    }catch(_){ return null; }
+  }
+
+  function officeUnlocked(){
+    return localStorage.getItem('poi_v1180_office_unlocked')==='1';
+  }
+
+  function rememberedOfficeRole(){
+    return sessionStorage.getItem('poi_v115_office_role') ||
+           localStorage.getItem('poi_v1180_office_role') ||
+           '';
+  }
+
+  function validRole(r){
+    return ['director','manager','admin','worker','mpworker'].includes(String(r||''));
+  }
+
+  function profileReady(){
+    try{return !!window.POICloudV10?.getProfile?.()}catch(_){return false}
+  }
+
+  function finalScreenReady(){
+    // Login globale reale: è una destinazione finale quando non c'è sessione.
+    const auth=qs('#poiCloudAuth');
+    if(auth?.classList.contains('open') && visible(auth))return true;
+
+    // Schermata scelta uffici definitiva.
+    const officePortal=qs('#poi113CompanyGate.open .poi115-portal-shell');
+    if(officePortal && visible(officePortal))return true;
+
+    // Home produzione definitiva.
+    const productionHome=qs('#poi113CompanyGate.open .poi116-home');
+    if(productionHome && visible(productionHome))return true;
+
+    // Login USER/PIN definitivo.
+    const access=qs('#poi113AccessGate.open');
+    if(access && visible(access))return true;
+
+    // Modulo operativo: richiediamo un ruolo reale + navigazione popolata.
+    const role=sessionStorage.getItem('industrialos_role_session') ||
+               sessionStorage.getItem('nomyra_group_role_v92') ||
+               '';
+    const app=qs('.app');
+    const navButtons=document.querySelectorAll('#sideNav button').length;
+    if(validRole(role) && app && visible(app) && navButtons>0)return true;
+
+    // Portale NOMYRA admin.
+    const nomyra=qs('#poi113NomyraGate.open');
+    if(nomyra && visible(nomyra))return true;
 
     return false;
   }
@@ -1243,13 +1292,12 @@
     if(released)return;
     released=true;
     clearInterval(pollTimer);
+    clearInterval(routeTimer);
     try{clearTimeout(window.__poiBootSafety)}catch(_){}
     document.documentElement.classList.remove('poi-booting');
-    document.documentElement.dataset.bootReleasedBy='v1198';
+    document.documentElement.dataset.bootReleasedBy='v11915';
     document.documentElement.dataset.bootReleaseReason=reason||'ready';
     document.documentElement.dataset.bootMs=String(Math.round(performance.now()-started));
-
-    // Non bloccare il resto dell'avvio: segnala solo che la UI può essere usata.
     try{
       window.dispatchEvent(new CustomEvent('poi:first-screen-ready',{
         detail:{reason:reason||'ready',ms:Math.round(performance.now()-started)}
@@ -1257,24 +1305,65 @@
     }catch(_){}
   }
 
+  function routeAsSoonAsPossible(){
+    if(finalScreenReady())return;
+
+    const api=window.POIV113;
+    if(!api || !profileReady())return;
+
+    const emp=rememberedEmployee();
+    const unlocked=officeUnlocked();
+    const officeRole=rememberedOfficeRole();
+
+    try{
+      if(emp?.company_code){
+        api.showCompanyMenu?.();
+        return;
+      }
+
+      if(unlocked){
+        // Se non c'è un ruolo ricordato, il target corretto è la scelta aree ufficio.
+        // Se c'è, showCompanyMenu ripristina il modulo già aperto.
+        if(['director','manager','admin'].includes(officeRole)){
+          api.showCompanyMenu?.();
+        }else{
+          api.showOfficeMenu?.();
+        }
+        return;
+      }
+
+      api.showProductionHome?.();
+    }catch(_){}
+  }
+
   function check(){
-    if(firstScreenReady())release('first-screen-ready');
+    routeAsSoonAsPossible();
+    if(finalScreenReady())release('final-screen-ready');
   }
 
-  // Controlli rapidi: nessun polling pesante.
+  function begin(){
+    // La classe poi-booting è già impostata inline nell'HTML prima del primo paint.
+    // Qui NON la rimuoviamo finché la destinazione reale non è pronta.
+    check();
+    pollTimer=setInterval(check,60);
+    routeTimer=setInterval(routeAsSoonAsPossible,90);
+
+    // Safety solo difensiva: prima prova sempre a forzare il routing corretto.
+    // Non rilascia la vecchia shell "alla cieca".
+    setTimeout(()=>{
+      routeAsSoonAsPossible();
+      if(finalScreenReady())release('safety-ready');
+    },2600);
+
+    // Ultima protezione contro un blocco infinito in caso di errore esterno.
+    setTimeout(()=>release('hard-safety'),5000);
+  }
+
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',()=>{
-      requestAnimationFrame(()=>requestAnimationFrame(check));
-    },{once:true});
+    document.addEventListener('DOMContentLoaded',begin,{once:true});
   }else{
-    requestAnimationFrame(()=>requestAnimationFrame(check));
+    begin();
   }
-
-  pollTimer=setInterval(check,80);
-
-  // Limite UX: la schermata bloccante non deve restare oltre 1.8 s.
-  // Il caricamento dati prosegue comunque dietro le quinte.
-  setTimeout(()=>release('ux-timeout'),1800);
 
   window.addEventListener('pageshow',()=>setTimeout(check,0),{passive:true});
 })();
@@ -2194,6 +2283,29 @@
               <span class="role">US</span><b>Utenti e accessi</b><span>Crea USER + PIN, gestisci operatori Smart Pack e Multiplast, sospendi accessi e resetta i PIN.</span><em>Gestisci →</em>
             </button>
           </div>
+
+          <section class="v11914-modules v11915-structural-finance" data-v11914-modules data-v11915-finance-structural>
+            <div class="v11914-modules-label">
+              <span>MODULI NOMYRA</span>
+              <small>Strumenti specialistici collegati alla piattaforma operativa</small>
+            </div>
+            <a class="v11914-finance-card"
+               href="https://nomyra-finance.pages.dev/"
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="v11914-finance-mark">NF</div>
+              <div class="v11914-finance-copy">
+                <span>NOMYRA FINANCE</span>
+                <b>Analisi finanziaria avanzata</b>
+                <p>Bilanci, indicatori, trend, confronti e report economico-finanziari approfonditi.</p>
+              </div>
+              <div class="v11914-finance-open">
+                <small>Modulo separato</small>
+                <strong>Apri Finance ↗</strong>
+              </div>
+            </a>
+          </section>
+
           <div class="poi115-lock-note">Questa postazione resta collegata anche dopo F5 o riapertura del browser. Premi <b>Blocca</b> quando vuoi chiudere volontariamente la sessione uffici.</div>
         </section>
       </div>
@@ -3033,10 +3145,11 @@
         return;
       }
 
-      // Ripristina il ruolo ufficio ricordato (es. Amministrazione) invece
-      // di tornare sempre al selettore uffici dopo refresh/ripristino browser.
+      // V11.9.15: ripristino anticipato della destinazione reale.
+      // Il boot screen resta visibile finché questa schermata non è pronta,
+      // evitando qualsiasi flash delle vecchie viste.
       showCompanyMenu();
-    },950);
+    },180);
   }
 
   // V11.9.7 · Tab/focus stability
