@@ -1,3 +1,5 @@
+/* V11.9.18 · ADAPTIVE VIEWPORT RESPONSIVE — desktop/laptop/tablet */
+/* V11.9.17 · OFFICE SELECTOR VIEWPORT FIT — fix taglio superiore */
 /* V11.9.16 · VISUAL POLISH NOMYRA FINANCE — nessuna modifica funzionale */
 
 /* ========================================================================
@@ -179,6 +181,204 @@
       }
       .v11915-structural-finance{margin-top:18px!important}
       .v11915-structural-finance .v11914-finance-card{min-height:86px}
+
+      /* V11.9.17 · OFFICE SELECTOR VIEWPORT FIT
+         Evita il taglio superiore quando il contenuto supera l'altezza viewport. */
+      #poi113CompanyGate.poi115-office-menu-mode{
+        overflow-y:auto!important;
+        overflow-x:hidden!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+        justify-content:flex-start!important;
+        min-height:100vh!important;
+        height:auto!important;
+        padding-top:24px!important;
+        padding-bottom:26px!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+        margin-top:0!important;
+        margin-bottom:0!important;
+      }
+      @media(max-height:900px) and (min-width:1051px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          padding-top:18px!important;
+          padding-bottom:20px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          align-items:start!important;
+        }
+      }
+
+      /* V11.9.18 · ADAPTIVE OFFICE LAYOUT
+         Responsive reale per larghezza + altezza viewport. */
+      #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+        width:min(1520px,calc(100% - clamp(20px,3vw,56px)))!important;
+        min-height:100dvh!important;
+        padding:clamp(14px,2.4vh,30px) clamp(16px,2.1vw,32px) clamp(16px,2.4vh,30px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+        grid-template-columns:minmax(290px,.82fr) minmax(520px,1.18fr)!important;
+        gap:clamp(22px,2.8vw,46px)!important;
+        align-items:center!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy{
+        padding:clamp(8px,1.6vh,18px) 6px!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-kicker{
+        padding:clamp(6px,1vh,8px) 12px!important;
+        font-size:clamp(9px,.65vw,10px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+        font-size:clamp(34px,3.15vw,48px)!important;
+        line-height:1.04!important;
+        margin:clamp(12px,2vh,22px) 0 clamp(9px,1.5vh,16px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy>p{
+        font-size:clamp(13px,1.05vw,16px)!important;
+        line-height:1.55!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-points{
+        gap:clamp(6px,1vh,10px)!important;
+        margin-top:clamp(14px,2.2vh,28px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-point{
+        font-size:clamp(10.5px,.82vw,12px)!important;
+        line-height:1.42!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-panel{
+        padding:clamp(13px,1.8vh,22px)!important;
+        border-radius:clamp(22px,2vw,30px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-panel-title{
+        margin-bottom:clamp(8px,1.5vh,16px)!important;
+        gap:12px!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-panel-title b{
+        font-size:clamp(13px,.95vw,15px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-panel-title span{
+        font-size:clamp(8.5px,.65vw,10px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-grid{
+        gap:clamp(9px,1.25vh,14px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card{
+        min-height:clamp(155px,21.5vh,230px)!important;
+        padding:clamp(14px,1.9vh,21px)!important;
+        border-radius:clamp(17px,1.6vw,22px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card .role{
+        width:clamp(40px,5.3vh,48px)!important;
+        height:clamp(40px,5.3vh,48px)!important;
+        margin-bottom:clamp(9px,1.5vh,14px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card b{
+        font-size:clamp(15px,1.25vw,18px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card span:not(.role){
+        font-size:clamp(10px,.78vw,11.5px)!important;
+        line-height:1.45!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card em{
+        font-size:clamp(9px,.72vw,10.5px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-modules{
+        margin-top:clamp(11px,1.8vh,21px)!important;
+        padding-top:clamp(10px,1.7vh,18px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-modules-label{
+        padding-bottom:clamp(6px,1vh,10px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-card{
+        min-height:clamp(68px,9.5vh,86px)!important;
+        padding:clamp(11px,1.55vh,17px) clamp(13px,1.2vw,18px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-mark{
+        width:clamp(42px,5.6vh,50px)!important;
+        height:clamp(42px,5.6vh,50px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-copy>b{
+        font-size:clamp(12.5px,.95vw,14.5px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-copy>p{
+        font-size:clamp(9px,.72vw,10.5px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-lock-note{
+        margin-top:clamp(8px,1.2vh,12px)!important;
+        padding:clamp(8px,1.05vh,11px) 12px!important;
+        font-size:clamp(8.5px,.65vw,10px)!important;
+      }
+
+      @media (min-width:900px) and (max-width:1050px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          grid-template-columns:minmax(260px,.72fr) minmax(500px,1.28fr)!important;
+          gap:22px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+          font-size:34px!important;
+        }
+      }
+
+      @media (min-width:900px) and (max-height:780px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          padding-top:10px!important;
+          padding-bottom:12px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          align-items:start!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+          font-size:clamp(32px,2.8vw,42px)!important;
+          margin-top:10px!important;
+          margin-bottom:8px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-points{
+          margin-top:12px!important;
+          gap:5px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card{
+          min-height:150px!important;
+          padding:13px 15px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card .role{
+          width:40px!important;
+          height:40px!important;
+          margin-bottom:8px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .v11914-modules{
+          margin-top:9px!important;
+          padding-top:9px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-card{
+          min-height:66px!important;
+          padding:10px 13px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-lock-note{
+          margin-top:7px!important;
+          padding:7px 10px!important;
+        }
+      }
+
+      @media (max-width:899px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          width:min(760px,calc(100% - 20px))!important;
+          padding:16px 12px 24px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          grid-template-columns:1fr!important;
+          gap:18px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy{
+          padding:4px 2px 0!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+          font-size:clamp(30px,6vw,39px)!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card{
+          min-height:165px!important;
+        }
+      }
+
 
 
       .v11914-finance-banner{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;margin:10px 0 12px;padding:12px 14px;border:1px solid #d6e3e7;border-radius:14px;background:linear-gradient(135deg,#f8fbfc,#fff)}
@@ -2293,6 +2493,7 @@
   function showProductionHome(){
     ensureUI();if(!profile())return;
     closeOverlays();hideLegacyProfileGate();
+    document.getElementById('poi113CompanyGate')?.classList.remove('poi115-office-menu-mode');
     // Non azzerare officeUnlockedFlag: l'accesso globale e-mail/password
     // è già una verifica esplicita dell'account aziendale.
     employee=null;pendingEntry=null;
@@ -2366,6 +2567,7 @@
     if(!officeUnlocked()){openOfficeLogin();return}
     closeOverlays();hideLegacyProfileGate();
     const gate=$('#poi113CompanyGate'),body=$('#poi113CompanyBody');
+    gate?.classList.add('poi115-office-menu-mode');
     $('.poi113-head h2',gate).textContent='Area uffici';
     $('.poi113-head p',gate).textContent='Scegli la funzione di lavoro autorizzata per questo account.';
     $('.poi113-logo',gate).textContent='UFF';
@@ -2660,6 +2862,7 @@
   }
 
   function enterOfficeRole(role){
+    document.getElementById('poi113CompanyGate')?.classList.remove('poi115-office-menu-mode');
     if(!officeUnlocked()||!['director','manager','admin'].includes(role)){openOfficeLogin();return}
     const company=role==='manager'?'multiplast':'smartpack';
     selectedCompany=company;
