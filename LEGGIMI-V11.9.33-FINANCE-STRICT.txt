@@ -1,0 +1,11 @@
+SP-MP STAGING V11.9.33 — FINANCE STRICT
+
+Correzioni:
+- La pagina Economico-finanziario viene sostituita completamente dal connettore NOMYRA Finance.
+- Nessun KPI/calcolo locale SP-MP è mostrato come fallback.
+- Smart Pack richiede l'account Finance info@smartpack.srl.
+- Smart Pack viene associata solo a un'azienda Finance il cui nome corrisponde a Smart Pack.
+- Nessun fallback alla prima azienda disponibile.
+- I dati mostrati provengono solo da financial_documents, financial_values e financial_kpis.
+- L'ultimo snapshot Finance viene conservato localmente e resta fisso tra refresh.
+- I dati cambiano solo quando si preme 'Aggiorna da Finance' o viene creato un nuovo snapshot dopo login.
