@@ -1,0 +1,15 @@
+SP-MP STAGING V11.9.26 — GESTIONE SMART PACK
+
+OPERATIVITÀ
+Dashboard · Ordini clienti · Registro ordini · Monitor produzione · Coda Roberto · Fogli produzione · Caricamento camion
+
+PRODUZIONE E MAGAZZINO
+Materie prime · Magazzino interno · Presse e stampi · Ordini IML · Giacenze IML · Tracciabilità
+
+CONTROLLO
+Analisi produzione · Economico-finanziario · Listini e prezzi · Amministrazione
+
+CONFIGURAZIONE
+Impostazioni · Configurazione azienda
+
+Scadenze / Compliance resta esclusivamente nell'area Amministrazione.
