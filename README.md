@@ -1,37 +1,34 @@
-# Smart Pack · Multiplast — Piattaforma Operativa Integrata V11.5
+NOMYRA Finance V58
 
-Repository per:
-- app Android WebView;
-- backend e sincronizzazione Supabase;
-- sito Cloudflare Pages;
-- build APK automatica con GitHub Actions.
+Aggiornamenti principali:
+- Caricamento bilancio con periodo obbligatorio Da/A.
+- Confronti validati: benchmark aziende solo su stesso periodo esatto; confronto periodi solo con stessa durata.
+- Periodo precedente usato come riferimento per dati iniziali, incluse rimanenze finali -> rimanenze iniziali da verificare.
+- Nuova sezione Consigli con azioni e verifiche da fare in base ai numeri rossi.
+- Ask NOMYRA migliorato per rispondere a concetti finanziari, numeri rossi, previsioni e azioni consigliate.
+- Proiezione stimata a fine periodo per bilanci progressivi/infrannuali.
 
-## Struttura
-- `app/src/main/assets/index.html` — applicazione principale
-- `app/src/main/assets/smartpack-v11.js` — logica operativa consolidata
-- `app/src/main/assets/access-v11.5.js` — accesso account/ruoli
-- `app/src/main/assets/planner-v11.5.js` — Coda Roberto, menu personalizzabile, assistente pianificazione e Inbox ordini e-mail
-- `app/src/main/assets/service-worker.js` — cache web V11.5 network-first per HTML/JS
-- `.github/workflows/main.yml` — build APK V11.5
-- `docs/V11.5_PIANIFICAZIONE_E_EMAIL.md` — regole e flusso introdotto
 
-## Cloudflare Pages
-- Production branch: `main`
-- Framework preset: `None`
-- Build command: vuoto
-- Root directory: vuota
-- Build output directory: `app/src/main/assets`
-- Automatic deployments: Enabled
+V59: correzione natura conti (perdita = segno negativo), stima ammortamenti da periodo precedente / mesi, e nota metodologica in Analisi bilancio.
 
-## V11.5 — Pianificazione Roberto
-- Coda produzione riordinabile e bloccabile da Roberto.
-- Suggerimenti spiegati per pressa, senza modifiche automatiche.
-- Cambio stampo: finestra iniziale 06:00–12:00 con Saverio.
-- Coperchi: preferenza iniziale venerdì/sabato.
-- Urgenza, consegna, tempo ciclo, stampo installato e disponibilità IML entrano nella valutazione.
-- Menu Direzione personalizzabile.
-- Inbox ordini e-mail con flusso bozza → verifica → ordine.
-- Predisposizione per collegamento OAuth server-side della casella ordini.
 
-## Dati cloud
-L'aggiornamento del repository non richiede la cancellazione di Supabase. I nuovi campi di pianificazione vengono salvati nello stato condiviso esistente.
+## V60
+- Corretto calcolo e spiegazione prezzo medio: fatturato / quantità.
+- Aggregazione prodotti ora salva quantità, prezzo medio per prodotto e margine stimato.
+- Aggiunta lettura decisionale produttività: prezzo medio, costo stimato/unità, margine stimato e dettaglio per prodotto.
+- Aggiunta configurazione mesi stagionali nel profilo aziendale.
+- Migliorato Ask NOMYRA su prezzi, prodotti, costi, margini e stagionalità.
+
+
+## V61 - Produttività: prezzo medio pulito e righe non prodotto
+- Il prezzo medio prodotto esclude pedane, pallet, timbri, ottone, spese/accessori e note credito.
+- Le note credito/rettifiche vengono separate: incidono sul fatturato netto, ma non sul prezzo medio modello.
+- La piattaforma mostra quantità, fatturato, prezzo medio, costo stimato e margine stimato per singolo prodotto.
+- Segnala righe dove quantità × prezzo non coincide con importo riga: viene usato l'importo reale, ma la riga resta da verificare.
+- Ask NOMYRA risponde su prezzo medio, NC, pedane/timbri/accessori e riconciliazione con il bilancio.
+
+V62: dettaglio prodotto cliccabile nella sezione Produttività.
+- Ogni riga prodotto apre una finestra con dettaglio per cliente.
+- Mostra cliente, quantità fatturata, fatturato, prezzo medio, costo stimato, margine unitario e utile/perdita stimata.
+- Il worker salva `productClientDetails` sui nuovi report caricati.
+- Ask NOMYRA può rispondere su dove si perde margine per prodotto/cliente.

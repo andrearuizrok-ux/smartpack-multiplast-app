@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NOMYRA Finance — Financial Intelligence</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/nomyra-mark-primary.png" />
+  <link rel="shortcut icon" type="image/png" href="assets/nomyra-mark-primary.png" />
+  <link rel="apple-touch-icon" href="assets/nomyra-mark-primary.png" />
+  <meta name="theme-color" content="#142033" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="cloud-booting">
+  <div id="bootOverlay" class="boot-overlay"><div><strong>NOMYRA Finance</strong><span>Caricamento dati cloud…</span></div></div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">N</div>
+        <div><strong>NOMYRA</strong><span>Finance</span></div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="access"><span>●</span> Accesso utenti</button>
+        <button class="nav-item" data-view="home"><span>⌂</span> Dashboard</button>
+        <button class="nav-item" data-view="companies"><span>▦</span> Azienda</button>
+        <button class="nav-item" data-view="documents"><span>▤</span> Bilancio</button>
+        <button class="nav-item" data-view="overview"><span>◈</span> Analisi bilancio</button>
+        <button class="nav-item admin-only" data-view="workspace"><span>◍</span> Workspace / utenti</button>
+        <button class="nav-item admin-only" data-view="admin"><span>◆</span> ADMIN NOMYRA</button>
+        <button class="nav-item" data-start-compare="periods"><span>↗</span> Confronto periodi</button>
+        <button class="nav-item" data-start-compare="companies"><span>◎</span> Confronto aziende</button>
+        <button class="nav-item" data-view="benchmark"><span>◉</span> Benchmark aziende</button>
+        <button class="nav-item" data-view="productivity"><span>▥</span> Produttività</button>
+        <button class="nav-item" data-view="analysis"><span>✦</span> Ask NOMYRA</button>
+        <button class="nav-item" data-view="report"><span>▧</span> Report</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="security-note"><strong>Dati verificabili</strong><span>Ogni KPI conserva la fonte.</span></div>
+        <button id="loadDemo" class="ghost full">Carica demo</button>
+        <button id="clearData" class="ghost full">Azzera dati</button>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">FINANCIAL INTELLIGENCE</p>
+          <h1 id="pageTitle">Dashboard</h1>
+        </div>
+        <div class="top-actions" id="contextActions">
+          <select id="companyFilter" aria-label="Azienda"></select>
+          <select id="periodFilter" aria-label="Periodo"></select>
+          <button class="primary" id="openUpload">+ Carica bilancio</button>
+        </div>
+      </header>
+
+
+      <section id="access" class="view active auth-home nf41-login">
+        <div class="nf41-shell">
+          <div class="nf41-bg-shape one"></div>
+          <div class="nf41-bg-shape two"></div>
+          <div class="nf41-bg-line"></div>
+
+          <div class="nf41-header">
+            <div class="nf41-brandlockup" aria-label="NOMYRA">
+              <img src="assets/nomyra-mark-reverse.png" alt="NOMYRA" class="nf41-logo-mark" />
+              <div class="nf41-logo-copy">
+                <strong>NOMYRA</strong>
+                <span>WHERE VISION BECOMES SYSTEM.</span>
+              </div>
+            </div>
+            <span class="nf41-access-label">Accesso riservato</span>
+          </div>
+
+          <div class="nf41-content">
+            <div class="nf41-copy">
+              <p class="nf41-kicker">NOMYRA FINANCE</p>
+              <h2>Controllo finanziario<br><span>chiaro, in un solo spazio.</span></h2>
+              <p class="nf41-subtitle">Analisi, KPI e report per decisioni più consapevoli.</p>
+              <div class="nf41-mini-row" aria-label="Funzionalità NOMYRA Finance">
+                <span>Bilanci</span>
+                <span>KPI</span>
+                <span>Confronti</span>
+                <span>Report</span>
+              </div>
+            </div>
+
+            <form class="nf41-login-card" onsubmit="return false;">
+              <img src="assets/nomyra-mark-primary.png" alt="NOMYRA" class="nf41-card-mark" />
+              <h3>Accedi a NOMYRA Finance</h3>
+              <p>Inserisci le credenziali per continuare.</p>
+
+              <label>Email
+                <div class="nf41-input"><span>✉</span><input id="landingEmail" type="email" autocomplete="email" placeholder="nome@azienda.it" /></div>
+              </label>
+
+              <label>Password
+                <div class="nf41-input"><span>⌔</span><input id="landingPassword" type="password" autocomplete="current-password" placeholder="La tua password" /><em>◉</em></div>
+              </label>
+
+              <div class="nf41-login-options">
+                <label><input id="landingRemember" type="checkbox" /> Ricordami</label>
+                <button type="button" class="nf41-text-link">Password dimenticata?</button>
+              </div>
+
+              <button class="nf41-login-button" id="accessOpenLogin" type="button">Accedi <span>→</span></button>
+
+              <div class="auth-status-box nf41-status" id="authHomeStatus">
+                <strong>Accesso sicuro</strong>
+                <span>Supporto NOMYRA disponibile su richiesta.</span>
+              </div>
+
+              <button class="ghost internal-demo" id="accessContinueDemo" type="button">Demo interna NOMYRA</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="home" class="view">
+        <div class="home-hero">
+          <div>
+            <span class="pill light">NOMYRA FINANCE</span>
+            <h2>Dashboard operativa</h2>
+            <p>Da qui puoi caricare bilanci, controllare lo stato dei dati, avviare confronti e generare report PDF o Excel.</p>
+            <div class="hero-workflow">
+              <span>1 · Azienda</span><span>2 · Bilancio</span><span>3 · Revisione dati</span><span>4 · Analisi direzionale</span><span>5 · Report</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="module-grid">
+          <article class="module-card featured">
+            <div class="module-icon">↗</div>
+            <span class="module-kicker">STESSA AZIENDA</span>
+            <h3>Confronta due periodi</h3>
+            <p>Carica due bilanci della stessa azienda, per esempio 2024 e 2025. Il sistema confronta risultati, costi, marginalità, struttura patrimoniale e variazioni.</p>
+            <div class="module-files"><span>PDF periodo A</span><b>+</b><span>PDF periodo B</span></div>
+            <button class="primary module-action" data-start-compare="periods">Avvia confronto</button>
+          </article>
+
+          <article class="module-card">
+            <div class="module-icon">◎</div>
+            <span class="module-kicker">BENCHMARK</span>
+            <h3>Confronta due aziende</h3>
+            <p>Carica un bilancio per ciascuna azienda. NOMYRA normalizza i dati e confronta valori assoluti, margini e indicatori finanziari senza confondere la dimensione con la performance.</p>
+            <div class="module-files"><span>PDF azienda A</span><b>+</b><span>PDF azienda B</span></div>
+            <button class="primary module-action" data-start-compare="companies">Avvia benchmark</button>
+          </article>
+
+
+          <article class="module-card">
+            <div class="module-icon">▤</div>
+            <span class="module-kicker">ANALISI COMPLETA</span>
+            <h3>Analizza un bilancio</h3>
+            <p>Carica un singolo PDF per ottenere KPI, redditività, struttura dei costi, liquidità, indebitamento, anomalie e report direzionale.</p>
+            <div class="module-files single"><span>1 PDF</span></div>
+            <button class="ghost module-action" id="homeSingleUpload">Carica un bilancio</button>
+          </article>
+
+          <article class="module-card">
+            <div class="module-icon">▥</div>
+            <span class="module-kicker">PRODUTTIVITÀ COMMERCIALE</span>
+            <h3>Analizza vendite e prodotti</h3>
+            <p>Carica un Excel con clienti, prodotti, quantità, prezzo e fatturato. NOMYRA misura concentrazione clienti, prezzo medio, prodotti più rilevanti e riconcilia le vendite con il bilancio.</p>
+            <div class="module-files single"><span>Excel / CSV vendite</span></div>
+            <button class="ghost module-action" data-nav="productivity">Apri produttività</button>
+          </article>
+        </div>
+
+        <div class="home-bottom-grid">
+          <article class="panel process-panel">
+            <span class="section-label">COME FUNZIONA</span>
+            <h3>Dal PDF al confronto in 3 passaggi</h3>
+            <div class="process-steps">
+              <div><strong>1</strong><span><b>Legge</b> struttura, conti e importi di ogni PDF.</span></div>
+              <div><strong>2</strong><span><b>Normalizza e calcola</b> KPI solo quando le basi sono disponibili.</span></div>
+              <div><strong>3</strong><span><b>Confronta e spiega</b> differenze, trend e punti da approfondire.</span></div>
+            </div>
+          </article>
+          <article class="panel recent-panel">
+            <div class="panel-head"><div><span class="section-label">ARCHIVIO</span><h3>Documenti disponibili</h3></div><button class="text-btn" data-nav="documents">Apri archivio →</button></div>
+            <div id="homeRecentDocs" class="home-recent empty-state">Nessun documento caricato.</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="comparison" class="view">
+        <div class="comparison-header">
+          <div>
+            <button class="back-link" id="backHome">← Torna alla Home</button>
+            <p class="eyebrow" id="comparisonEyebrow">CONFRONTO</p>
+            <h2 id="comparisonTitle">Risultato confronto</h2>
+            <p id="comparisonSubtitle">I due documenti sono stati analizzati separatamente prima del confronto.</p>
+          </div>
+        </div>
+        <div id="comparisonIdentity" class="comparison-identity"></div>
+        <div class="panel comparison-panel">
+          <div class="panel-head"><div><span class="section-label">INDICATORI</span><h3>Confronto economico-finanziario con lettura</h3></div><button class="mini-btn export-btn" data-export-report="comparison">Report PDF</button><button class="mini-btn export-btn" data-export-excel="comparison">Report Excel</button></div>
+          <div class="table-scroll"><table id="directComparisonTable"></table></div>
+        </div>
+        <div class="panel comparison-alerts-panel"><div class="panel-head"><div><span class="section-label">ALERT</span><h3>Indicatori negativi o da approfondire</h3></div></div><div id="directComparisonAlerts" class="alerts-list empty-state">Nessun confronto caricato.</div></div>
+        <div class="grid-2 comparison-analysis-grid">
+          <article class="panel"><div class="panel-head"><div><span class="section-label">LETTURA</span><h3>Differenze principali</h3></div></div><div id="directComparisonNarrative" class="long-copy"></div></article>
+          <article class="panel"><div class="panel-head"><div><span class="section-label">COPERTURA DATI</span><h3>Voci comuni e affidabilità tecnica</h3></div></div><div id="directComparisonQuality" class="quality-comparison"></div></article>
+        </div>
+      </section>
+
+      <section id="overview" class="view">
+        <div class="hero-card">
+          <div><span class="pill">Analisi automatica</span><h2 id="heroTitle">Trasforma il bilancio in decisioni.</h2><p id="heroSummary">Carica un PDF per ottenere KPI e una lettura direzionale immediata.</p></div>
+          <div class="hero-score"><span>Copertura dati</span><strong id="dataQuality">—</strong><small id="dataQualityLabel">Nessun documento</small></div>
+        </div>
+        <div class="quick-report-bar no-print"><span>Vuoi condividere solo questa analisi?</span><button class="mini-btn export-btn" data-export-report="single_analysis">Report PDF</button><button class="mini-btn export-btn" data-export-excel="single_analysis">Report Excel</button></div>
+        <div id="kpiGrid" class="kpi-grid"></div>
+        <div class="panel kpi-library-panel">
+          <div class="panel-head kpi-panel-head"><div><span class="section-label">KPI EXPLAINER</span><h3>Tutti gli indicatori spiegati</h3></div><div class="kpi-filter-group" id="kpiFilters" aria-label="Filtra indicatori"><button class="kpi-filter active" data-kpi-filter="all">Tutti</button><button class="kpi-filter danger" data-kpi-filter="critical">Solo indicatori in rosso</button><button class="kpi-filter warn" data-kpi-filter="warning">Da controllare</button><button class="kpi-filter ok" data-kpi-filter="good">Positivi</button><button class="kpi-filter" data-kpi-filter="missing">Dati mancanti</button></div></div>
+          <p class="muted-note">Ogni KPI collega il valore ottenuto alla lettura manageriale: cosa significa quel risultato, quando è un alert e quali dati mancano se non può essere calcolato.</p>
+          <div id="kpiLibrary" class="kpi-library"></div>
+        </div>
+        <div class="grid-2">
+          <article class="panel"><div class="panel-head"><div><span class="section-label">TREND</span><h3>Ricavi & EBITDA</h3></div><span id="trendBadge" class="badge neutral">—</span></div><div class="chart-wrap"><canvas id="trendChart" width="760" height="300"></canvas></div></article>
+          <article class="panel"><div class="panel-head"><div><span class="section-label">LETTURA DIREZIONALE</span><h3>Cosa sta succedendo</h3></div><button class="text-btn" data-nav="analysis">Approfondisci →</button></div><div id="executiveSummary" class="executive-summary empty-state">Carica un bilancio per generare la sintesi.</div></article>
+        </div>
+        <div class="grid-2">
+          <article class="panel"><div class="panel-head"><div><span class="section-label">VARIAZIONI</span><h3>Cosa è cambiato</h3></div></div><div id="changesList" class="changes-list empty-state">Servono almeno due periodi della stessa azienda.</div></article>
+          <article class="panel"><div class="panel-head"><div><span class="section-label">ATTENZIONE</span><h3>Segnali da approfondire</h3></div></div><div id="alertsList" class="alerts-list empty-state">Nessun alert disponibile.</div></article>
+        </div>
+      </section>
+
+      <section id="documents" class="view">
+        <div class="section-intro"><div><p class="eyebrow">DOCUMENTI</p><h2>Bilanci caricati</h2><p>Ogni documento mantiene azienda, periodo, tipo, copertura dati, affidabilità tecnica e valori riconosciuti.</p></div><button class="primary" id="openUpload2">+ Nuovo PDF</button></div>
+        <div class="panel table-panel"><table><thead><tr><th>Azienda</th><th>Periodo</th><th>Documento</th><th>Tipo</th><th>Copertura dati</th><th>Azioni</th></tr></thead><tbody id="documentsTable"></tbody></table></div>
+      </section>
+
+      <section id="companies" class="view">
+        <div class="section-intro"><div><p class="eyebrow">AZIENDA</p><h2>Profilo aziendale</h2><p>Il profilo si compila una sola volta, si può modificare o eliminare, e viene riutilizzato in bilanci, confronti e produttività.</p></div></div>
+        <div class="panel table-panel"><table><thead><tr><th>Azienda</th><th>Profilo</th><th>Bilanci</th><th>Produttività</th><th>Azioni</th></tr></thead><tbody id="companiesTable"></tbody></table></div>
+      </section>
+
+      <section id="workspace" class="view">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">ACCESSO PRIVATO</p>
+            <h2>Workspace e utenti clienti</h2>
+            <p>Struttura SaaS per offrire NOMYRA Finance a clienti diversi in modo separato. In questa demo la gestione è simulata localmente; in produzione va collegata a Supabase Auth, storage privato e Row Level Security.</p>
+          </div>
+          <button class="primary" id="workspaceDemoUser">+ Crea utente demo</button>
+        </div>
+
+        <div class="grid-2 workspace-layout">
+          <article class="panel workspace-card">
+            <div class="panel-head"><div><span class="section-label">WORKSPACE ATTIVO</span><h3>Cliente selezionato</h3></div><span class="badge good">Demo privata</span></div>
+            <div id="workspaceSummary" class="workspace-summary"></div>
+            <div class="workspace-actions">
+              <button class="ghost" data-nav="companies">Profili azienda</button>
+              <button class="ghost" data-nav="documents">Bilanci caricati</button>
+              <button class="ghost" data-nav="report">Report</button>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><span class="section-label">INVITO UTENTE</span><h3>Aggiungi accesso</h3></div></div>
+            <form id="userInviteForm" class="user-invite-form">
+              <label>Email utente<input id="inviteEmail" type="email" placeholder="utente@azienda.it"></label>
+              <label>Nome<input id="inviteName" placeholder="Nome Cognome"></label>
+              <label>Azienda / workspace<select id="inviteCompany"></select></label>
+              <label>Ruolo<select id="inviteRole"><option>Owner</option><option>Admin</option><option>Analyst</option><option>Viewer</option><option>External Advisor</option></select></label>
+              <button class="primary" type="submit">Aggiungi utente demo</button>
+            </form>
+            <div class="provider-note"><strong>Produzione reale</strong><p>Per clienti veri: login email/password, reset password, storage PDF privato, permessi per workspace, log modifiche e policy GDPR. Questa schermata prepara UX e struttura dati.</p></div>
+          </article>
+        </div>
+
+        <div class="grid-2 workspace-layout">
+          <article class="panel table-panel">
+            <div class="panel-head workspace-table-head"><div><span class="section-label">UTENTI</span><h3>Accessi configurati</h3></div></div>
+            <div class="table-scroll"><table><thead><tr><th>Utente</th><th>Azienda</th><th>Ruolo</th><th>Permessi</th><th>Azioni</th></tr></thead><tbody id="usersTable"></tbody></table></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head"><div><span class="section-label">ROADMAP SICUREZZA</span><h3>Da demo a piattaforma vendibile</h3></div></div>
+            <div class="security-roadmap">
+              <div><b>1</b><span><strong>Supabase Auth</strong><small>Login, reset password, inviti e sessioni.</small></span></div>
+              <div><b>2</b><span><strong>Workspace / tenant</strong><small>Ogni cliente vede solo aziende, PDF, Excel e report propri.</small></span></div>
+              <div><b>3</b><span><strong>Storage privato</strong><small>PDF bilanci e file vendite salvati con permessi server-side.</small></span></div>
+              <div><b>4</b><span><strong>Audit trail</strong><small>Traccia chi ha corretto valori, confermato KPI o generato report.</small></span></div>
+              <div><b>5</b><span><strong>Backend parser/OCR</strong><small>Analisi documentale professionale fuori dal browser.</small></span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+
+      <section id="admin" class="view admin-view">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow">ADMIN NOMYRA</p>
+            <h2>Gestione clienti, utenti e piani</h2>
+            <p>Area riservata NOMYRA: da qui puoi controllare i workspace dei clienti, assegnare piani, attivare o sospendere accessi e verificare report generati.</p>
+          </div>
+          <button class="primary" id="adminRefresh">Aggiorna dati admin</button>
+        </div>
+        <div id="adminGate" class="provider-result empty-state">Accedi con un utente NOMYRA autorizzato per vedere il pannello admin.</div>
+        <div id="adminContent" class="admin-content hidden">
+          <div class="grid-3 admin-metrics">
+            <article class="panel"><span class="section-label">CLIENTI</span><strong id="adminCompaniesCount">—</strong><small>workspace aziendali</small></article>
+            <article class="panel"><span class="section-label">UTENTI</span><strong id="adminUsersCount">—</strong><small>utenti collegati</small></article>
+            <article class="panel"><span class="section-label">PIANI</span><strong id="adminPlansCount">—</strong><small>piani configurati</small></article>
+          </div>
+          <div class="grid-2">
+            <article class="panel">
+              <div class="panel-head"><div><span class="section-label">ASSEGNA PIANO</span><h3>Attiva o modifica piano cliente</h3></div></div>
+              <form id="adminPlanForm" class="user-invite-form">
+                <label>Cliente<select id="adminCompanySelect"></select></label>
+                <label>Piano<select id="adminPlanSelect"></select></label>
+                <label>Stato<select id="adminPlanStatus"><option value="trial">trial</option><option value="active">active</option><option value="paused">paused</option><option value="disabled">disabled</option><option value="cancelled">cancelled</option></select></label>
+                <label class="wide">Note<textarea id="adminPlanNotes" placeholder="Note interne NOMYRA"></textarea></label>
+                <button class="primary" type="submit">Salva piano cliente</button>
+              </form>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><div><span class="section-label">INVITA UTENTE CLIENTE</span><h3>Associa utente a workspace</h3></div></div>
+              <form id="adminUserForm" class="user-invite-form">
+                <label>Cliente<select id="adminUserCompany"></select></label>
+                <label>Email utente<input id="adminUserEmail" type="email" placeholder="utente@azienda.it"></label>
+                <label>Nome<input id="adminUserName" placeholder="Nome Cognome"></label>
+                <label>Ruolo<select id="adminUserRole"><option value="owner">owner</option><option value="admin">admin</option><option value="analyst">analyst</option><option value="viewer">viewer</option><option value="external_advisor">external_advisor</option></select></label>
+                <button class="primary" type="submit">Crea invito cliente</button>
+              </form>
+              <p class="muted-note">Il cliente crea il proprio account con questa email: al primo accesso NOMYRA lo collega automaticamente al workspace invitato.</p>
+            </article>
+          </div>
+          <div class="panel table-panel">
+            <div class="panel-head"><div><span class="section-label">CLIENTI</span><h3>Workspace clienti</h3></div></div>
+            <div class="table-scroll"><table id="adminCompaniesTable"></table></div>
+          </div>
+          <div class="panel table-panel">
+            <div class="panel-head"><div><span class="section-label">REPORT GENERATI</span><h3>Export separati</h3></div></div>
+            <div class="table-scroll"><table id="adminReportsTable"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="productivity" class="view">
+        <div class="section-intro"><div><p class="eyebrow">PRODUTTIVITÀ</p><h2>Analisi vendite, clienti e prodotti</h2><p>Carica un Excel/CSV con vendite per cliente e prodotto. NOMYRA calcola prezzo medio, mix prodotti, concentrazione clienti e confronta il totale vendite con i ricavi del bilancio.</p></div><button class="primary export-btn" data-export-report="productivity">Report PDF</button><button class="primary export-btn" data-export-excel="productivity">Report Excel</button></div>
+        <div id="v47ProductivityDashboard" class="v47-prod"></div>
+        <div class="grid-2 productivity-layout v51-compact-upload">
+          <article class="panel v51-upload-panel">
+            <div class="panel-head"><div><span class="section-label">IMPORT VENDITE</span><h3>Carica / sostituisci report</h3></div></div>
+            <div class="productivity-form">
+              <label>Azienda<select id="prodCompany"></select></label>
+              <label>Periodo<input id="prodPeriod" placeholder="Es. 2025"></label>
+              <label class="wide">File vendite<input id="prodFile" type="file" accept=".xlsx,.xls,.csv"></label>
+              <button class="primary" id="analyzeProductivity">Analizza vendite</button>
+            </div>
+            <div id="productivityStatus" class="provider-result empty-state">Il file può contenere colonne come Cliente, Prodotto/Articolo, Quantità, Prezzo unitario, Fatturato/Importo/Totale.</div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><span class="section-label">RICONCILIAZIONE</span><h3>Vendite vs bilancio</h3></div></div>
+            <div id="productivityReconciliation" class="productivity-reconciliation empty-state">Carica un file vendite e seleziona un bilancio dello stesso periodo.</div>
+          </article>
+        </div>
+        <div id="productivityMetrics" class="kpi-grid productivity-kpis"></div>
+        <div class="grid-2">
+          <article class="panel"><div class="panel-head"><div><span class="section-label">CLIENTI</span><h3>Top clienti per fatturato</h3></div></div><div class="table-scroll"><table id="topCustomersTable"></table></div></article>
+          <article class="panel"><div class="panel-head"><div><span class="section-label">PRODOTTI</span><h3>Top prodotti per fatturato</h3></div></div><div class="table-scroll"><table id="topProductsTable"></table></div></article>
+        </div>
+      </section>
+
+      <section id="history" class="view">
+        <div class="section-intro"><div><p class="eyebrow">ANALISI STORICA</p><h2>Confronta gli esercizi</h2><p>Leggi evoluzione, crescita, marginalità e struttura patrimoniale della stessa azienda.</p></div></div>
+        <div class="panel"><div class="panel-head"><h3>Serie storica</h3></div><div class="table-scroll"><table id="historyTable"></table></div></div>
+        <div class="panel"><div class="panel-head"><h3>Interpretazione automatica</h3></div><div id="historyNarrative" class="long-copy empty-state">Servono almeno due periodi.</div></div>
+      </section>
+
+      <section id="benchmark" class="view">
+        <div class="section-intro"><div><p class="eyebrow">BENCHMARK</p><h2>Confronto tra aziende</h2><p>Confronta valori assoluti e indicatori normalizzati.</p></div><button class="primary export-btn" data-export-report="benchmark">Report PDF</button><button class="primary export-btn" data-export-excel="benchmark">Report Excel</button></div>
+        <div class="panel"><div class="benchmark-controls"><label>Periodo <select id="benchmarkPeriod"></select></label><label><input type="checkbox" id="normalizeToggle" checked> Evidenzia indicatori normalizzati</label></div><div class="table-scroll"><table id="benchmarkTable"></table></div></div>
+        <div class="panel"><div class="panel-head"><h3>Differenze principali</h3></div><div id="benchmarkNarrative" class="long-copy empty-state">Carica bilanci di aziende diverse nello stesso periodo.</div></div>
+      </section>
+
+      <section id="competitorLookup" class="view">
+        <div class="section-intro"><div><p class="eyebrow">BILANCI CONCORRENTI</p><h2>Scarica o importa il bilancio da Partita IVA</h2><p>Modulo connector-ready: nella versione server cerca per Partita IVA/Codice Fiscale, scarica il bilancio pubblico tramite provider autorizzato e lo porta nel benchmark NOMYRA.</p></div></div>
+        <div class="grid-2">
+          <article class="panel competitor-search-panel">
+            <div class="panel-head"><div><span class="section-label">RICERCA UFFICIALE</span><h3>Cerca concorrente</h3></div></div>
+            <form id="competitorSearchForm" class="competitor-form">
+              <label>Partita IVA / Codice fiscale <input id="competitorVat" placeholder="Es. 01684220856" maxlength="16"></label>
+              <label>Anno bilancio <input id="competitorYear" placeholder="Es. 2025" value="2025"></label>
+              <label>Provider dati <select id="competitorProvider"><option>Registro Imprese / Telemaco</option><option>Provider business information</option><option>Importazione manuale PDF</option></select></label>
+              <button class="primary" type="submit">Cerca bilancio</button>
+            </form>
+            <div id="competitorLookupResult" class="provider-result empty-state">Inserisci la Partita IVA per preparare la ricerca del bilancio pubblico.</div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><span class="section-label">FLUSSO MVP</span><h3>Come funziona nella piattaforma</h3></div></div>
+            <div class="connector-steps">
+              <div><strong>1</strong><span><b>Ricerca da P.IVA</b> NOMYRA identifica l'impresa e l'ultimo bilancio disponibile tramite provider autorizzato.</span></div>
+              <div><strong>2</strong><span><b>Download / import</b> Il bilancio PDF o XBRL entra nel motore documentale.</span></div>
+              <div><strong>3</strong><span><b>Benchmark</b> I dati vengono riclassificati e confrontati con l'azienda cliente.</span></div>
+            </div>
+            <div class="provider-note">
+              <strong>Nota tecnica</strong>
+              <p>In questa versione statica Cloudflare il modulo prepara il flusso. Il download automatico richiede un backend NOMYRA con credenziali Telemaco/Registro Imprese o accordo con provider dati, perché i bilanci ufficiali non si scaricano liberamente da JavaScript client-side.</p>
+            </div>
+            <button class="ghost" id="competitorManualUpload">Importa PDF concorrente manualmente</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="analysis" class="view">
+        <div class="section-intro"><div><p class="eyebrow">ANALISI AI</p><h2>Ask NOMYRA</h2><p>Interroga i dati caricati. Le risposte utilizzano esclusivamente le voci riconosciute e gli indicatori calcolati.</p></div></div>
+        <div class="ask-grid">
+          <article class="panel chat-panel"><div id="chat" class="chat"></div><form id="askForm" class="ask-form"><input id="askInput" placeholder="Es. Perché l'EBITDA margin è cambiato?" autocomplete="off"/><button class="primary">Invia</button></form></article>
+          <article class="panel suggestions"><h3>Domande suggerite</h3><button class="suggestion">Cosa è cambiato di più rispetto al periodo precedente?</button><button class="suggestion">Come sta evolvendo la redditività?</button><button class="suggestion">Quali costi stanno crescendo più dei ricavi?</button><button class="suggestion">Quali elementi richiedono approfondimento?</button><button class="suggestion">Confronta la nostra marginalità con i concorrenti.</button></article>
+        </div>
+      </section>
+
+      <section id="report" class="view">
+        <div class="section-intro no-print"><div><p class="eyebrow">REPORT</p><h2>Executive Financial Report</h2><p>Anteprima pronta per stampa o salvataggio PDF.</p></div><div class="report-actions"><button class="ghost export-btn" data-export-report="complete">Report PDF</button><button class="ghost export-btn" data-export-excel="complete">Report Excel</button><button id="printReport" class="primary">Stampa / Salva PDF</button></div></div>
+        <div id="reportPaper" class="report-paper"><div class="report-cover"><div class="report-brand">NOMYRA <span>Finance</span></div><p>EXECUTIVE FINANCIAL REPORT</p><h2 id="reportCompany">—</h2><h3 id="reportPeriod">—</h3><small>Analisi automatica di performance economica, patrimoniale e finanziaria</small></div><div id="reportContent"></div><footer>Generato con NOMYRA Finance • I risultati devono essere letti insieme ai documenti contabili originali.</footer></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="uploadModal" class="modal" aria-hidden="true">
+    <div class="modal-card upload-card">
+      <div class="modal-head"><div><p class="eyebrow">NUOVO DOCUMENTO</p><h2>Analizza un bilancio</h2></div><button id="closeUpload" class="icon-btn">×</button></div>
+      <div class="form-grid"><label>Azienda<input id="uploadCompany" placeholder="Es. Azienda S.r.l." /></label><label>Periodo<input id="uploadPeriod" placeholder="Es. 2026" /></label><label>Tipo documento<select id="uploadType"><option value="auto">Rileva automaticamente</option><option>Bilancio a 4 sezioni</option><option>Bilancio pubblico / civilistico</option><option>Bilancio di verifica</option><option>Bilancio gestionale da software</option></select></label></div>
+      <div id="uploadProfileNotice" class="profile-saved-notice">Il profilo aziendale viene salvato una sola volta per azienda e riutilizzato per tutti i bilanci successivi.</div>
+      <div class="profile-onboarding">
+        <div class="profile-onboarding-head"><span class="section-label">CONTESTO AZIENDALE</span><strong>Profilo aziendale una tantum</strong><small>Compilalo una sola volta: NOMYRA lo riutilizza per tutti i bilanci della stessa azienda e per le analisi di produttività.</small></div>
+        <div class="profile-grid">
+          <label>Tipologia azienda<select id="uploadSector"><option value="">Seleziona</option><option>Manifattura / produzione</option><option>Distribuzione / commercio</option><option>Servizi professionali</option><option>Edilizia / commesse</option><option>Retail / punto vendita</option><option>Sanità / farmacia</option><option>Beauty / wellness</option><option>Altro</option></select></label>
+          <label>Modello operativo<select id="uploadBusinessModel"><option value="">Seleziona</option><option>Produzione propria</option><option>Conto terzi</option><option>Rivendita / distribuzione</option><option>Servizi ricorrenti</option><option>Commesse / progetti</option><option>Marketplace / e-commerce</option></select></label>
+          <label>Clientela prevalente<select id="uploadCustomerType"><option value="">Seleziona</option><option>B2B</option><option>B2C</option><option>B2B e B2C</option><option>Pubblica amministrazione</option></select></label>
+          <label>Prezzo medio prodotto<input id="uploadAvgProductPrice" placeholder="Es. 2,40" inputmode="decimal"></label>
+          <label>Ordine medio<input id="uploadAvgOrderValue" placeholder="Es. 1.500" inputmode="decimal"></label>
+          <label>Unità vendute/anno<input id="uploadAnnualUnits" placeholder="Es. 850000" inputmode="decimal"></label>
+          <label>Dipendenti/addetti<input id="uploadEmployees" placeholder="Es. 12" inputmode="decimal"></label>
+          <label>Stabilimenti / sedi<input id="uploadPlants" placeholder="Es. 1 stabilimento produttivo"></label>
+          <label>% export<input id="uploadExportShare" placeholder="Es. 20" inputmode="decimal"></label>
+          <label>Stagionalità<select id="uploadSeasonality"><option value="">Seleziona</option><option>Bassa</option><option>Media</option><option>Alta</option><option>Picchi stagionali forti</option></select></label>
+          <label class="wide">Note operative<textarea id="uploadProfileNotes" placeholder="Es. prodotti principali, mix, canali vendita, capacità produttiva, criticità note…"></textarea></label>
+        </div>
+      </div>
+      <label id="dropZone" class="drop-zone"><input id="pdfFile" type="file" accept="application/pdf" hidden/><div class="drop-icon">PDF</div><strong>Trascina qui il PDF oppure clicca per selezionarlo</strong><span>Il motore ricostruisce le righe, normalizza le voci e calcola gli indicatori solo quando le basi sono disponibili.</span></label>
+      <div id="parseStatus" class="parse-status"></div>
+      <div class="modal-actions"><button id="cancelUpload" class="ghost">Annulla</button><button id="analyzePdf" class="primary">Analizza documento</button></div>
+    </div>
+  </div>
+
+  <div id="compareModal" class="modal" aria-hidden="true">
+    <div class="modal-card compare-modal-card">
+      <div class="modal-head"><div><p class="eyebrow" id="compareModalEyebrow">CONFRONTO</p><h2 id="compareModalTitle">Confronta due periodi</h2><p id="compareModalIntro" class="modal-intro">Carica i due PDF. Ogni file verrà analizzato separatamente.</p></div><button id="closeCompare" class="icon-btn">×</button></div>
+
+      <div id="periodSharedCompany" class="shared-company"><label>Azienda<input id="compareSharedCompany" placeholder="Es. Multiplast S.r.l." /></label></div>
+
+      <div class="dual-upload-grid">
+        <section class="compare-slot">
+          <div class="compare-slot-head"><span class="slot-badge">A</span><strong id="slotATitle">Periodo precedente</strong></div>
+          <div id="companyAField" class="compare-company-field"><label>Azienda<input id="compareCompanyA" placeholder="Azienda A" /></label></div>
+          <label>Periodo<input id="comparePeriodA" placeholder="Es. 2024" /></label>
+          <label class="mini-drop"><input id="compareFileA" type="file" accept="application/pdf" hidden/><span class="mini-drop-icon">PDF</span><strong id="compareFileAName">Seleziona il primo PDF</strong><small>Clicca per scegliere il file</small></label>
+          <div id="compareStatusA" class="slot-status"></div>
+        </section>
+
+        <div class="compare-vs">VS</div>
+
+        <section class="compare-slot">
+          <div class="compare-slot-head"><span class="slot-badge">B</span><strong id="slotBTitle">Periodo più recente</strong></div>
+          <div id="companyBField" class="compare-company-field"><label>Azienda<input id="compareCompanyB" placeholder="Azienda B" /></label></div>
+          <label>Periodo<input id="comparePeriodB" placeholder="Es. 2025" /></label>
+          <label class="mini-drop"><input id="compareFileB" type="file" accept="application/pdf" hidden/><span class="mini-drop-icon">PDF</span><strong id="compareFileBName">Seleziona il secondo PDF</strong><small>Clicca per scegliere il file</small></label>
+          <div id="compareStatusB" class="slot-status"></div>
+        </section>
+      </div>
+      <div id="compareGlobalStatus" class="parse-status compare-global-status"></div>
+      <div class="modal-actions"><button id="cancelCompare" class="ghost">Annulla</button><button id="analyzeComparison" class="primary">Analizza e confronta</button></div>
+    </div>
+  </div>
+
+  
+  <div id="profileModal" class="modal" aria-hidden="true">
+    <div class="modal-card profile-card">
+      <div class="modal-head"><div><p class="eyebrow">PROFILO AZIENDALE</p><h2 id="profileTitle">Profilo azienda</h2></div><button id="closeProfile" class="icon-btn">×</button></div>
+      <div id="profileSummary" class="review-summary"></div>
+      <div class="profile-grid modal-profile-grid">
+        <label>Tipologia azienda<select id="profileSector"><option value="">Seleziona</option><option>Manifattura / produzione</option><option>Distribuzione / commercio</option><option>Servizi professionali</option><option>Edilizia / commesse</option><option>Retail / punto vendita</option><option>Sanità / farmacia</option><option>Beauty / wellness</option><option>Altro</option></select></label>
+        <label>Modello operativo<select id="profileBusinessModel"><option value="">Seleziona</option><option>Produzione propria</option><option>Conto terzi</option><option>Rivendita / distribuzione</option><option>Servizi ricorrenti</option><option>Commesse / progetti</option><option>Marketplace / e-commerce</option></select></label>
+        <label>Clientela prevalente<select id="profileCustomerType"><option value="">Seleziona</option><option>B2B</option><option>B2C</option><option>B2B e B2C</option><option>Pubblica amministrazione</option></select></label>
+        <label>Prezzo medio prodotto<input id="profileAvgProductPrice" inputmode="decimal" placeholder="Es. 2,40"></label>
+        <label>Ordine medio<input id="profileAvgOrderValue" inputmode="decimal" placeholder="Es. 1.500"></label>
+        <label>Unità vendute/anno<input id="profileAnnualUnits" inputmode="decimal" placeholder="Es. 850000"></label>
+        <label>Dipendenti/addetti<input id="profileEmployees" inputmode="decimal" placeholder="Es. 12"></label>
+        <label>Stabilimenti / sedi<input id="profilePlants" placeholder="Es. 1 stabilimento produttivo"></label>
+        <label>% export<input id="profileExportShare" inputmode="decimal" placeholder="Es. 20"></label>
+        <label>Stagionalità<select id="profileSeasonality"><option value="">Seleziona</option><option>Bassa</option><option>Media</option><option>Alta</option><option>Picchi stagionali forti</option></select></label>
+        <label class="wide">Note operative<textarea id="profileNotes" placeholder="Prodotti principali, mix, capacità produttiva, canali, criticità…"></textarea></label>
+      </div>
+      <div class="modal-actions"><button id="cancelProfile" class="ghost">Annulla</button><button id="saveProfile" class="primary">Salva profilo</button></div>
+    </div>
+  </div>
+
+  <div id="reviewModal" class="modal" aria-hidden="true">
+    <div class="modal-card review-card">
+      <div class="modal-head"><div><p class="eyebrow">REVISIONE GUIDATA</p><h2 id="reviewTitle">Completa dati</h2></div><button id="closeReview" class="icon-btn">×</button></div>
+      <div id="reviewSummary" class="review-summary"></div>
+      <div class="review-toolbar"><button id="fillExampleHelp" class="mini-btn">Come inserire i valori?</button><button id="openDetailsFromReview" class="mini-btn">Verifica fonti PDF</button></div>
+      <div id="reviewFields" class="review-fields"></div>
+      <div class="modal-actions"><button id="cancelReview" class="ghost">Annulla</button><button id="saveReview" class="primary">Salva e ricalcola KPI</button></div>
+    </div>
+  </div>
+
+<div id="detailsModal" class="modal" aria-hidden="true">
+    <div class="modal-card details-card">
+      <div class="modal-head"><div><p class="eyebrow">TRACCIABILITÀ DATI</p><h2 id="detailsTitle">Verifica dati</h2></div><button id="closeDetails" class="icon-btn">×</button></div>
+      <p class="details-intro">Qui puoi vedere il formato riconosciuto, le voci lette dal PDF, i valori derivati dalla somma dei conti, i KPI calcolati e gli eventuali valori candidati scartati.</p>
+      <div id="validationBox" class="validation-box"></div><div id="detailsBody" class="verify-list"></div>
+    </div>
+  </div>
+
+
+  <div id="kpiCalcModal" class="modal" aria-hidden="true">
+    <div class="modal-card kpi-calc-card">
+      <div class="modal-head">
+        <div><p class="eyebrow">DETTAGLIO KPI</p><h2 id="kpiCalcTitle">Dettaglio indicatore</h2><p id="kpiCalcSubtitle" class="modal-intro">Valori, fonti e formula usati per il calcolo.</p></div>
+        <button id="closeKpiCalc" class="icon-btn">×</button>
+      </div>
+      <div class="kpi-calc-top">
+        <div id="kpiCalcResult" class="kpi-calc-result"></div>
+        <div id="kpiCalcFormula" class="kpi-calc-formula"></div>
+      </div>
+      <div id="kpiCalcReading" class="kpi-calc-reading"></div>
+      <div class="table-scroll kpi-calc-table-wrap">
+        <table class="kpi-calc-table">
+          <thead><tr><th>Dato utilizzato</th><th>Valore</th><th>Origine</th><th>Fonte / riga</th></tr></thead>
+          <tbody id="kpiCalcSources"></tbody>
+        </table>
+      </div>
+      <div class="kpi-calc-note">
+        <strong>Nota</strong>
+        <span>Se un dato è errato o mancante, usa “Completa dati”: il sistema ricalcola automaticamente tutti i KPI collegati.</span>
+      </div>
+      <div class="modal-actions"><button id="openReviewFromKpi" class="ghost">Completa / correggi dati</button><button id="closeKpiCalcBottom" class="primary">Chiudi</button></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
