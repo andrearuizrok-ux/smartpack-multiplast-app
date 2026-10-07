@@ -1,0 +1,13 @@
+SP-MP STAGING V11.9.28 — GESTIONE SMART PACK / ROBERTO
+
+Modifiche conservative sulla build V11.9.27 stabile:
+- Copertura materie prime visibile prima dell'assistente cambio stampo.
+- Assistente cambio stampo spostato prima della configurazione tecnica presse.
+- Fogli produzione seguito da Preparazione spedizione nel menu.
+- “Caricamento camion” rinominato “Preparazione spedizione”.
+- Cliente selezionabile esclusivamente da elenco aziendale/ordini.
+- Modalità consegna selezionabile: Vettore / Nostro camion / Ritiro in sede.
+- Ordini mostrati e selezionabili solo dopo la scelta del cliente.
+- Preparazione salvata con riferimenti ordine e collegamento mostrato in Tracciabilità.
+- UI con pulsanti e blocchi più grandi e leggibili per uso operativo.
+- Nessuna modifica distruttiva ai moduli esistenti.
