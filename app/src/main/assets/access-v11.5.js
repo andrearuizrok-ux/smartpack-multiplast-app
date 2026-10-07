@@ -4867,3 +4867,1121 @@
   else boot();
 })();
 
+
+
+
+/* ========================================================================
+   V11.9.21 · GUIDED FINANCE COMPLETION + SINGLE SOURCE OF TRUTH
+   UX cliente: Bilancio -> dati automatici -> soli campi manuali richiesti.
+   Unifica Analisi e Composizione sullo stesso EBITDA corretto.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinanceGuidedV11921)return;
+
+  const VERSION='V11.9.21';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const num=v=>Number.isFinite(Number(v))?Number(v):0;
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v));
+  const pct=v=>`${new Intl.NumberFormat('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(num(v))}%`;
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function S(){try{return state}catch(_){return window.state||null}}
+  function period(){
+    const p=$('#financePeriodV1170')?.value ||
+      sessionStorage.getItem('poi_finance_period_v1179') ||
+      localStorage.getItem('poi_finance_period_v1179') || '';
+    return /^\d{4}-\d{2}$/.test(p)?p:'';
+  }
+  function record(company,p=period()){
+    return (S()?.adminFinanceV1170?.records||[]).find(x=>x.company===company&&x.period===p)||null;
+  }
+  function snaps(company,p=period()){
+    return (S()?.financeSpringV1173?.snapshots||[])
+      .filter(x=>x.company===company&&x.period===p)
+      .slice().sort((a,b)=>String(b.importedAt||b.id||'').localeCompare(String(a.importedAt||a.id||'')));
+  }
+  function snap(company,p=period()){return snaps(company,p)[0]||null}
+  function prevSnap(company,s){
+    if(!s||s.mode!=='cumulative')return null;
+    const y=String(s.period||'').slice(0,4);
+    return (S()?.financeSpringV1173?.snapshots||[])
+      .filter(x=>x.company===company&&x.period<s.period&&String(x.period||'').slice(0,4)===y&&x.mode==='cumulative')
+      .slice().sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0]||null;
+  }
+  function keyOf(a){return String(a?.mapKey||(a?.partitario?`${a.code}|${a.partitario}`:a?.code||''))}
+  function rawAmount(a){
+    if(Number.isFinite(Number(a?.signedAmount)))return Number(a.signedAmount);
+    const d=num(a?.debit),c=num(a?.credit),sec=String(a?.section||'');
+    if(d||c){
+      if(sec==='revenue'||sec==='liability')return c-d;
+      return d-c;
+    }
+    return num(a?.balance);
+  }
+  function flowAmount(a,s,prev){
+    let v=rawAmount(a);
+    if(s?.mode==='cumulative'&&prev){
+      const pa=(prev.accounts||[]).find(x=>keyOf(x)===keyOf(a));
+      v-=pa?rawAmount(pa):0;
+    }
+    return v;
+  }
+  function prefix(a,p){
+    const c=String(a?.code||'').trim();
+    return c===p||c.startsWith(p+'.');
+  }
+  function prefixTotal(company,prefixes,p=period()){
+    const s=snap(company,p);if(!s)return 0;
+    const prev=prevSnap(company,s);
+    return (s.accounts||[])
+      .filter(a=>prefixes.some(x=>prefix(a,x)))
+      .reduce((sum,a)=>sum+flowAmount(a,s,prev),0);
+  }
+
+  function manualInv(company,p){
+    const r=record(company,p)||{};
+    const enabled=!!r.inventoryManualEnabled;
+    const opening=num(r.inventoryOpeningManual),closing=num(r.inventoryClosingManual);
+    return {enabled,opening,closing,change:closing-opening};
+  }
+
+  function automaticParts(company,p){
+    const r=record(company,p)||{};
+    return {
+      sales:prefixTotal(company,['70'],p),
+      closing:prefixTotal(company,['71'],p),
+      otherRevenue:prefixTotal(company,['73'],p),
+      opening:prefixTotal(company,['75'],p),
+      materialsTotal:num(r.materials),
+      personnel:num(r.personnel),
+      energy:num(r.energy),
+      transport:num(r.transport),
+      otherOpex:num(r.otherOpex),
+      depreciation:num(r.depreciation)
+    };
+  }
+
+  function derive(company,p=period()){
+    const r=record(company,p);
+    if(!r)return {configured:false};
+
+    const a=automaticParts(company,p);
+    const m=manualInv(company,p);
+
+    // 72 + 75 sono stati aggregati insieme in materials.
+    // Per sostituire correttamente le rimanenze iniziali manuali:
+    // togliamo il 75 automatico e aggiungiamo il valore manuale.
+    const purchasesExOpening=a.materialsTotal-a.opening;
+    const opening=m.enabled?m.opening:a.opening;
+    const closing=m.enabled?m.closing:a.closing;
+
+    const production=a.sales+closing+a.otherRevenue;
+    const materialsAdjusted=purchasesExOpening+opening;
+    const opex=materialsAdjusted+a.personnel+a.energy+a.transport+a.otherOpex;
+    const ebitda=production-opex;
+    const ebit=ebitda-a.depreciation;
+
+    return {
+      configured:true,
+      record:r,
+      salesRevenue:a.sales,
+      openingInventory:opening,
+      closingInventory:closing,
+      autoOpeningInventory:a.opening,
+      autoClosingInventory:a.closing,
+      manualInventory:m.enabled,
+      inventoryChange:closing-opening,
+      otherOperatingRevenue:a.otherRevenue,
+      purchasesExOpening,
+      materials:materialsAdjusted,
+      personnel:a.personnel,
+      energy:a.energy,
+      transport:a.transport,
+      otherOpex:a.otherOpex,
+      depreciation:a.depreciation,
+      productionValue:production,
+      opex,ebitda,ebit,
+      marginProduction:production?ebitda/production*100:0
+    };
+  }
+  function group(p=period()){
+    const xs=['smartpack','multiplast'].map(c=>derive(c,p)).filter(x=>x.configured);
+    if(!xs.length)return {configured:false};
+    const sum=k=>xs.reduce((s,x)=>s+num(x[k]),0);
+    const productionValue=sum('productionValue'),opex=sum('opex'),ebitda=productionValue-opex;
+    return {
+      configured:true,
+      salesRevenue:sum('salesRevenue'),
+      openingInventory:sum('openingInventory'),
+      closingInventory:sum('closingInventory'),
+      inventoryChange:sum('inventoryChange'),
+      otherOperatingRevenue:sum('otherOperatingRevenue'),
+      materials:sum('materials'),
+      personnel:sum('personnel'),
+      energy:sum('energy'),
+      transport:sum('transport'),
+      otherOpex:sum('otherOpex'),
+      depreciation:sum('depreciation'),
+      productionValue,opex,ebitda,
+      ebit:ebitda-sum('depreciation'),
+      marginProduction:productionValue?ebitda/productionValue*100:0
+    };
+  }
+
+  function installEngine(){
+    const c=window.SPFinanceClarityV1199;
+    if(!c)return false;
+    c.derived=(company,p)=>derive(company,p);
+    c.groupDerived=p=>group(p);
+    c.financeCorrectionVersion=VERSION;
+    c.__v11921=true;
+    return true;
+  }
+
+  function monthBounds(p){
+    const [y,m]=String(p).split('-').map(Number);
+    if(!y||!m)return {start:'',end:''};
+    const last=new Date(y,m,0).getDate();
+    return {start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`};
+  }
+  function rangeFor(p){
+    const rs=['smartpack','multiplast'].map(c=>record(c,p)).filter(Boolean);
+    const starts=rs.map(r=>r.analysisStart).filter(Boolean).sort();
+    const ends=rs.map(r=>r.analysisEnd).filter(Boolean).sort();
+    if(starts.length&&ends.length)return {start:starts[0],end:ends[ends.length-1]};
+    return monthBounds(p);
+  }
+  function companyName(c){return c==='smartpack'?'Smart Pack':'Multiplast'}
+
+  function inventoryStatus(company,p){
+    const a=automaticParts(company,p),m=manualInv(company,p);
+    const autoOpening=Math.abs(a.opening)>0.004,autoClosing=Math.abs(a.closing)>0.004;
+    if(m.enabled)return {cls:'manual',label:'Manuale',text:'I valori inseriti sostituiscono quelli letti dal bilancio.'};
+    if(autoOpening&&autoClosing)return {cls:'auto',label:'Rilevate',text:'Il sistema ha trovato rimanenze iniziali e finali nel bilancio. Puoi confermarle o sostituirle.'};
+    return {cls:'required',label:'Da completare',text:'Manca almeno una delle due rimanenze: inserisci manualmente iniziali e finali.'};
+  }
+
+  function automaticSummary(company,p){
+    const d=derive(company,p),s=snap(company,p);
+    if(!d.configured)return '';
+    return `
+      <article class="v11921-auto-company">
+        <div class="v11921-auto-head">
+          <div><b>${companyName(company)}</b><span>${s?`SPRING · ${esc(s.fileName||'bilancio importato')}`:'Dati disponibili'}</span></div>
+          <i>✓ Letto automaticamente</i>
+        </div>
+        <div class="v11921-auto-grid">
+          <div><span>Ricavi vendite</span><b>${money(d.salesRevenue)}</b></div>
+          <div><span>Acquisti + rimanenze iniziali</span><b>${money(d.materials)}</b></div>
+          <div><span>Personale</span><b>${money(d.personnel)}</b></div>
+          <div><span>Energia</span><b>${money(d.energy)}</b></div>
+          <div><span>Trasporti</span><b>${money(d.transport)}</b></div>
+          <div><span>Altri costi operativi</span><b>${money(d.otherOpex)}</b></div>
+        </div>
+      </article>`;
+  }
+
+  function manualRow(company,p){
+    const d=derive(company,p),m=manualInv(company,p),st=inventoryStatus(company,p);
+    const opening=m.enabled?m.opening:d.autoOpeningInventory;
+    const closing=m.enabled?m.closing:d.autoClosingInventory;
+    return `
+      <article class="v11921-manual-row ${st.cls}" data-v11921-company="${company}">
+        <div class="v11921-manual-title">
+          <div><b>${companyName(company)}</b><span>Rimanenze per il periodo</span></div>
+          <em>${st.label}</em>
+        </div>
+        <p>${st.text}</p>
+        <div class="v11921-fields">
+          <label><span>Rimanenze iniziali</span><input type="number" step="0.01" data-v11921-opening="${company}" value="${opening||''}" placeholder="Inserisci importo €"></label>
+          <label><span>Rimanenze finali</span><input type="number" step="0.01" data-v11921-closing="${company}" value="${closing||''}" placeholder="Inserisci importo €"></label>
+          <div><span>Variazione</span><b data-v11921-delta="${company}">${money(closing-opening)}</b><small>Finali − iniziali</small></div>
+        </div>
+        <label class="v11921-use-manual">
+          <input type="checkbox" data-v11921-enabled="${company}" ${m.enabled?'checked':''}>
+          <span>Usa questi valori per l'analisi</span>
+        </label>
+      </article>`;
+  }
+
+  function completeness(p){
+    const companies=['smartpack','multiplast'].filter(c=>record(c,p));
+    let required=0,done=0;
+    for(const c of companies){
+      const st=inventoryStatus(c,p);
+      if(st.cls==='required')required++;
+      if(st.cls==='manual'||st.cls==='auto')done++;
+    }
+    return {companies,required,done,total:companies.length};
+  }
+
+  function guidedHTML(p){
+    const rg=rangeFor(p),c=completeness(p);
+    return `
+      <section class="v11921-guide" data-v11921-guide>
+        <div class="v11921-guide-head">
+          <div>
+            <span class="eyebrow">COMPLETA ANALISI</span>
+            <h3>Il bilancio è stato letto. Completa solo ciò che serve.</h3>
+            <p>I valori contabili vengono presi automaticamente da SPRING. Qui il cliente interviene solo sui dati che il bilancio non consente di determinare con certezza.</p>
+          </div>
+          <div class="v11921-progress"><b>${c.required?`${c.required} dato/i da verificare`:'Dati pronti'}</b><span>${c.total} aziende nel periodo</span></div>
+        </div>
+
+        <div class="v11921-step">
+          <div class="v11921-step-no">1</div>
+          <div class="v11921-step-body">
+            <div class="v11921-step-title"><b>Periodo analizzato</b><span>Indica a quale intervallo si riferiscono i dati.</span></div>
+            <div class="v11921-range">
+              <label><span>Da</span><input type="date" data-v11921-start value="${esc(rg.start)}"></label>
+              <label><span>A</span><input type="date" data-v11921-end value="${esc(rg.end)}"></label>
+              <button type="button" class="btn" data-v11921-month>Mese intero</button>
+            </div>
+            <div class="v11921-period-help">Per analizzare un singolo mese da un bilancio progressivo servono due progressivi consecutivi (es. 31/05 e 30/06). In alternativa carica un bilancio del solo mese.</div>
+          </div>
+        </div>
+
+        <div class="v11921-step">
+          <div class="v11921-step-no">2</div>
+          <div class="v11921-step-body">
+            <div class="v11921-step-title"><b>Dati letti automaticamente</b><span>Non devi ricopiarli.</span></div>
+            <details class="v11921-auto-details">
+              <summary>Mostra valori letti dal bilancio</summary>
+              <div class="v11921-auto-list">
+                ${c.companies.map(x=>automaticSummary(x,p)).join('')}
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div class="v11921-step important">
+          <div class="v11921-step-no">3</div>
+          <div class="v11921-step-body">
+            <div class="v11921-step-title">
+              <b>Rimanenze da confermare</b>
+              <span>Il sistema ti indica se sono già presenti oppure se devi inserirle.</span>
+            </div>
+            <div class="v11921-manual-list">
+              ${c.companies.map(x=>manualRow(x,p)).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="v11921-guide-actions">
+          <div><b>Quando hai finito</b><span>Salva: tutti i KPI e le finestre Analisi/Composizione verranno ricalcolati con la stessa formula.</span></div>
+          <button type="button" class="btn primary" data-v11921-save>Conferma dati e ricalcola</button>
+        </div>
+      </section>`;
+  }
+
+  async function saveGuide(p){
+    const start=$('[data-v11921-start]')?.value||'';
+    const end=$('[data-v11921-end]')?.value||'';
+    if(start&&end&&start>end){alert('La data iniziale non può essere successiva alla data finale.');return}
+    for(const company of ['smartpack','multiplast']){
+      const r=record(company,p);if(!r)continue;
+      r.analysisStart=start;r.analysisEnd=end;
+      r.inventoryManualEnabled=!!$(`[data-v11921-enabled="${company}"]`)?.checked;
+      r.inventoryOpeningManual=num($(`[data-v11921-opening="${company}"]`)?.value);
+      r.inventoryClosingManual=num($(`[data-v11921-closing="${company}"]`)?.value);
+      r.inventoryManualUpdatedAt=new Date().toISOString();
+    }
+    try{if(typeof save==='function')save()}catch(_){}
+    try{await window.SPFinanceCloudV1179?.save?.(p)}catch(_){}
+    refreshAll(true);
+  }
+
+  function bindGuide(el,p){
+    for(const c of ['smartpack','multiplast']){
+      const update=()=>{
+        const a=num($(`[data-v11921-opening="${c}"]`,el)?.value);
+        const b=num($(`[data-v11921-closing="${c}"]`,el)?.value);
+        const out=$(`[data-v11921-delta="${c}"]`,el);if(out)out.textContent=money(b-a);
+      };
+      $(`[data-v11921-opening="${c}"]`,el)?.addEventListener('input',update);
+      $(`[data-v11921-closing="${c}"]`,el)?.addEventListener('input',update);
+    }
+    $('[data-v11921-month]',el)?.addEventListener('click',()=>{
+      const b=monthBounds(p);
+      const a=$('[data-v11921-start]',el),z=$('[data-v11921-end]',el);
+      if(a)a.value=b.start;if(z)z.value=b.end;
+    });
+    $('[data-v11921-save]',el)?.addEventListener('click',()=>saveGuide(p));
+  }
+
+  function insertGuide(force=false){
+    const view=$('#adminFinanceV1170View');if(!view?.classList.contains('active'))return;
+    const p=period();if(!p)return;
+
+    // Nasconde il pannello tecnico V11.9.20: le funzioni restano, ma il cliente vede solo il percorso guidato.
+    $$('[data-v11920-panel]',view).forEach(x=>x.style.display='none');
+
+    let old=$('[data-v11921-guide]',view);
+    if(old&&!force)return;
+    const tmp=document.createElement('div');tmp.innerHTML=guidedHTML(p);
+    const guide=tmp.firstElementChild;
+    if(old)old.replaceWith(guide);
+    else{
+      const source=$('.v1173-source-banner',view);
+      const hero=$('.v1170-fin-hero',view);
+      (source||hero)?.insertAdjacentElement('afterend',guide);
+    }
+    bindGuide(guide,p);
+  }
+
+  function updateDashboard(){
+    const view=$('#adminFinanceV1170View');if(!view?.classList.contains('active'))return;
+    const p=period();if(!p)return;
+    const g=group(p);if(!g.configured)return;
+
+    const cards=$$('.v1170-fin-group>div',view);
+    if(cards[1]){const b=cards[1].querySelector('b');if(b)b.textContent=money(g.opex)}
+    if(cards[2]){const b=cards[2].querySelector('b');if(b){b.textContent=money(g.ebitda);b.classList.toggle('loss',g.ebitda<0)}}
+    if(cards[3]){const b=cards[3].querySelector('b');if(b){b.textContent=money(g.ebit);b.classList.toggle('loss',g.ebit<0)}}
+    if(cards[4]){const b=cards[4].querySelector('b');if(b)b.textContent=pct(g.marginProduction)}
+
+    const prod=$('.v1199-group-production',view);
+    if(prod){
+      const b=prod.querySelector('b');if(b)b.textContent=money(g.productionValue);
+    }
+
+    let q=$('[data-v11921-q]',view);
+    const qhtml=`
+      <section class="v11921-q" data-v11921-q>
+        <div><span>Valore produzione</span><b>${money(g.productionValue)}</b></div>
+        <i>−</i>
+        <div><span>Costi operativi</span><b>${money(g.opex)}</b></div>
+        <i>=</i>
+        <div><span>EBITDA</span><b class="${g.ebitda<0?'neg':''}">${money(g.ebitda)}</b></div>
+      </section>`;
+    const anchor=prod||$('.v1170-fin-group',view);
+    if(anchor){
+      if(q){const t=document.createElement('div');t.innerHTML=qhtml;q.replaceWith(t.firstElementChild)}
+      else anchor.insertAdjacentHTML('afterend',qhtml);
+    }
+  }
+
+  function inferUnifiedContext(){
+    const title=String($('#financeUnifiedV11913Title')?.textContent||'').trim().toLowerCase();
+    const sub=String($('#financeUnifiedV11913Sub')?.textContent||'');
+    let company='group';
+    if(/^smart pack/i.test(sub))company='smartpack';
+    else if(/^multiplast/i.test(sub))company='multiplast';
+    const pm=sub.match(/(\d{4}-\d{2})/);
+    const p=pm?.[1]||period();
+    let metric='ebitda';
+    if(title.includes('valore della produzione'))metric='production';
+    else if(title.includes('ricavi vendite')||title.includes('fatturato'))metric='sales';
+    else if(title==='ebit'||title.startsWith('ebit '))metric='ebit';
+    else if(title.includes('margine'))metric='margin';
+    else if(title.includes('ebitda'))metric='ebitda';
+    return {metric,company,p};
+  }
+
+  function costCards(d){
+    const rows=[
+      ['Materie / acquisti',d.materials],
+      ['Personale',d.personnel],
+      ['Energia',d.energy],
+      ['Trasporti',d.transport],
+      ['Altri costi operativi',d.otherOpex]
+    ];
+    return `<div class="v11921-costs">${rows.map(([l,v])=>`<div><span>− ${esc(l)}</span><b>${money(v)}</b></div>`).join('')}</div>`;
+  }
+
+  function correctedComposition(metric,company,p){
+    const d=company==='group'?group(p):derive(company,p);
+    if(!d?.configured)return '<div class="empty"><b>Dati non disponibili</b></div>';
+
+    if(metric==='ebitda'){
+      return `
+        <div class="v1199-hero"><span>EBITDA operativo</span><b>${money(d.ebitda)}</b><small>Un'unica formula usata in tutta la piattaforma.</small></div>
+        <div class="v11921-formula">
+          <div><span>Valore della produzione</span><b>${money(d.productionValue)}</b></div>
+          <i>−</i>
+          <div><span>Costi operativi</span><b>${money(d.opex)}</b></div>
+          <i>=</i>
+          <div class="result"><span>EBITDA</span><b class="${d.ebitda<0?'neg':''}">${money(d.ebitda)}</b></div>
+        </div>
+        <h4 class="v11921-comp-title">Composizione dei costi operativi</h4>
+        ${costCards(d)}
+        <div class="v11921-stock-note">
+          <b>Rimanenze considerate</b>
+          <span>Iniziali ${money(d.openingInventory)} · Finali ${money(d.closingInventory)} · Variazione ${money(d.inventoryChange)}${d.manualInventory?' · valori manuali confermati':''}</span>
+        </div>`;
+    }
+    if(metric==='production'){
+      return `
+        <div class="v1199-hero"><span>Valore della produzione</span><b>${money(d.productionValue)}</b><small>Ricavi + rimanenze finali + altri ricavi operativi.</small></div>
+        <div class="v11921-formula three">
+          <div><span>Ricavi vendite</span><b>${money(d.salesRevenue)}</b></div><i>+</i>
+          <div><span>Rimanenze finali</span><b>${money(d.closingInventory)}</b></div><i>+</i>
+          <div><span>Altri ricavi operativi</span><b>${money(d.otherOperatingRevenue)}</b></div><i>=</i>
+          <div class="result"><span>Valore produzione</span><b>${money(d.productionValue)}</b></div>
+        </div>
+        <div class="v11921-stock-note"><b>Rimanenze iniziali</b><span>${money(d.openingInventory)} vengono considerate tra i costi operativi/materie, non sommate al valore della produzione.</span></div>`;
+    }
+    if(metric==='ebit'){
+      return `
+        <div class="v1199-hero"><span>EBIT operativo</span><b>${money(d.ebit)}</b></div>
+        <div class="v11921-formula">
+          <div><span>EBITDA</span><b>${money(d.ebitda)}</b></div><i>−</i>
+          <div><span>Ammortamenti</span><b>${money(d.depreciation)}</b></div><i>=</i>
+          <div class="result"><span>EBIT</span><b class="${d.ebit<0?'neg':''}">${money(d.ebit)}</b></div>
+        </div>`;
+    }
+    if(metric==='margin'){
+      return `
+        <div class="v1199-hero"><span>Margine EBITDA / Valore produzione</span><b>${pct(d.marginProduction)}</b></div>
+        <div class="v11921-formula"><div><span>EBITDA</span><b>${money(d.ebitda)}</b></div><i>÷</i><div><span>Valore produzione</span><b>${money(d.productionValue)}</b></div><i>=</i><div class="result"><span>Margine</span><b>${pct(d.marginProduction)}</b></div></div>`;
+    }
+    if(metric==='sales'){
+      return `<div class="v1199-hero"><span>Ricavi vendite / fatturato</span><b>${money(d.salesRevenue)}</b><small>Solo conti 70.*.</small></div>`;
+    }
+    return '';
+  }
+
+  function interceptComposition(){
+    document.addEventListener('click',e=>{
+      const b=e.target.closest?.('[data-v11913-tab="composition"]');
+      if(!b)return;
+      const dlg=$('#financeUnifiedV11913Dialog');
+      if(!dlg?.open)return;
+      const {metric,company,p}=inferUnifiedContext();
+      const html=correctedComposition(metric,company,p);
+      if(!html)return;
+      e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+      $$('[data-v11913-tab]').forEach(x=>x.classList.toggle('active',x===b));
+      const body=$('#financeUnifiedV11913Body');if(body)body.innerHTML=html;
+    },true);
+  }
+
+  function injectStyles(){
+    if($('#v11921Styles'))return;
+    const st=document.createElement('style');st.id='v11921Styles';
+    st.textContent=`
+      .v11921-guide{margin:10px 0 12px;background:#fff;border:1px solid #d8e5e9;border-radius:17px;overflow:hidden;box-shadow:0 6px 18px rgba(23,57,74,.04)}
+      .v11921-guide-head{display:flex;justify-content:space-between;gap:18px;padding:15px 16px;background:linear-gradient(135deg,#f8fbfc,#fff)}
+      .v11921-guide-head h3{margin:3px 0 3px;font-size:15px;color:#142f3b}.v11921-guide-head p{margin:0;max-width:760px;font-size:10px;line-height:1.5;color:#647a84}
+      .v11921-progress{text-align:right;align-self:center}.v11921-progress b{display:block;font-size:10px;color:#17394a}.v11921-progress span{display:block;font-size:8px;color:#7b8e96;margin-top:2px}
+      .v11921-step{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:13px 16px;border-top:1px solid #e8eef0}.v11921-step.important{background:#fffdf9}
+      .v11921-step-no{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#17394a;color:#fff;font-size:10px;font-weight:950}
+      .v11921-step-title{display:flex;gap:8px;align-items:baseline}.v11921-step-title b{font-size:11px;color:#17303c}.v11921-step-title span{font-size:9px;color:#72868f}
+      .v11921-range{display:flex;gap:8px;align-items:end;margin-top:9px}.v11921-range label span,.v11921-fields label span,.v11921-fields>div>span{display:block;font-size:8px;font-weight:850;color:#71858e;text-transform:uppercase;margin-bottom:4px}
+      .v11921-range input,.v11921-fields input{min-height:35px;border:1px solid #d5e2e6;border-radius:9px;background:#fff;padding:7px 9px;font-size:10px;color:#17303c}
+      .v11921-period-help{margin-top:7px;font-size:8.5px;line-height:1.45;color:#6e818a}
+      .v11921-auto-details{margin-top:8px;border:1px solid #e1eaed;border-radius:10px;background:#f8fbfc}.v11921-auto-details summary{cursor:pointer;padding:9px 10px;font-size:9px;font-weight:850;color:#1f5e78}
+      .v11921-auto-list{padding:0 9px 9px;display:grid;gap:7px}.v11921-auto-company{padding:9px;border:1px solid #e2e9ec;border-radius:10px;background:#fff}
+      .v11921-auto-head{display:flex;justify-content:space-between;gap:10px}.v11921-auto-head b{font-size:10px}.v11921-auto-head span{display:block;font-size:8px;color:#7b8d95}.v11921-auto-head i{font-style:normal;font-size:8px;color:#28745c}
+      .v11921-auto-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:7px}.v11921-auto-grid div{padding:6px;border-radius:8px;background:#f6f9fa}.v11921-auto-grid span{display:block;font-size:7px;color:#778a92}.v11921-auto-grid b{display:block;margin-top:2px;font-size:8.5px;color:#17394a}
+      .v11921-manual-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.v11921-manual-row{padding:10px;border:1px solid #dfe8eb;border-radius:12px;background:#fff}.v11921-manual-row.required{border-color:#e7c881;background:#fffaf0}.v11921-manual-row.manual{border-color:#b9d8ca;background:#f8fcfa}
+      .v11921-manual-title{display:flex;justify-content:space-between;gap:10px}.v11921-manual-title b{font-size:10px}.v11921-manual-title span{display:block;font-size:8px;color:#798c94}.v11921-manual-title em{font-style:normal;font-size:8px;font-weight:900;color:#1f5e78}
+      .v11921-manual-row p{margin:5px 0 8px;font-size:8.5px;line-height:1.4;color:#687c85}
+      .v11921-fields{display:grid;grid-template-columns:1fr 1fr 120px;gap:7px;align-items:end}.v11921-fields input{width:100%}.v11921-fields>div{padding:6px 8px;border-radius:9px;background:#f4f8f9}.v11921-fields>div b{display:block;font-size:9.5px;color:#17394a}.v11921-fields small{font-size:7px;color:#7d8f97}
+      .v11921-use-manual{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:8.5px;color:#3f5864}.v11921-use-manual input{width:auto;min-height:auto}
+      .v11921-guide-actions{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid #e8eef0;background:#f8fbfc}.v11921-guide-actions b{display:block;font-size:9px}.v11921-guide-actions span{display:block;font-size:8px;color:#71848d;margin-top:2px}
+      .v11921-q{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:center;margin:8px 0 11px;padding:9px 11px;border:1px solid #dce7ea;border-radius:11px;background:#f8fbfc}.v11921-q span{display:block;font-size:7.5px;color:#74878f;text-transform:uppercase}.v11921-q b{display:block;margin-top:2px;font-size:11px}.v11921-q b.neg{color:#ac3942}.v11921-q i{font-style:normal;color:#82959d}
+      .v11921-formula{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:9px;align-items:center;margin:10px 0}.v11921-formula.three{grid-template-columns:1fr auto 1fr auto 1fr auto 1fr}.v11921-formula>div{padding:10px;border:1px solid #e0e8eb;border-radius:10px;background:#fff}.v11921-formula span{display:block;font-size:8px;color:#74868e}.v11921-formula b{display:block;margin-top:3px;font-size:11px}.v11921-formula .result{background:#f4f8f9}.v11921-formula .neg{color:#ac3942}.v11921-formula i{font-style:normal;color:#7f929a}
+      .v11921-comp-title{font-size:10px;margin:13px 0 7px}.v11921-costs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.v11921-costs div{padding:9px;border:1px solid #e2eaed;border-radius:9px;background:#fff}.v11921-costs span{display:block;font-size:7.5px;color:#758890}.v11921-costs b{display:block;margin-top:3px;font-size:9px;color:#a63a42}
+      .v11921-stock-note{margin-top:9px;padding:9px 10px;border-radius:10px;background:#f7fafb;border:1px solid #e0e9ec}.v11921-stock-note b{display:block;font-size:8.5px}.v11921-stock-note span{display:block;margin-top:3px;font-size:8.5px;color:#667a84}
+      @media(max-width:1050px){.v11921-auto-grid{grid-template-columns:repeat(3,1fr)}.v11921-manual-list{grid-template-columns:1fr}}
+      @media(max-width:650px){.v11921-guide-head,.v11921-guide-actions{display:block}.v11921-progress{text-align:left;margin-top:8px}.v11921-range{display:grid;grid-template-columns:1fr}.v11921-range input{width:100%}.v11921-fields{grid-template-columns:1fr}.v11921-auto-grid{grid-template-columns:1fr 1fr}.v11921-formula,.v11921-formula.three,.v11921-q,.v11921-costs{grid-template-columns:1fr}.v11921-formula i,.v11921-q i{display:none}.v11921-guide-actions .btn{width:100%;margin-top:8px}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function refreshAll(force=false){
+    installEngine();
+    insertGuide(force);
+    updateDashboard();
+    try{window.SPFinanceClarityV1199?.decorate?.()}catch(_){}
+  }
+
+  function boot(){
+    injectStyles();interceptComposition();
+    // Nasconde il pannello tecnico appena compare.
+    const mo=new MutationObserver(()=>{ 
+      const view=$('#adminFinanceV1170View');
+      if(view?.classList.contains('active')){
+        $$('[data-v11920-panel]',view).forEach(x=>x.style.display='none');
+      }
+    });
+    if(document.body)mo.observe(document.body,{subtree:true,childList:true});
+    [100,300,700,1400,2600].forEach(ms=>setTimeout(()=>refreshAll(ms>500),ms));
+    setInterval(()=>{
+      if($('#adminFinanceV1170View')?.classList.contains('active'))refreshAll(false);
+    },1000);
+    document.addEventListener('change',e=>{
+      if(e.target?.id==='financePeriodV1170')setTimeout(()=>refreshAll(true),100);
+    },true);
+  }
+
+  window.SPFinanceGuidedV11921={version:VERSION,derive,group,refresh:()=>refreshAll(true)};
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+
+
+
+
+/* ========================================================================
+   V11.9.22 · FINANCIAL ANALYSIS CENTER
+   Bilancio -> controllo qualità -> KPI -> confronto -> andamento -> previsione
+   L'utente inserisce SOLO dati grezzi/mancanti; tutte le formule sono automatiche.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinanceAnalysisV11922)return;
+
+  const VERSION='V11.9.22';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const num=v=>Number.isFinite(Number(v))?Number(v):0;
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v));
+  const pct=v=>`${new Intl.NumberFormat('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(num(v))}%`;
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const CATS=[
+    ['','Da classificare / ignora'],
+    ['revenue','Ricavi / valore produzione'],
+    ['materials','Materie / acquisti / rimanenze iniziali'],
+    ['personnel','Personale'],
+    ['energy','Energia / utenze produttive'],
+    ['transport','Trasporti / spedizioni'],
+    ['otherOpex','Altri costi operativi'],
+    ['depreciation','Ammortamenti'],
+    ['extraordinaryIncome','Proventi non operativi'],
+    ['financialCharges','Oneri finanziari'],
+    ['taxes','Imposte'],
+    ['receivables','Crediti clienti'],
+    ['payables','Debiti fornitori'],
+    ['cash','Liquidità'],
+    ['inventory','Rimanenze patrimoniali']
+  ];
+
+  function S(){try{return state}catch(_){return window.state||null}}
+  function currentPeriod(){
+    const p=$('#financePeriodV1170')?.value ||
+      sessionStorage.getItem('poi_finance_period_v1179') ||
+      localStorage.getItem('poi_finance_period_v1179') || '';
+    return /^\d{4}-\d{2}$/.test(p)?p:'';
+  }
+  function record(company,p){
+    return (S()?.adminFinanceV1170?.records||[]).find(x=>x.company===company&&x.period===p)||null;
+  }
+  function snapshots(company){
+    return (S()?.financeSpringV1173?.snapshots||[])
+      .filter(x=>x.company===company)
+      .slice().sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+  }
+  function snapshot(company,p){return snapshots(company).filter(x=>x.period===p).slice(-1)[0]||null}
+  function previousSnapshot(company,p){
+    return snapshots(company).filter(x=>x.period<p).slice(-1)[0]||null;
+  }
+  function previousPreviousSnapshot(company,p){
+    const prev=previousSnapshot(company,p);if(!prev)return null;
+    return snapshots(company).filter(x=>x.period<prev.period).slice(-1)[0]||null;
+  }
+  function firstSnapshot(company){return snapshots(company)[0]||null}
+  function companyName(c){return c==='multiplast'?'Multiplast':'Smart Pack'}
+  function keyOf(a){return String(a?.mapKey||(a?.partitario?`${a.code}|${a.partitario}`:a?.code||''))}
+  function mapping(company){return S()?.financeSpringV1173?.mappings?.[company]||{}}
+  function categoryOf(company,a){return mapping(company)[keyOf(a)]||a?.category||''}
+
+  function rawAmount(a){
+    if(Number.isFinite(Number(a?.signedAmount)))return Number(a.signedAmount);
+    const d=num(a?.debit),c=num(a?.credit),sec=String(a?.section||'');
+    if(d||c){
+      if(sec==='revenue'||sec==='liability')return c-d;
+      return d-c;
+    }
+    return num(a?.balance);
+  }
+
+  function coverage(company,p){
+    const r=record(company,p)||{};
+    if(r.analysisStart&&r.analysisEnd)return {start:r.analysisStart,end:r.analysisEnd,source:'confermato'};
+    const s=snapshot(company,p);if(!s)return {start:'',end:'',source:'mancante'};
+    const [y,m]=String(p).split('-').map(Number);
+    const end=`${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;
+    if(s.mode==='annual')return {start:`${y}-01-01`,end:`${y}-12-31`,source:'rilevato'};
+    if(s.mode==='cumulative')return {start:`${y}-01-01`,end,source:'rilevato'};
+    return {start:`${y}-${String(m).padStart(2,'0')}-01`,end,source:'rilevato'};
+  }
+
+  function derive(company,p){
+    return window.SPFinanceGuidedV11921?.derive?.(company,p) ||
+      window.SPFinanceClarityV1199?.derived?.(company,p) || {configured:false};
+  }
+  function group(p){
+    return window.SPFinanceGuidedV11921?.group?.(p) ||
+      window.SPFinanceClarityV1199?.groupDerived?.(p) || {configured:false};
+  }
+
+  function unmapped(company,p){
+    const s=snapshot(company,p);if(!s)return [];
+    return (s.accounts||[])
+      .filter(a=>!categoryOf(company,a))
+      .filter(a=>Math.abs(rawAmount(a))>0.004)
+      .map(a=>({...a,_company:company,_key:keyOf(a)}));
+  }
+
+  function manualInventoryMissing(company,p){
+    const s=snapshot(company,p);if(!s)return false;
+    const d=derive(company,p);
+    const r=record(company,p)||{};
+    const hasManual=!!r.inventoryManualEnabled;
+    const autoOpen=Math.abs(num(d?.autoOpeningInventory))>0.004;
+    const autoClose=Math.abs(num(d?.autoClosingInventory))>0.004;
+    return !hasManual && !(autoOpen&&autoClose);
+  }
+
+  function quality(p){
+    const companies=['smartpack','multiplast'].filter(c=>snapshot(c,p));
+    const missingAccounts=companies.reduce((n,c)=>n+unmapped(c,p).length,0);
+    const missingInventory=companies.filter(c=>manualInventoryMissing(c,p)).length;
+    const missingCoverage=companies.filter(c=>{const x=coverage(c,p);return !x.start||!x.end}).length;
+    const score=Math.max(0,100-missingAccounts*4-missingInventory*20-missingCoverage*15);
+    const ready=companies.length>0 && missingAccounts===0 && missingInventory===0 && missingCoverage===0;
+    return {companies,missingAccounts,missingInventory,missingCoverage,score,ready};
+  }
+
+  function commonPeriods(){
+    const a=new Set(snapshots('smartpack').map(x=>x.period));
+    const b=new Set(snapshots('multiplast').map(x=>x.period));
+    const both=[...a].filter(x=>b.has(x)).sort();
+    if(both.length)return both;
+    return [...new Set([...a,...b])].sort();
+  }
+
+  function previousComparablePeriod(p){
+    const ps=commonPeriods().filter(x=>x<p);
+    if(!ps.length)return '';
+    const prev=ps[ps.length-1];
+    const currentSnaps=['smartpack','multiplast'].map(c=>snapshot(c,p)).filter(Boolean);
+    const prevSnaps=['smartpack','multiplast'].map(c=>snapshot(c,prev)).filter(Boolean);
+
+    // Periodi "month" sono confrontabili direttamente.
+    if(currentSnaps.length && currentSnaps.every(x=>x.mode==='month') &&
+       prevSnaps.length && prevSnaps.every(x=>x.mode==='month')) return prev;
+
+    // Per progressivi, per confrontare due INTERVALLI servono almeno 3 snapshot:
+    // baseline -> periodo precedente -> periodo corrente.
+    if(currentSnaps.some(x=>x.mode==='cumulative')){
+      const hasPriorInterval=['smartpack','multiplast']
+        .filter(c=>snapshot(c,p))
+        .every(c=>!!previousPreviousSnapshot(c,p));
+      return hasPriorInterval?prev:'';
+    }
+    return prev;
+  }
+
+  function delta(curr,prev){
+    if(prev==null||!Number.isFinite(Number(prev)))return null;
+    const c=num(curr),v=num(prev);
+    return {abs:c-v,pct:v?((c-v)/Math.abs(v))*100:null};
+  }
+  function deltaHtml(d,invert=false){
+    if(!d)return '<span class="na">Baseline</span>';
+    const good=invert?d.abs<=0:d.abs>=0;
+    return `<span class="${good?'up':'down'}">${d.abs>=0?'+':''}${money(d.abs)}${d.pct==null?'':` · ${d.pct>=0?'+':''}${pct(d.pct)}`}</span>`;
+  }
+
+  function cumulativeRaw(company,p){
+    const s=snapshot(company,p);if(!s)return null;
+    const mp=mapping(company);
+    const v={salesRevenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,otherOperatingRevenue:0,openingInventory:0,closingInventory:0};
+    for(const a of (s.accounts||[])){
+      const code=String(a.code||'').trim(),cat=mp[keyOf(a)]||a.category||'';
+      const amount=rawAmount(a);
+      const starts=x=>code===x||code.startsWith(x+'.');
+      if(starts('70'))v.salesRevenue+=amount;
+      else if(starts('71'))v.closingInventory+=amount;
+      else if(starts('73'))v.otherOperatingRevenue+=amount;
+      else if(starts('75'))v.openingInventory+=amount;
+      else if(cat==='materials')v.materials+=amount;
+      else if(cat==='personnel')v.personnel+=amount;
+      else if(cat==='energy')v.energy+=amount;
+      else if(cat==='transport')v.transport+=amount;
+      else if(cat==='otherOpex')v.otherOpex+=amount;
+      else if(cat==='depreciation')v.depreciation+=amount;
+    }
+    const r=record(company,p)||{};
+    if(r.inventoryManualEnabled){
+      v.openingInventory=num(r.inventoryOpeningManual);
+      v.closingInventory=num(r.inventoryClosingManual);
+    }
+    // materials letto da categorie può includere 75 se mappato; per il run-rate
+    // ricostruiamo il costo materie con rimanenze iniziali esplicite.
+    const materialsWithoutOpening=Math.max(0,v.materials-v.openingInventory);
+    v.materials=materialsWithoutOpening+v.openingInventory;
+    v.productionValue=v.salesRevenue+v.closingInventory+v.otherOperatingRevenue;
+    v.opex=v.materials+v.personnel+v.energy+v.transport+v.otherOpex;
+    v.ebitda=v.productionValue-v.opex;
+    v.ebit=v.ebitda-v.depreciation;
+    return v;
+  }
+
+  function forecast(p){
+    const [year,month]=String(p).split('-').map(Number);
+    if(!year||!month)return null;
+    const current=['smartpack','multiplast'].map(c=>snapshot(c,p)).filter(Boolean);
+    if(!current.length)return null;
+    if(current.every(x=>x.mode==='annual')||month>=12)return null;
+
+    const cumulatives=current.filter(x=>x.mode==='cumulative');
+    if(cumulatives.length){
+      const xs=['smartpack','multiplast'].map(c=>cumulativeRaw(c,p)).filter(Boolean);
+      if(!xs.length)return null;
+      const sum=k=>xs.reduce((s,x)=>s+num(x[k]),0);
+      const actual={
+        salesRevenue:sum('salesRevenue'),
+        productionValue:sum('productionValue'),
+        opex:sum('opex'),
+        ebitda:sum('ebitda'),
+        depreciation:sum('depreciation'),
+        ebit:sum('ebit')
+      };
+      const factor=12/month;
+      const projected={};
+      for(const k of Object.keys(actual))projected[k]=actual[k]*factor;
+      const q=quality(p);
+      const confidence=!q.ready?'Bassa':month>=6?'Alta':month>=3?'Media':'Bassa';
+      return {year,month,factor,actual,projected,confidence,method:`Run-rate progressivo ${month}/12`};
+    }
+
+    // Bilanci mensili: media dei mesi caricati nello stesso esercizio.
+    const periods=commonPeriods().filter(x=>String(x).startsWith(String(year)+'-')&&x<=p);
+    const vals=periods.map(x=>group(x)).filter(x=>x.configured);
+    if(!vals.length)return null;
+    const avg=k=>vals.reduce((s,x)=>s+num(x[k]),0)/vals.length;
+    const projected={
+      salesRevenue:avg('salesRevenue')*12,
+      productionValue:avg('productionValue')*12,
+      opex:avg('opex')*12,
+      ebitda:avg('ebitda')*12,
+      ebit:avg('ebit')*12
+    };
+    return {year,month,actual:group(p),projected,confidence:vals.length>=6?'Alta':vals.length>=3?'Media':'Bassa',method:`Media run-rate su ${vals.length} periodo/i caricati`};
+  }
+
+  function trendStatus(metric,curr,prev){
+    if(prev==null)return {cls:'neutral',label:'Baseline'};
+    const d=num(curr)-num(prev);
+    const invert=['materials','personnel','energy','transport','otherOpex','opex'].includes(metric);
+    if(Math.abs(d)<0.01)return {cls:'neutral',label:'Stabile'};
+    const good=invert?d<0:d>0;
+    return {cls:good?'good':'risk',label:good?'Migliora':'Peggiora'};
+  }
+
+  function metricRows(p){
+    const cur=group(p),pp=previousComparablePeriod(p),prev=pp?group(pp):null;
+    const defs=[
+      ['sales','Ricavi vendite',cur.salesRevenue,prev?.salesRevenue,false],
+      ['production','Valore della produzione',cur.productionValue,prev?.productionValue,false],
+      ['materials','Materie / acquisti',cur.materials,prev?.materials,true],
+      ['personnel','Personale',cur.personnel,prev?.personnel,true],
+      ['energy','Energia',cur.energy,prev?.energy,true],
+      ['transport','Trasporti',cur.transport,prev?.transport,true],
+      ['otherOpex','Altri costi operativi',cur.otherOpex,prev?.otherOpex,true],
+      ['ebitda','EBITDA',cur.ebitda,prev?.ebitda,false],
+      ['ebit','EBIT',cur.ebit,prev?.ebit,false],
+      ['margin','Margine EBITDA',cur.marginProduction,prev?.marginProduction,false]
+    ];
+    return {pp,rows:defs.map(([key,label,value,pv,invert])=>({key,label,value,pv,invert,status:trendStatus(key,value,pv)}))};
+  }
+
+  function dataStatusHTML(p){
+    const q=quality(p);
+    if(!q.companies.length){
+      return `<section class="v11922-empty"><b>Carica il primo bilancio</b><p>Il primo bilancio diventa la baseline. Dal secondo caricamento la piattaforma attiva confronto, andamento e previsione.</p><button class="btn primary" type="button" data-v11922-import>Carica bilancio</button></section>`;
+    }
+    return `
+      <div class="v11922-status ${q.ready?'ready':'todo'}">
+        <i></i>
+        <div><b>${q.ready?'Analisi pronta':'Analisi da completare'}</b><span>${q.ready?'Tutti i dati necessari risultano disponibili.':`${q.missingAccounts} conto/i da classificare · ${q.missingInventory} rimanenze da confermare`}</span></div>
+        <strong>${q.score}% completezza</strong>
+      </div>`;
+  }
+
+  function periodHTML(p){
+    const cards=['smartpack','multiplast'].filter(c=>snapshot(c,p)).map(c=>{
+      const s=snapshot(c,p),cov=coverage(c,p),base=firstSnapshot(c),prev=previousSnapshot(c,p);
+      const mode=s.mode==='annual'?'Bilancio annuale':s.mode==='cumulative'?'Progressivo YTD':'Periodo / mese';
+      return `<article>
+        <div><b>${companyName(c)}</b><span>${esc(s.fileName||'Bilancio importato')}</span></div>
+        <dl>
+          <dt>Copertura</dt><dd>${esc(cov.start)} → ${esc(cov.end)}</dd>
+          <dt>Tipo</dt><dd>${mode}</dd>
+          <dt>Baseline</dt><dd>${base?esc(base.period):'—'}</dd>
+          <dt>Precedente</dt><dd>${prev?esc(prev.period):'Primo bilancio'}</dd>
+        </dl>
+      </article>`;
+    }).join('');
+    return `<section class="v11922-period">
+      <div class="v11922-section-head"><div><span class="eyebrow">01 · PERIODO</span><h3>Bilancio analizzato</h3><p>La piattaforma identifica la copertura in base al tipo di bilancio e alla sequenza caricata.</p></div><button class="btn" type="button" data-v11922-import>Carica nuovo periodo</button></div>
+      <div class="v11922-period-grid">${cards}</div>
+    </section>`;
+  }
+
+  function missingHTML(p){
+    const companies=['smartpack','multiplast'].filter(c=>snapshot(c,p));
+    const missing=companies.flatMap(c=>unmapped(c,p));
+    const inv=companies.filter(c=>manualInventoryMissing(c,p));
+    if(!missing.length&&!inv.length)return `<section class="v11922-missing complete"><span class="eyebrow">02 · CONTROLLO DATI</span><div><b>Bilancio completo</b><p>Nessuna voce obbligatoria da integrare. I calcoli sono eseguiti automaticamente.</p></div></section>`;
+
+    return `<section class="v11922-missing">
+      <div class="v11922-section-head"><div><span class="eyebrow">02 · CONTROLLO DATI</span><h3>Completa solo i dati non riconosciuti</h3><p>Non devi fare calcoli: copia il valore dal bilancio o indica a quale categoria appartiene il conto.</p></div></div>
+      ${inv.length?`<div class="v11922-raw-fields">
+        ${inv.map(c=>{
+          const d=derive(c,p),r=record(c,p)||{};
+          return `<div class="v11922-raw-row">
+            <div><b>${companyName(c)} · Rimanenze</b><span>Inserisci i valori esattamente come risultano dal bilancio.</span></div>
+            <label><span>Rimanenze iniziali</span><input type="number" step="0.01" data-v11922-open="${c}" value="${r.inventoryManualEnabled?num(r.inventoryOpeningManual):''}" placeholder="€"></label>
+            <label><span>Rimanenze finali</span><input type="number" step="0.01" data-v11922-close="${c}" value="${r.inventoryManualEnabled?num(r.inventoryClosingManual):''}" placeholder="€"></label>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+      ${missing.length?`<div class="v11922-unmapped">
+        <div class="v11922-unmapped-head"><b>${missing.length} conto/i da classificare</b><span>La descrizione e l'importo arrivano già dal bilancio; scegli soltanto la categoria.</span></div>
+        ${missing.slice(0,80).map(a=>`<div class="v11922-unmapped-row">
+          <div><b>${esc(companyName(a._company))} · ${esc(a.code||'—')}${a.partitario?` / ${esc(a.partitario)}`:''}</b><span>${esc(a.description||'')}</span></div>
+          <strong>${money(rawAmount(a))}</strong>
+          <select data-v11922-map-company="${a._company}" data-v11922-map-key="${esc(a._key)}">${CATS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+        </div>`).join('')}
+      </div>`:''}
+      <div class="v11922-missing-actions"><span>La piattaforma ricalcola automaticamente tutti i KPI dopo il salvataggio.</span><button class="btn primary" type="button" data-v11922-save-missing>Salva dati e ricalcola</button></div>
+    </section>`;
+  }
+
+  function kpiHTML(p){
+    const d=group(p);if(!d.configured)return '';
+    const q=quality(p);
+    const kpis=[
+      ['sales','Ricavi vendite',d.salesRevenue],
+      ['production','Valore produzione',d.productionValue],
+      ['ebitda','EBITDA',d.ebitda],
+      ['ebit','EBIT',d.ebit],
+      ['margin','Margine EBITDA',d.marginProduction]
+    ];
+    return `<section class="v11922-kpi">
+      <div class="v11922-section-head"><div><span class="eyebrow">03 · KPI</span><h3>Risultati del periodo</h3><p>${q.ready?'Calcoli validati sui dati disponibili.':'Risultati preliminari: completa prima i dati evidenziati sopra.'}</p></div></div>
+      <div class="v11922-kpi-grid">${kpis.map(([key,label,v])=>`<button type="button" class="v1199-target" data-v1199-metric="${key}" data-v1199-company="group" data-v1199-period="${p}">
+        <span>${label}</span><b class="${num(v)<0?'neg':''}">${key==='margin'?pct(v):money(v)}</b><small>Apri analisi →</small>
+      </button>`).join('')}</div>
+      <div class="v11922-formula"><span>Valore produzione</span><b>${money(d.productionValue)}</b><i>−</i><span>Costi operativi</span><b>${money(d.opex)}</b><i>=</i><span>EBITDA</span><b class="${d.ebitda<0?'neg':''}">${money(d.ebitda)}</b></div>
+    </section>`;
+  }
+
+  function trendHTML(p){
+    const d=metricRows(p),cur=group(p);
+    if(!cur.configured)return '';
+    return `<section class="v11922-trend">
+      <div class="v11922-section-head"><div><span class="eyebrow">04 · ANDAMENTO</span><h3>Analisi delle voci</h3><p>${d.pp?`Confronto con il periodo comparabile ${esc(d.pp)}.`:'Questo è il primo intervallo confrontabile. Dal prossimo bilancio avrai anche le variazioni percentuali.'}</p></div></div>
+      <div class="v11922-table">
+        <div class="v11922-tr th"><span>Voce</span><span>Periodo</span><span>Confronto</span><span>Andamento</span><span></span></div>
+        ${d.rows.map(r=>`<div class="v11922-tr">
+          <span><b>${esc(r.label)}</b></span>
+          <span>${r.key==='margin'?pct(r.value):money(r.value)}</span>
+          <span>${r.key==='margin'?(r.pv==null?'—':`${num(r.value)-num(r.pv)>=0?'+':''}${pct(num(r.value)-num(r.pv))}`):deltaHtml(delta(r.value,r.pv),r.invert)}</span>
+          <span><em class="${r.status.cls}">${r.status.label}</em></span>
+          <span><button class="link v1199-target" type="button" data-v1199-metric="${r.key}" data-v1199-company="group" data-v1199-period="${p}">Analizza →</button></span>
+        </div>`).join('')}
+      </div>
+    </section>`;
+  }
+
+  function forecastHTML(p){
+    const f=forecast(p);
+    if(!f)return `<section class="v11922-forecast muted"><div class="v11922-section-head"><div><span class="eyebrow">05 · PREVISIONE</span><h3>Previsione fine esercizio</h3><p>Servono dati infrannuali sufficienti per produrre una stima attendibile.</p></div></div></section>`;
+    const x=f.projected;
+    return `<section class="v11922-forecast">
+      <div class="v11922-section-head"><div><span class="eyebrow">05 · PREVISIONE</span><h3>Stima chiusura ${f.year}</h3><p>${esc(f.method)}. È una previsione gestionale automatica, non un budget.</p></div><span class="v11922-confidence">Affidabilità ${f.confidence}</span></div>
+      <div class="v11922-forecast-grid">
+        <div><span>Ricavi stimati</span><b>${money(x.salesRevenue)}</b></div>
+        <div><span>Valore produzione stimato</span><b>${money(x.productionValue)}</b></div>
+        <div><span>EBITDA stimato</span><b class="${x.ebitda<0?'neg':''}">${money(x.ebitda)}</b></div>
+        <div><span>EBIT stimato</span><b class="${x.ebit<0?'neg':''}">${money(x.ebit)}</b></div>
+      </div>
+      <div class="v11922-forecast-note">La stima proietta il ritmo osservato fino al periodo caricato. Se cambiano prezzi, volumi, costi o stagionalità, il risultato reale può differire.</div>
+    </section>`;
+  }
+
+  function historyHTML(p){
+    const periods=commonPeriods().slice().reverse();
+    if(!periods.length)return '';
+    return `<section class="v11922-history">
+      <div class="v11922-section-head"><div><span class="eyebrow">STORICO</span><h3>Bilanci caricati</h3><p>Il primo periodo è la baseline; ogni nuovo bilancio aggiorna automaticamente analisi e previsione.</p></div></div>
+      <div class="v11922-history-list">${periods.slice(0,12).map((x,i)=>{
+        const g=group(x),isBase=x===periods[periods.length-1],active=x===p;
+        return `<button type="button" data-v11922-period="${x}" class="${active?'active':''}"><span>${esc(x)}${isBase?' · BASELINE':''}</span><b>${g.configured?`EBITDA ${money(g.ebitda)}`:'Dati da completare'}</b></button>`;
+      }).join('')}</div>
+    </section>`;
+  }
+
+  function centerHTML(p){
+    return `<section class="v11922-center" data-v11922-center>
+      <div class="v11922-center-head">
+        <div><span class="eyebrow">ANALISI FINANZIARIA GUIDATA</span><h2>Dal bilancio all'analisi, automaticamente</h2><p>Carica il bilancio. NOMYRA legge le voci, controlla i dati, calcola KPI, confronta i periodi e aggiorna la previsione.</p></div>
+        ${dataStatusHTML(p)}
+      </div>
+      ${periodHTML(p)}
+      ${missingHTML(p)}
+      ${kpiHTML(p)}
+      ${trendHTML(p)}
+      ${forecastHTML(p)}
+      ${historyHTML(p)}
+    </section>`;
+  }
+
+  async function saveMissing(p){
+    const s=S();if(!s)return;
+    s.financeSpringV1173=s.financeSpringV1173||{};
+    s.financeSpringV1173.mappings=s.financeSpringV1173.mappings||{smartpack:{},multiplast:{}};
+    for(const sel of $$('[data-v11922-map-company]')){
+      const c=sel.dataset.v11922MapCompany,k=sel.dataset.v11922MapKey,v=sel.value||'';
+      s.financeSpringV1173.mappings[c]=s.financeSpringV1173.mappings[c]||{};
+      s.financeSpringV1173.mappings[c][k]=v;
+    }
+    for(const c of ['smartpack','multiplast']){
+      const r=record(c,p);if(!r)continue;
+      const oi=$(`[data-v11922-open="${c}"]`),ci=$(`[data-v11922-close="${c}"]`);
+      if(oi||ci){
+        r.inventoryOpeningManual=num(oi?.value);
+        r.inventoryClosingManual=num(ci?.value);
+        r.inventoryManualEnabled=true;
+        r.inventoryManualUpdatedAt=new Date().toISOString();
+      }
+    }
+    try{window.SPSpringBalanceV1173?.rebuildFromSnapshots?.('smartpack')}catch(_){}
+    try{window.SPSpringBalanceV1173?.rebuildFromSnapshots?.('multiplast')}catch(_){}
+    try{if(typeof save==='function')save()}catch(_){}
+    try{await window.SPFinanceCloudV1179?.save?.(p)}catch(_){}
+    render(true);
+  }
+
+  function patchImporter(){
+    const api=window.SPSpringBalanceV1173;if(!api||api.__v11922)return;
+    const old=api.openImport;
+    api.openImport=function(){
+      const r=old.apply(this,arguments);
+      setTimeout(()=>{
+        const company=$('#springCompanyV1173')?.value||'smartpack';
+        const first=snapshots(company).length===0;
+        const base=$('#springBaselineV1173');if(base)base.checked=first;
+        const mode=$('#springModeV1173');
+        const label=mode?.closest('label');
+        if(label){
+          const span=label.querySelector('.v11922-mode-help')||document.createElement('small');
+          span.className='v11922-mode-help';
+          span.textContent='Progressivo = dall’inizio esercizio alla data indicata · Mese = solo quel mese · Annuale = esercizio completo.';
+          if(!span.parentNode)label.appendChild(span);
+        }
+        const baseLabel=base?.closest('label');
+        if(baseLabel){
+          const b=baseLabel.querySelector('b');if(b)b.textContent='Primo bilancio / baseline';
+          const sm=baseLabel.querySelector('small');if(sm)sm.textContent='Il primo bilancio è il punto di partenza per confronti e andamento. La piattaforma lo seleziona automaticamente.';
+        }
+      },80);
+      return r;
+    };
+    api.__v11922=true;
+  }
+
+  function bind(root,p){
+    $$('[data-v11922-import]',root).forEach(b=>b.onclick=()=>window.SPSpringBalanceV1173?.openImport?.());
+    $('[data-v11922-save-missing]',root)?.addEventListener('click',()=>saveMissing(p));
+    $$('[data-v11922-period]',root).forEach(b=>b.onclick=()=>{
+      const x=b.dataset.v11922Period;
+      const input=$('#financePeriodV1170');if(input)input.value=x;
+      localStorage.setItem('poi_finance_period_v1179',x);sessionStorage.setItem('poi_finance_period_v1179',x);
+      window.SPReleaseV1170?.renderFinance?.(x);
+      setTimeout(()=>render(true),120);
+    });
+  }
+
+  function hideLegacy(view){
+    // Manteniamo i vecchi moduli come motore dati, ma non li mostriamo al cliente.
+    $$('[data-v11920-panel],[data-v11921-guide],.v1179-forecast-wrap',view).forEach(x=>x.style.display='none');
+    // La sezione storica legacy duplica lo storico nuovo.
+    $$('[data-v1173-history]',view).forEach(x=>x.style.display='none');
+  }
+
+  function render(force=false){
+    patchImporter();
+    const view=$('#adminFinanceV1170View');if(!view?.classList.contains('active'))return;
+    hideLegacy(view);
+    const p=currentPeriod();if(!p)return;
+    let old=$('[data-v11922-center]',view);
+    if(old&&!force)return;
+    const tmp=document.createElement('div');tmp.innerHTML=centerHTML(p);
+    const center=tmp.firstElementChild;
+    if(old)old.replaceWith(center);
+    else{
+      const hero=$('.v1170-fin-hero',view);
+      const source=$('.v1173-source-banner',view);
+      (source||hero)?.insertAdjacentElement('afterend',center);
+    }
+    bind(center,p);
+  }
+
+  function injectStyles(){
+    if($('#v11922Styles'))return;
+    const st=document.createElement('style');st.id='v11922Styles';
+    st.textContent=`
+      .v11922-center{margin:11px 0 18px;display:grid;gap:10px}
+      .v11922-center>section,.v11922-center-head{border:1px solid #d9e5e9;border-radius:17px;background:#fff;box-shadow:0 6px 18px rgba(23,57,74,.035)}
+      .v11922-center-head{padding:16px 17px;display:flex;justify-content:space-between;gap:18px;align-items:center;background:linear-gradient(135deg,#f7fbfc,#fff)}
+      .v11922-center-head h2{margin:3px 0 4px;font-size:21px;color:#142f3b}.v11922-center-head p{margin:0;font-size:10.5px;color:#667c86}
+      .v11922-status{display:flex;gap:9px;align-items:center;min-width:275px;padding:10px 12px;border-radius:12px}.v11922-status.ready{background:#edf8f3}.v11922-status.todo{background:#fff8e9}
+      .v11922-status i{width:10px;height:10px;border-radius:50%}.v11922-status.ready i{background:#2c8a68}.v11922-status.todo i{background:#c68a28}
+      .v11922-status div{flex:1}.v11922-status b{display:block;font-size:10px}.v11922-status span{display:block;font-size:8px;color:#657b84;margin-top:2px}.v11922-status strong{font-size:9px;white-space:nowrap}
+      .v11922-section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.v11922-section-head h3{margin:3px 0;font-size:15px}.v11922-section-head p{margin:0;font-size:9px;color:#6d818a}
+      .v11922-period,.v11922-missing,.v11922-kpi,.v11922-trend,.v11922-forecast,.v11922-history{padding:14px 15px}
+      .v11922-period-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.v11922-period article{padding:10px;border:1px solid #e1eaed;border-radius:11px;background:#f9fbfc}.v11922-period article>div b{font-size:10px}.v11922-period article>div span{display:block;font-size:8px;color:#788b93}.v11922-period dl{display:grid;grid-template-columns:80px 1fr;gap:4px 8px;margin:8px 0 0;font-size:8.5px}.v11922-period dt{color:#768992}.v11922-period dd{margin:0;font-weight:850;color:#294653}
+      .v11922-missing.complete{display:flex;gap:13px;align-items:center;background:#f7fcf9}.v11922-missing.complete>div b{font-size:11px}.v11922-missing.complete p{margin:2px 0 0;font-size:9px;color:#687d86}
+      .v11922-raw-fields{display:grid;gap:7px;margin-top:10px}.v11922-raw-row{display:grid;grid-template-columns:1fr 180px 180px;gap:9px;align-items:end;padding:10px;border:1px solid #ead8ad;background:#fffaf0;border-radius:11px}.v11922-raw-row>div b{display:block;font-size:10px}.v11922-raw-row>div span{display:block;font-size:8px;color:#778991}.v11922-raw-row label span{display:block;font-size:7.5px;font-weight:850;text-transform:uppercase;color:#72858d;margin-bottom:4px}.v11922-raw-row input{width:100%;min-height:34px;border:1px solid #d8e3e7;border-radius:8px;padding:7px 8px;font-size:9px}
+      .v11922-unmapped{margin-top:9px;border:1px solid #e1e9ec;border-radius:11px;overflow:hidden}.v11922-unmapped-head{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;background:#f6f9fa}.v11922-unmapped-head b{font-size:9px}.v11922-unmapped-head span{font-size:8px;color:#748790}
+      .v11922-unmapped-row{display:grid;grid-template-columns:1fr 120px 240px;gap:10px;align-items:center;padding:8px 10px;border-top:1px solid #edf2f3}.v11922-unmapped-row>div b{display:block;font-size:8.5px}.v11922-unmapped-row>div span{display:block;font-size:8px;color:#71858d;margin-top:2px}.v11922-unmapped-row strong{font-size:9px;text-align:right}.v11922-unmapped-row select{min-height:32px;border:1px solid #d9e4e7;border-radius:8px;background:#fff;padding:5px 7px;font-size:8.5px}
+      .v11922-missing-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:9px}.v11922-missing-actions span{font-size:8px;color:#6f838b}
+      .v11922-kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:10px}.v11922-kpi-grid button{border:1px solid #dce7ea;border-radius:11px;background:#fff;padding:10px;text-align:left;cursor:pointer}.v11922-kpi-grid button:hover{border-color:#99bbc8}.v11922-kpi-grid span{display:block;font-size:8px;color:#71858e}.v11922-kpi-grid b{display:block;margin-top:4px;font-size:16px;color:#142f3b}.v11922-kpi-grid b.neg{color:#af3942}.v11922-kpi-grid small{display:block;margin-top:5px;font-size:7.5px;color:#087cb5;font-weight:850}
+      .v11922-formula{display:flex;gap:8px;align-items:center;margin-top:8px;padding:8px 10px;border-radius:10px;background:#f7fafb;font-size:8.5px}.v11922-formula span{color:#71858e}.v11922-formula b{color:#17394a}.v11922-formula b.neg{color:#ad3942}.v11922-formula i{font-style:normal;color:#82959d}
+      .v11922-table{margin-top:10px;border:1px solid #e0e9ec;border-radius:11px;overflow:hidden}.v11922-tr{display:grid;grid-template-columns:1.4fr 1fr 1.2fr .8fr 80px;gap:9px;align-items:center;padding:8px 10px;border-top:1px solid #edf2f3;font-size:8.5px}.v11922-tr.th{border-top:0;background:#f6f9fa;font-size:7.5px;text-transform:uppercase;color:#748790;font-weight:850}.v11922-tr b{font-size:8.8px}.v11922-tr .up{color:#26755b;font-weight:850}.v11922-tr .down{color:#aa3d45;font-weight:850}.v11922-tr .na{color:#7d8f97}.v11922-tr em{font-style:normal;padding:4px 6px;border-radius:999px;font-size:7.5px;font-weight:850}.v11922-tr em.good{background:#eaf7f1;color:#247057}.v11922-tr em.risk{background:#fff0f1;color:#a13c44}.v11922-tr em.neutral{background:#edf3f5;color:#607680}.v11922-tr .link{border:0;background:transparent;color:#087cb5;font-size:8px;font-weight:900;cursor:pointer}
+      .v11922-forecast-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.v11922-forecast-grid div{padding:10px;border:1px solid #dfe9ec;border-radius:10px;background:#f9fbfc}.v11922-forecast-grid span{display:block;font-size:8px;color:#72858e}.v11922-forecast-grid b{display:block;margin-top:4px;font-size:14px}.v11922-forecast-grid b.neg{color:#ad3942}.v11922-confidence{padding:6px 8px;border-radius:999px;background:#edf4f7;color:#315b6b;font-size:8px;font-weight:900}.v11922-forecast-note{margin-top:8px;font-size:8px;line-height:1.45;color:#6f828a}.v11922-forecast.muted{opacity:.75}
+      .v11922-history-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.v11922-history-list button{border:1px solid #dce6ea;background:#fff;border-radius:9px;padding:7px 9px;text-align:left;cursor:pointer}.v11922-history-list button.active{border-color:#7ca9ba;background:#f2f8fa}.v11922-history-list span{display:block;font-size:8px;color:#748790}.v11922-history-list b{display:block;font-size:8.5px;margin-top:2px}
+      .v11922-empty{padding:16px;border:1px dashed #cfdfe4!important;text-align:center}.v11922-empty b{font-size:13px}.v11922-empty p{font-size:9px;color:#71858e}
+      .v11922-mode-help{display:block;margin-top:4px;font-size:8px;line-height:1.4;color:#73868e}
+      @media(max-width:1100px){.v11922-kpi-grid{grid-template-columns:repeat(3,1fr)}.v11922-unmapped-row{grid-template-columns:1fr 100px 190px}.v11922-tr{grid-template-columns:1.2fr 1fr 1fr .7fr 70px}}
+      @media(max-width:760px){.v11922-center-head,.v11922-section-head,.v11922-missing-actions{display:block}.v11922-status{margin-top:10px;min-width:0}.v11922-period-grid,.v11922-kpi-grid,.v11922-forecast-grid{grid-template-columns:1fr}.v11922-raw-row,.v11922-unmapped-row,.v11922-tr{grid-template-columns:1fr}.v11922-tr.th{display:none}.v11922-unmapped-row strong{text-align:left}.v11922-formula{flex-wrap:wrap}.v11922-section-head .btn,.v11922-missing-actions .btn{margin-top:8px;width:100%}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function boot(){
+    injectStyles();patchImporter();
+    const mo=new MutationObserver(()=>{
+      const view=$('#adminFinanceV1170View');
+      if(view?.classList.contains('active')){
+        hideLegacy(view);
+        if(!$('[data-v11922-center]',view))setTimeout(()=>render(false),20);
+      }
+    });
+    if(document.body)mo.observe(document.body,{subtree:true,childList:true});
+    [120,350,800,1600,2800].forEach(ms=>setTimeout(()=>render(ms>500),ms));
+    setInterval(()=>{
+      if($('#adminFinanceV1170View')?.classList.contains('active')){hideLegacy($('#adminFinanceV1170View'));render(false)}
+    },1100);
+    document.addEventListener('change',e=>{
+      if(e.target?.id==='financePeriodV1170')setTimeout(()=>render(true),100);
+    },true);
+  }
+
+  window.SPFinanceAnalysisV11922={version:VERSION,quality,forecast,render:()=>render(true)};
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+
