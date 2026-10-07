@@ -1,5 +1,5 @@
 /* V11.9.23 NOMYRA FINANCE LIVE CONNECTOR · static-68 */
-const CACHE='spmp-v119-static-68';
+const CACHE='spmp-v119-static-69';
 
 const CORE_STATIC=[
   './access-v11.5.js',
