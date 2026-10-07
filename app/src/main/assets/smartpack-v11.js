@@ -1129,7 +1129,7 @@
 
   function S(){try{return state}catch(_){return window.state||null}}
   function role111(){try{return currentRole||''}catch(_){return window.currentRole||''}}
-  function canManage111(){return ['admin','director'].includes(role111())}
+  function canManage111(){return role111()==='admin'}
   function persist111(){try{save()}catch(_){try{localStorage.setItem('industrial_os_v2_state',JSON.stringify(S()))}catch(__){}}}
   function ensureState111(){
     const st=S(); if(!st)return;
@@ -1207,7 +1207,7 @@
     try{
       if(typeof NAV!=='undefined'){
         const item=['compliance','settings','Scadenze & Compliance'];
-        for(const role of ['director','admin']){
+        for(const role of ['admin']){
           NAV[role]=NAV[role]||[];
           if(!NAV[role].some(x=>x[0]==='compliance')){
             const pos=Math.max(0,NAV[role].findIndex(x=>x[0]==='trace'));

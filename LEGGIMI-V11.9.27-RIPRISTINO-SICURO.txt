@@ -1,0 +1,13 @@
+SP-MP STAGING V11.9.27 — RIPRISTINO SICURO
+
+Base: ZIP completo originale smartpack-multiplast-app-staging-v11.9.9, riestratto da zero.
+
+Correzioni:
+- Eliminata la build V11.9.26 danneggiata: non viene usata come base.
+- Nessun tag script inserito dentro template/export Excel.
+- Gestione Smart Pack / Roberto mantiene tutti i moduli esistenti.
+- Scadenze & Compliance esclusivamente Amministrazione.
+- Menu Gestione Smart Pack riordinato per Operatività / Produzione e magazzino / Controllo / Configurazione.
+- Aggiunto accesso Caricamento camion.
+- Dashboard Smart Pack arricchita senza sostituire quella esistente: ordini, produzione, copertura materiali e carichi.
+- Mantenuti Monitor produzione, Registro ordini, Coda Roberto, Fogli produzione, Materie prime, Magazzino interno, Presse e stampi, Ordini IML, Giacenze IML, Tracciabilità, Analisi produzione, Economico-finanziario, Impostazioni.
