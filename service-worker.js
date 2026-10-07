@@ -1,5 +1,5 @@
-/* V11.9.15 MOBILE OFFICE AUTH · static-50 */
-const CACHE='spmp-v119-static-60';
+/* V11.9.23 NOMYRA FINANCE LIVE CONNECTOR · static-68 */
+const CACHE='spmp-v119-static-70';
 
 const CORE_STATIC=[
   './access-v11.5.js',
