@@ -5985,3 +5985,154 @@
   else boot();
 })();
 
+
+/* ========================================================================
+   V11.9.23 · NOMYRA FINANCE LIVE CONNECTOR
+   SP-MP visualizza i dati ufficiali prodotti da NOMYRA Finance.
+   Nessun KPI viene ricalcolato da SP-MP: valori e KPI arrivano dal backend Finance.
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPNomyraFinanceLiveV11923)return;
+  const VERSION='V11.9.23';
+  const FIN_URL='https://cktactfxjmatbkoosjvs.supabase.co';
+  const FIN_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrdGFjdGZ4am1hdGJrb29zanZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MDk4MDQsImV4cCI6MjEwNjI4NTgwNH0.osb4lKiLMAmPvZ4z-Zu8ry1HZD5Vk5RMBaZV6_I1t6Q';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+  const eur=v=>v==null||!Number.isFinite(Number(v))?'—':new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(v));
+  const fmt=(v,u)=>v==null||!Number.isFinite(Number(v))?'—':u==='%'?`${new Intl.NumberFormat('it-IT',{maximumFractionDigits:1}).format(Number(v))}%`:u==='x'?`${new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(Number(v))}x`:u==='EUR'?eur(v):new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(Number(v));
+  let client=null,booting=null;
+  const cache={companies:[],docs:[],values:[],kpis:[],loaded:false,error:null};
+  let financeCompanyId='',financePeriod='';
+
+  function currentCompany(){return sessionStorage.getItem('nomyra_group_company_v92')||localStorage.getItem('nomyra_group_company_v92')||'';}
+  function companyMatches(finName,sp){
+    const a=norm(finName),b=norm(sp); if(!a||!b)return false;
+    if(a.includes(b)||b.includes(a))return true;
+    if(b.includes('smartpack'))return a.includes('smartpack');
+    if(b.includes('multiplast'))return a.includes('multiplast');
+    return false;
+  }
+  async function getClient(){
+    if(client)return client;
+    if(booting)return booting;
+    booting=import('https://esm.sh/@supabase/supabase-js@2').then(({createClient})=>{
+      client=createClient(FIN_URL,FIN_KEY,{auth:{storageKey:'spmp-nomyra-finance-v11923',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+      return client;
+    }).finally(()=>booting=null);
+    return booting;
+  }
+  async function session(){const c=await getClient();return (await c.auth.getSession()).data.session||null;}
+  async function load(){
+    const c=await getClient(); const s=await session();
+    if(!s){cache.loaded=false;cache.error=null;return false;}
+    cache.error=null;
+    try{
+      const [cr,dr,vr,kr]=await Promise.all([
+        c.from('companies').select('id,name').order('name'),
+        c.from('financial_documents').select('id,company_id,period,document_name,document_type,coverage_score,recognized_key_values,expected_key_values,confirmed_values,missing_values,extraction_status,updated_at').order('period',{ascending:false}),
+        c.from('financial_values').select('document_id,company_id,key,label,value,unit,method,confidence,is_confirmed'),
+        c.from('financial_kpis').select('document_id,company_id,key,label,value,unit,formula,explanation,result_reading,status').order('label')
+      ]);
+      for(const r of [cr,dr,vr,kr])if(r.error)throw r.error;
+      cache.companies=cr.data||[];cache.docs=dr.data||[];cache.values=vr.data||[];cache.kpis=kr.data||[];cache.loaded=true;
+      chooseContext();return true;
+    }catch(e){cache.error=e?.message||String(e);cache.loaded=false;return false;}
+  }
+  function chooseContext(){
+    const sp=currentCompany();
+    let company=cache.companies.find(c=>companyMatches(c.name,sp));
+    if(!company&&financeCompanyId)company=cache.companies.find(c=>c.id===financeCompanyId);
+    if(!company&&cache.companies.length===1)company=cache.companies[0];
+    if(!company)company=cache.companies[0]||null;
+    financeCompanyId=company?.id||'';
+    const docs=cache.docs.filter(d=>d.company_id===financeCompanyId);
+    const spPeriod=$('#financePeriodV1170')?.value||'';
+    if(!docs.some(d=>String(d.period)===String(financePeriod))){
+      const exact=docs.find(d=>String(d.period)===String(spPeriod));
+      financePeriod=String(exact?.period||docs[0]?.period||'');
+    }
+  }
+  function activeCompany(){return cache.companies.find(c=>c.id===financeCompanyId)||null;}
+  function activeDoc(){return cache.docs.find(d=>d.company_id===financeCompanyId&&String(d.period)===String(financePeriod))||null;}
+  function docValues(doc){const out={};if(!doc)return out;cache.values.filter(v=>v.document_id===doc.id).forEach(v=>out[v.key]=v);return out;}
+  function docKpis(doc){return doc?cache.kpis.filter(k=>k.document_id===doc.id):[];}
+  function kpiBy(kpis,label){const n=norm(label);return kpis.find(k=>norm(k.label)===n)||kpis.find(k=>norm(k.label).includes(n));}
+  function metricCard(label,row){return `<article class="nf23-metric"><span>${esc(label)}</span><b>${row?fmt(row.value,row.unit):'—'}</b><small>${row?.status==='critical'?'Da verificare':row?.status==='warning'?'Attenzione':'NOMYRA Finance'}</small></article>`;}
+  function selectCompany(){return `<select data-nf23-company>${cache.companies.map(c=>`<option value="${esc(c.id)}" ${c.id===financeCompanyId?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`;}
+  function selectPeriod(){const ds=cache.docs.filter(d=>d.company_id===financeCompanyId);return `<select data-nf23-period>${ds.map(d=>`<option value="${esc(d.period)}" ${String(d.period)===String(financePeriod)?'selected':''}>${esc(d.period)}</option>`).join('')}</select>`;}
+
+  function connectedHTML(){
+    const company=activeCompany(),doc=activeDoc(),vals=docValues(doc),kpis=docKpis(doc);
+    if(!company)return `<section class="nf23-shell"><div class="nf23-empty"><b>Nessuna azienda disponibile in NOMYRA Finance</b><p>L'account collegato non ha aziende accessibili.</p></div></section>`;
+    const core=[
+      ['Ricavi',kpiBy(kpis,'Ricavi')||vals.revenue],
+      ['Valore produzione',kpiBy(kpis,'Valore della produzione')||vals.productionValue],
+      ['EBITDA',kpiBy(kpis,'EBITDA / MOL')||vals.ebitda],
+      ['EBITDA margin',kpiBy(kpis,'EBITDA margin')],
+      ['EBIT',kpiBy(kpis,'EBIT')||vals.ebit]
+    ];
+    const patr=[['Liquidità',vals.cash],['Crediti',vals.receivables],['Debiti fornitori',vals.payables],['Rimanenze',vals.inventory],['Debiti totali',vals.debt],['Patrimonio netto',vals.equity]];
+    const quality=doc?`${Math.round(Number(doc.coverage_score||0))}%`:'—';
+    const missing=Number(doc?.missing_values||0);
+    const rows=kpis.filter(k=>!['Ricavi','Valore della produzione','EBITDA / MOL','EBITDA margin','EBIT'].includes(k.label)).slice(0,24);
+    return `<section class="nf23-shell" data-nf23-shell>
+      <header class="nf23-head"><div><span class="nf23-eyebrow">ECONOMICO-FINANZIARIO · NOMYRA FINANCE</span><h2>Dati finanziari ufficiali</h2><p>Questa sezione legge i risultati già elaborati da NOMYRA Finance. SP-MP non ricalcola KPI o valori di bilancio.</p></div><div class="nf23-sync"><i></i><div><b>Finance collegato</b><span>Sincronizzazione cloud attiva</span></div><button data-nf23-refresh>↻ Aggiorna</button></div></header>
+      <section class="nf23-context"><label>Azienda${selectCompany()}</label><label>Periodo Finance${selectPeriod()}</label><div><span>Documento</span><b>${esc(doc?.document_name||'Nessun bilancio')}</b><small>${esc(doc?.document_type||'')}</small></div><div><span>Copertura dati</span><b>${quality}</b><small>${missing?`${missing} voci mancanti`:'Bilancio verificato'}</small></div></section>
+      ${!doc?`<div class="nf23-empty"><b>Nessun bilancio per questo periodo</b><p>Carica o completa il bilancio in NOMYRA Finance; appena viene salvato comparirà automaticamente qui.</p></div>`:`
+      <section class="nf23-block"><div class="nf23-title"><div><span>KPI PRINCIPALI</span><h3>Situazione economica</h3></div><small>Fonte: NOMYRA Finance</small></div><div class="nf23-core">${core.map(x=>metricCard(...x)).join('')}</div></section>
+      <section class="nf23-block"><div class="nf23-title"><div><span>STATO PATRIMONIALE</span><h3>Equilibrio finanziario</h3></div></div><div class="nf23-patr">${patr.map(([l,r])=>`<div><span>${esc(l)}</span><b>${r?fmt(r.value,r.unit||'EUR'):'—'}</b></div>`).join('')}</div></section>
+      <section class="nf23-block"><div class="nf23-title"><div><span>INDICATORI</span><h3>Analisi completa Finance</h3></div><small>${rows.length} indicatori disponibili</small></div><div class="nf23-table"><div class="nf23-tr th"><span>Indicatore</span><span>Valore</span><span>Lettura NOMYRA</span></div>${rows.map(k=>`<div class="nf23-tr"><div><b>${esc(k.label)}</b><small>${esc(k.formula||'')}</small></div><strong>${fmt(k.value,k.unit)}</strong><p>${esc(k.result_reading||k.explanation||'Dato elaborato da NOMYRA Finance.')}</p></div>`).join('')}</div></section>`}
+      <footer class="nf23-foot"><span>Ultimo aggiornamento documento: ${doc?.updated_at?new Date(doc.updated_at).toLocaleString('it-IT'):'—'}</span><button data-nf23-disconnect>Disconnetti Finance</button></footer>
+    </section>`;
+  }
+  function disconnectedHTML(){return `<section class="nf23-shell" data-nf23-shell><div class="nf23-connect"><div class="nf23-mark">NF</div><div><span class="nf23-eyebrow">NOMYRA FINANCE</span><h2>Collega i dati finanziari</h2><p>Accedi una sola volta a NOMYRA Finance. Da quel momento bilanci, KPI e indicatori Finance saranno visualizzati direttamente dentro SP-MP.</p><div class="nf23-note"><b>Nessuna duplicazione:</b> i calcoli restano in NOMYRA Finance; questa piattaforma li visualizza soltanto.</div></div><button class="btn primary" data-nf23-connect>Collega Finance</button></div></section>`;}
+  function errorHTML(){return `<section class="nf23-shell" data-nf23-shell><div class="nf23-empty"><b>Collegamento Finance non disponibile</b><p>${esc(cache.error||'Errore di sincronizzazione')}</p><button class="btn" data-nf23-refresh>Riprova</button></div></section>`;}
+
+  async function render(){
+    const view=$('#adminFinanceV1170View');if(!view?.classList.contains('active'))return;
+    $$('[data-v11922-center], [data-v11914-finance-banner], [data-v11915-finance-structural]',view).forEach(x=>x.style.display='none');
+    let host=$('[data-nf23-host]',view);if(!host){host=document.createElement('div');host.dataset.nf23Host='1';const hero=$('.v1170-fin-hero',view);(hero||view.firstElementChild)?.insertAdjacentElement?.('afterend',host)||view.prepend(host);}
+    const s=await session();
+    if(s&&!cache.loaded&&!cache.error)await load();
+    host.innerHTML=cache.error?errorHTML():(s?connectedHTML():disconnectedHTML());bind(host);
+  }
+  function bind(host){
+    $('[data-nf23-connect]',host)?.addEventListener('click',openLogin);
+    $('[data-nf23-refresh]',host)?.addEventListener('click',async e=>{e.currentTarget.disabled=true;cache.error=null;await load();await render();});
+    $('[data-nf23-company]',host)?.addEventListener('change',e=>{financeCompanyId=e.target.value;financePeriod='';chooseContext();render();});
+    $('[data-nf23-period]',host)?.addEventListener('change',e=>{financePeriod=e.target.value;render();});
+    $('[data-nf23-disconnect]',host)?.addEventListener('click',async()=>{const c=await getClient();await c.auth.signOut();cache.loaded=false;cache.error=null;render();});
+  }
+  function ensureModal(){
+    if($('#nf23Login'))return;
+    document.body.insertAdjacentHTML('beforeend',`<div class="nf23-modal" id="nf23Login" aria-hidden="true"><div class="nf23-modal-card"><button class="nf23-x" data-nf23-close>×</button><span class="nf23-eyebrow">COLLEGAMENTO SICURO</span><h2>Accedi a NOMYRA Finance</h2><p>Usa l'account autorizzato in NOMYRA Finance. La sessione viene conservata nel browser e usata solo per leggere i dati a cui l'utente ha accesso.</p><label>Email<input type="email" data-nf23-email autocomplete="username"></label><label>Password<input type="password" data-nf23-password autocomplete="current-password"></label><div class="nf23-msg" data-nf23-msg></div><button class="btn primary" data-nf23-login>Collega account</button></div></div>`);
+    $('[data-nf23-close]')?.addEventListener('click',closeLogin);
+    $('[data-nf23-login]')?.addEventListener('click',login);
+  }
+  function openLogin(){ensureModal();$('#nf23Login').classList.add('open');$('#nf23Login').setAttribute('aria-hidden','false');}
+  function closeLogin(){$('#nf23Login')?.classList.remove('open');$('#nf23Login')?.setAttribute('aria-hidden','true');}
+  async function login(){
+    const msg=$('[data-nf23-msg]'),btn=$('[data-nf23-login]');btn.disabled=true;msg.textContent='Connessione in corso…';
+    try{const c=await getClient();const email=$('[data-nf23-email]').value.trim(),password=$('[data-nf23-password]').value;if(!email||!password)throw new Error('Inserisci email e password.');const {error}=await c.auth.signInWithPassword({email,password});if(error)throw error;await load();closeLogin();render();}
+    catch(e){msg.textContent=e?.message||'Accesso non riuscito.';}finally{btn.disabled=false;}
+  }
+  function styles(){if($('#nf23Styles'))return;const st=document.createElement('style');st.id='nf23Styles';st.textContent=`
+    .nf23-shell{margin:12px 0 18px;display:grid;gap:10px}.nf23-head,.nf23-block,.nf23-context,.nf23-connect,.nf23-empty{background:#fff;border:1px solid #d9e5e9;border-radius:17px;box-shadow:0 8px 24px rgba(23,57,74,.045)}
+    .nf23-head{padding:17px 18px;display:flex;justify-content:space-between;gap:18px;align-items:center;background:linear-gradient(135deg,#f5fafb,#fff)}.nf23-eyebrow,.nf23-title span{font-size:7.5px;letter-spacing:.11em;font-weight:950;color:#a96d48}.nf23-head h2,.nf23-connect h2{margin:4px 0;font-size:22px;color:#142f3b}.nf23-head p,.nf23-connect p{margin:0;max-width:720px;font-size:10px;line-height:1.5;color:#657b84}
+    .nf23-sync{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:12px;background:#edf8f3;min-width:265px}.nf23-sync i{width:9px;height:9px;border-radius:50%;background:#2c8a68}.nf23-sync div{flex:1}.nf23-sync b{display:block;font-size:9px}.nf23-sync span{font-size:7.5px;color:#647a82}.nf23-sync button,.nf23-foot button{border:0;background:transparent;color:#176c87;font-size:8px;font-weight:900;cursor:pointer}
+    .nf23-context{padding:11px 13px;display:grid;grid-template-columns:1.1fr .8fr 1.2fr .8fr;gap:9px;align-items:end}.nf23-context label,.nf23-context>div{font-size:7.5px;font-weight:850;color:#748790}.nf23-context select{display:block;width:100%;margin-top:4px;min-height:34px;border:1px solid #d7e3e7;border-radius:9px;background:#fff;padding:6px 8px;font-size:9px;color:#294653}.nf23-context>div{padding:6px 8px}.nf23-context>div span{display:block}.nf23-context>div b{display:block;color:#203d49;font-size:9.5px;margin-top:3px}.nf23-context>div small{display:block;color:#748790;margin-top:2px}
+    .nf23-block{padding:14px 15px}.nf23-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-end}.nf23-title h3{margin:3px 0 0;font-size:14px}.nf23-title small{font-size:7.5px;color:#748790}.nf23-core{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:10px}.nf23-metric{padding:11px;border:1px solid #dde8eb;border-radius:11px;background:#fbfcfd}.nf23-metric span{display:block;font-size:8px;color:#71858e}.nf23-metric b{display:block;margin-top:4px;font-size:16px;color:#142f3b}.nf23-metric small{display:block;margin-top:4px;font-size:7.5px;color:#477685}
+    .nf23-patr{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:10px}.nf23-patr div{padding:9px;border-radius:10px;background:#f7fafb;border:1px solid #e0e9ec}.nf23-patr span{display:block;font-size:7.5px;color:#748790}.nf23-patr b{display:block;font-size:11px;margin-top:4px;color:#294653}
+    .nf23-table{margin-top:10px;border:1px solid #e0e9ec;border-radius:11px;overflow:hidden}.nf23-tr{display:grid;grid-template-columns:1.1fr 150px 1.6fr;gap:12px;align-items:center;padding:9px 10px;border-top:1px solid #edf2f3}.nf23-tr.th{border-top:0;background:#f6f9fa;font-size:7.5px;text-transform:uppercase;color:#748790;font-weight:900}.nf23-tr b{font-size:9px}.nf23-tr small{display:block;margin-top:2px;font-size:7px;color:#819198}.nf23-tr strong{font-size:10px;color:#183c4a}.nf23-tr p{margin:0;font-size:8px;line-height:1.4;color:#617781}
+    .nf23-foot{display:flex;justify-content:space-between;padding:3px 5px;font-size:7.5px;color:#7d8f96}.nf23-connect{padding:24px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center}.nf23-mark{width:52px;height:52px;border-radius:14px;background:#17394a;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:950}.nf23-note{margin-top:10px;padding:9px 10px;background:#f7fafb;border-radius:9px;font-size:8.5px;color:#657b84}.nf23-empty{padding:22px;text-align:center}.nf23-empty b{font-size:13px}.nf23-empty p{font-size:9px;color:#71858e;margin:5px 0 10px}
+    .nf23-modal{position:fixed;inset:0;z-index:999999;background:rgba(13,30,38,.55);display:none;align-items:center;justify-content:center;padding:20px}.nf23-modal.open{display:flex}.nf23-modal-card{position:relative;width:min(480px,100%);background:#fff;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.nf23-modal-card h2{margin:4px 0}.nf23-modal-card p{font-size:10px;color:#657b84;line-height:1.5}.nf23-modal-card label{display:block;margin-top:10px;font-size:8px;font-weight:850;color:#657b84}.nf23-modal-card input{display:block;width:100%;margin-top:4px;min-height:39px;border:1px solid #d5e2e6;border-radius:9px;padding:8px}.nf23-modal-card .btn{width:100%;margin-top:12px}.nf23-x{position:absolute;right:13px;top:11px;border:0;background:transparent;font-size:22px;cursor:pointer}.nf23-msg{min-height:18px;margin-top:8px;font-size:8.5px;color:#a24148}
+    @media(max-width:1000px){.nf23-core{grid-template-columns:repeat(3,1fr)}.nf23-patr{grid-template-columns:repeat(3,1fr)}.nf23-context{grid-template-columns:1fr 1fr}.nf23-tr{grid-template-columns:1fr 120px 1.2fr}}
+    @media(max-width:700px){.nf23-head,.nf23-connect{display:block}.nf23-sync{margin-top:12px;min-width:0}.nf23-mark{margin-bottom:10px}.nf23-connect .btn{width:100%;margin-top:12px}.nf23-context,.nf23-core,.nf23-patr,.nf23-tr{grid-template-columns:1fr}.nf23-tr.th{display:none}}
+  `;document.head.appendChild(st);}
+  async function boot(){styles();ensureModal();try{await getClient();}catch(e){cache.error=e?.message||String(e);}const mo=new MutationObserver(()=>{if($('#adminFinanceV1170View')?.classList.contains('active'))setTimeout(render,30);});if(document.body)mo.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});[250,800,1800].forEach(ms=>setTimeout(render,ms));document.addEventListener('change',e=>{if(e.target?.id==='financePeriodV1170')setTimeout(render,80)},true);}
+  window.SPNomyraFinanceLiveV11923={version:VERSION,load,render,disconnect:async()=>{const c=await getClient();await c.auth.signOut();cache.loaded=false;render();}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
