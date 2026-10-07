@@ -1,0 +1,8 @@
+SP-MP STAGING V11.9.32
+
+FIX CODA PRESSA / STAMPO
+- Ogni pressa mostra soltanto produzioni con moldId uguale allo stampo installato.
+- La regola vale in Coda Roberto e Monitor produzione.
+- Gli ordini incompatibili restano nei dati, ma non compaiono sulla pressa finché non viene registrato il cambio stampo.
+- Quando viene registrato un cambio stampo, eventuale produzione attiva legata al vecchio stampo torna In coda e non resta associata alla pressa.
+- Programmazione cambio stampo e Finance strict della V11.9.31 restano invariati.

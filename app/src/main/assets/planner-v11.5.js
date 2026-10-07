@@ -431,7 +431,14 @@
     return [...ids].map(id=>machine(id)||{id,name:id}).filter(Boolean).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   }
   function queued(machineId=''){
-    return (state.productionRuns||[]).filter(r=>r.status==='In coda'&&remaining(r)>0&&(!machineId||String(r.machineId)===String(machineId))).sort((a,b)=>n(a.sequence)-n(b.sequence)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+    const base=(state.productionRuns||[]).filter(r=>r.status==='In coda'&&remaining(r)>0&&(!machineId||String(r.machineId)===String(machineId)));
+    // V11.9.32 — Regola rigida: una pressa mostra SOLO le produzioni collegate
+    // allo stampo fisicamente installato. Gli altri ordini restano nella coda dati,
+    // ma non sono producibili/visibili su quella pressa fino al relativo cambio stampo.
+    const m=machineId?machine(machineId):null;
+    const installed=String(m?.installedMoldId||'');
+    const filtered=(machineId&&installed)?base.filter(r=>String(r.moldId||'')===installed):base;
+    return filtered.sort((a,b)=>n(a.sequence)-n(b.sequence)||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
   }
 
   function runScore(r){

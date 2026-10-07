@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.SPV11931)return;
-const BUILD='V11.9.31';
+const BUILD='V11.9.32';
 const $=(id)=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n=v=>Number.isFinite(Number(v))?Number(v):0;
@@ -17,6 +17,15 @@ function persist(msg=''){try{save()}catch(_){}if(msg){try{toast(msg)}catch(_){}}
 
 function reorderForInstalledMold(machineId){
   const m=machine(machineId);if(!m?.installedMoldId)return;
+  // Se è stato registrato un cambio fisico di stampo, una produzione attiva legata
+  // allo stampo precedente non può restare attiva sulla stessa pressa.
+  for(const r of state.productionRuns||[]){
+    if(String(r.machineId)!==String(machineId))continue;
+    if(!['In produzione','Bloccata'].includes(String(r.status||'')))continue;
+    if(String(r.moldId||'')===String(m.installedMoldId))continue;
+    r.status='In coda';
+    r.note=[r.note,'Sospesa automaticamente: cambio stampo registrato sulla pressa'].filter(Boolean).join(' · ');
+  }
   const list=queued(machineId).slice().sort((a,b)=>n(a.sequence)-n(b.sequence));
   const yes=list.filter(r=>String(r.moldId)===String(m.installedMoldId));
   const no=list.filter(r=>String(r.moldId)!==String(m.installedMoldId));
@@ -93,7 +102,7 @@ function patchRenderers(){
   try{const old=window.renderPressSettingsV51;if(typeof old==='function'&&!old.__sp11931){const w=function(){const r=old.apply(this,arguments);setTimeout(()=>{patchMoldConfig();relocateAssistant()},30);return r};w.__sp11931=true;window.renderPressSettingsV51=w;try{renderPressSettingsV51=w}catch(_){}}}catch(_){}
   try{const old=window.renderCurrent||((typeof renderCurrent==='function')?renderCurrent:null);if(typeof old==='function'&&!old.__sp11931){const w=function(){const r=old.apply(this,arguments);setTimeout(()=>{if(currentView==='presses')relocateAssistant();if(currentView==='finance'||currentView==='adminFinance')financeStrict();if($('adminFinanceV1170View')?.classList.contains('active'))financeStrict()},30);return r};w.__sp11931=true;window.renderCurrent=w;try{renderCurrent=w}catch(_){}}}catch(_){}
 }
-function boot(){ensureState();styles();ensureDialog();patchMoldConfig();patchRenderers();setTimeout(relocateAssistant,100);setTimeout(financeStrict,200);const press=$('pressesView');if(press&&!press.dataset.sp11931){press.dataset.sp11931='1';new MutationObserver(()=>setTimeout(relocateAssistant,10)).observe(press,{childList:true,subtree:false})}const fin=$('adminFinanceV1170View');if(fin&&!fin.dataset.sp11931){fin.dataset.sp11931='1';new MutationObserver(()=>setTimeout(financeStrict,10)).observe(fin,{childList:true,subtree:false,attributes:true,attributeFilter:['class']})}document.title=document.title.replace(/V\d+\.\d+(?:\.\d+)*/,'V11.9.31')}
+function boot(){ensureState();styles();ensureDialog();patchMoldConfig();patchRenderers();setTimeout(relocateAssistant,100);setTimeout(financeStrict,200);const press=$('pressesView');if(press&&!press.dataset.sp11931){press.dataset.sp11931='1';new MutationObserver(()=>setTimeout(relocateAssistant,10)).observe(press,{childList:true,subtree:false})}const fin=$('adminFinanceV1170View');if(fin&&!fin.dataset.sp11931){fin.dataset.sp11931='1';new MutationObserver(()=>setTimeout(financeStrict,10)).observe(fin,{childList:true,subtree:false,attributes:true,attributeFilter:['class']})}document.title=document.title.replace(/V\d+\.\d+(?:\.\d+)*/,'V11.9.32')}
 window.SPV11931={reorderForInstalledMold,openSchedule,financeStrict,relocateAssistant};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
