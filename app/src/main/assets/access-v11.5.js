@@ -1,3 +1,5 @@
+/* V11.9.19 · ADAPTIVE VERTICAL CENTERING — center when space allows */
+/* V11.9.18 · ADAPTIVE VIEWPORT RESPONSIVE — desktop/laptop/tablet */
 /* V11.9.17 · OFFICE SELECTOR VIEWPORT FIT — fix taglio superiore */
 /* V11.9.16 · VISUAL POLISH NOMYRA FINANCE — nessuna modifica funzionale */
 
@@ -188,7 +190,7 @@
         overflow-x:hidden!important;
       }
       #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
-        justify-content:flex-start!important;
+        justify-content:center!important;
         min-height:100vh!important;
         height:auto!important;
         padding-top:24px!important;
@@ -198,15 +200,196 @@
         margin-top:0!important;
         margin-bottom:0!important;
       }
-      @media(max-height:900px) and (min-width:1051px){
+      @media(max-height:780px) and (min-width:1051px){
         #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
-          padding-top:18px!important;
-          padding-bottom:20px!important;
+          justify-content:flex-start!important;
+          padding-top:12px!important;
+          padding-bottom:16px!important;
         }
         #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
           align-items:start!important;
         }
       }
+
+      /* V11.9.18 · ADAPTIVE OFFICE LAYOUT
+         Responsive reale per larghezza + altezza viewport. */
+      #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+        width:min(1520px,calc(100% - clamp(20px,3vw,56px)))!important;
+        min-height:100dvh!important;
+        padding:clamp(14px,2.4vh,30px) clamp(16px,2.1vw,32px) clamp(16px,2.4vh,30px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+        grid-template-columns:minmax(290px,.82fr) minmax(520px,1.18fr)!important;
+        gap:clamp(22px,2.8vw,46px)!important;
+        align-items:center!important;
+      }
+      @media (min-width:900px) and (min-height:781px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          justify-content:center!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          align-items:center!important;
+        }
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy{
+        padding:clamp(8px,1.6vh,18px) 6px!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-kicker{
+        padding:clamp(6px,1vh,8px) 12px!important;
+        font-size:clamp(9px,.65vw,10px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+        font-size:clamp(34px,3.15vw,48px)!important;
+        line-height:1.04!important;
+        margin:clamp(12px,2vh,22px) 0 clamp(9px,1.5vh,16px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy>p{
+        font-size:clamp(13px,1.05vw,16px)!important;
+        line-height:1.55!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-points{
+        gap:clamp(6px,1vh,10px)!important;
+        margin-top:clamp(14px,2.2vh,28px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-point{
+        font-size:clamp(10.5px,.82vw,12px)!important;
+        line-height:1.42!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-panel{
+        padding:clamp(13px,1.8vh,22px)!important;
+        border-radius:clamp(22px,2vw,30px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-panel-title{
+        margin-bottom:clamp(8px,1.5vh,16px)!important;
+        gap:12px!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-panel-title b{
+        font-size:clamp(13px,.95vw,15px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-panel-title span{
+        font-size:clamp(8.5px,.65vw,10px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-grid{
+        gap:clamp(9px,1.25vh,14px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card{
+        min-height:clamp(155px,21.5vh,230px)!important;
+        padding:clamp(14px,1.9vh,21px)!important;
+        border-radius:clamp(17px,1.6vw,22px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card .role{
+        width:clamp(40px,5.3vh,48px)!important;
+        height:clamp(40px,5.3vh,48px)!important;
+        margin-bottom:clamp(9px,1.5vh,14px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card b{
+        font-size:clamp(15px,1.25vw,18px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card span:not(.role){
+        font-size:clamp(10px,.78vw,11.5px)!important;
+        line-height:1.45!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card em{
+        font-size:clamp(9px,.72vw,10.5px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-modules{
+        margin-top:clamp(11px,1.8vh,21px)!important;
+        padding-top:clamp(10px,1.7vh,18px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-modules-label{
+        padding-bottom:clamp(6px,1vh,10px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-card{
+        min-height:clamp(68px,9.5vh,86px)!important;
+        padding:clamp(11px,1.55vh,17px) clamp(13px,1.2vw,18px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-mark{
+        width:clamp(42px,5.6vh,50px)!important;
+        height:clamp(42px,5.6vh,50px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-copy>b{
+        font-size:clamp(12.5px,.95vw,14.5px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-copy>p{
+        font-size:clamp(9px,.72vw,10.5px)!important;
+      }
+      #poi113CompanyGate.poi115-office-menu-mode .poi115-lock-note{
+        margin-top:clamp(8px,1.2vh,12px)!important;
+        padding:clamp(8px,1.05vh,11px) 12px!important;
+        font-size:clamp(8.5px,.65vw,10px)!important;
+      }
+
+      @media (min-width:900px) and (max-width:1050px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          grid-template-columns:minmax(260px,.72fr) minmax(500px,1.28fr)!important;
+          gap:22px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+          font-size:34px!important;
+        }
+      }
+
+      @media (min-width:900px) and (max-height:780px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          justify-content:flex-start!important;
+          padding-top:10px!important;
+          padding-bottom:12px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          align-items:start!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+          font-size:clamp(32px,2.8vw,42px)!important;
+          margin-top:10px!important;
+          margin-bottom:8px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-points{
+          margin-top:12px!important;
+          gap:5px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card{
+          min-height:150px!important;
+          padding:13px 15px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card .role{
+          width:40px!important;
+          height:40px!important;
+          margin-bottom:8px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .v11914-modules{
+          margin-top:9px!important;
+          padding-top:9px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .v11914-finance-card{
+          min-height:66px!important;
+          padding:10px 13px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-lock-note{
+          margin-top:7px!important;
+          padding:7px 10px!important;
+        }
+      }
+
+      @media (max-width:899px){
+        #poi113CompanyGate.poi115-office-menu-mode .poi113-card{
+          width:min(760px,calc(100% - 20px))!important;
+          padding:16px 12px 24px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-shell{
+          grid-template-columns:1fr!important;
+          gap:18px!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy{
+          padding:4px 2px 0!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-portal-copy h3{
+          font-size:clamp(30px,6vw,39px)!important;
+        }
+        #poi113CompanyGate.poi115-office-menu-mode .poi115-office-card{
+          min-height:165px!important;
+        }
+      }
+
 
 
       .v11914-finance-banner{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;margin:10px 0 12px;padding:12px 14px;border:1px solid #d6e3e7;border-radius:14px;background:linear-gradient(135deg,#f8fbfc,#fff)}
@@ -4289,3 +4472,398 @@
   window.SPFinanceClarityV1199={open,decorate,derived,groupDerived,version:VERSION};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+
+
+
+/* ========================================================================
+   V11.9.20 · FINANCE PERIOD + MANUAL INVENTORY + EBITDA QUADRATURE
+   - EBITDA = Valore produzione corretto - costi operativi
+   - Rimanenze iniziali/finali manuali con override esplicito
+   - Periodo analisi Da/A + preset mese intero
+   - Avviso per progressivi senza baseline precedente
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPFinancePeriodV11920)return;
+
+  const VERSION='V11.9.20';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const num=v=>Number.isFinite(Number(v))?Number(v):0;
+  const money=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(num(v));
+  const pct=v=>`${new Intl.NumberFormat('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1}).format(num(v))}%`;
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function S(){try{return state}catch(_){return window.state||null}}
+  function period(){
+    const p=$('#financePeriodV1170')?.value ||
+      sessionStorage.getItem('poi_finance_period_v1179') ||
+      localStorage.getItem('poi_finance_period_v1179') || '';
+    return /^\d{4}-\d{2}$/.test(p)?p:'';
+  }
+  function record(company,p=period()){
+    return (S()?.adminFinanceV1170?.records||[]).find(x=>x.company===company&&x.period===p)||null;
+  }
+  function snap(company,p=period()){
+    return (S()?.financeSpringV1173?.snapshots||[])
+      .filter(x=>x.company===company&&x.period===p)
+      .slice().sort((a,b)=>String(b.importedAt||b.id||'').localeCompare(String(a.importedAt||a.id||'')))[0]||null;
+  }
+  function prevCumulative(company,p=period()){
+    const y=String(p).slice(0,4);
+    return (S()?.financeSpringV1173?.snapshots||[])
+      .filter(x=>x.company===company&&x.mode==='cumulative'&&x.period<p&&String(x.period||'').slice(0,4)===y)
+      .slice().sort((a,b)=>String(b.period).localeCompare(String(a.period)))[0]||null;
+  }
+  function daysInMonth(y,m){return new Date(Number(y),Number(m),0).getDate()}
+  function monthBounds(p){
+    const [y,m]=String(p).split('-');
+    if(!y||!m)return {start:'',end:''};
+    return {start:`${y}-${m}-01`,end:`${y}-${m}-${String(daysInMonth(y,m)).padStart(2,'0')}`};
+  }
+  function nextMonthStart(p){
+    const [y,m]=String(p).split('-').map(Number);
+    const d=new Date(y,m,1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+  }
+  function defaultRange(company,p){
+    const s=snap(company,p), mb=monthBounds(p);
+    if(!s)return mb;
+    if(s.mode==='annual')return {start:`${String(p).slice(0,4)}-01-01`,end:mb.end};
+    if(s.mode==='month')return mb;
+    if(s.mode==='cumulative'){
+      const prev=prevCumulative(company,p);
+      return {start:prev?nextMonthStart(prev.period):`${String(p).slice(0,4)}-01-01`,end:mb.end};
+    }
+    return mb;
+  }
+  function groupRange(p){
+    const rs=['smartpack','multiplast'].map(c=>record(c,p)).filter(Boolean);
+    const starts=rs.map(r=>r.analysisStart).filter(Boolean).sort();
+    const ends=rs.map(r=>r.analysisEnd).filter(Boolean).sort();
+    if(starts.length&&ends.length)return {start:starts[0],end:ends[ends.length-1]};
+    const defaults=rs.map(r=>defaultRange(r.company,p));
+    return defaults.length
+      ? {start:defaults.map(x=>x.start).filter(Boolean).sort()[0]||monthBounds(p).start,
+         end:defaults.map(x=>x.end).filter(Boolean).sort().reverse()[0]||monthBounds(p).end}
+      : monthBounds(p);
+  }
+
+  function manualInventory(company,p){
+    const r=record(company,p);
+    if(!r)return {enabled:false,opening:0,closing:0,change:0};
+    const enabled=!!r.inventoryManualEnabled;
+    const opening=num(r.inventoryOpeningManual);
+    const closing=num(r.inventoryClosingManual);
+    return {enabled,opening,closing,change:closing-opening};
+  }
+
+  let originals=null;
+  function clarity(){return window.SPFinanceClarityV1199||null}
+
+  function correctedDerived(company,p){
+    if(!originals)return null;
+    const base=originals.derived(company,p);
+    if(!base?.configured)return base;
+    const r=record(company,p)||{};
+    const mi=manualInventory(company,p);
+    const inv=mi.enabled?mi.change:num(base.inventoryChange);
+    const sales=num(base.salesRevenue);
+    const other=num(base.otherOperatingRevenue);
+    const production=sales+inv+other;
+    const opex=num(base.opex);
+    const depreciation=num(r.depreciation);
+    const ebitda=production-opex;
+    const ebit=ebitda-depreciation;
+    return {...base,
+      salesRevenue:sales,
+      inventoryChange:inv,
+      inventoryChangeSource:mi.enabled?'manual':'spring',
+      inventoryOpening:mi.enabled?mi.opening:null,
+      inventoryClosing:mi.enabled?mi.closing:null,
+      otherOperatingRevenue:other,
+      productionValue:production,
+      opex,ebitda,ebit,
+      marginProduction:production?ebitda/production*100:0,
+      record:r
+    };
+  }
+
+  function correctedGroup(p){
+    const xs=['smartpack','multiplast'].map(c=>correctedDerived(c,p)).filter(x=>x?.configured);
+    if(!xs.length)return {configured:false,salesRevenue:0,inventoryChange:0,otherOperatingRevenue:0,productionValue:0,opex:0,ebitda:0,ebit:0,marginProduction:0};
+    const sum=k=>xs.reduce((s,x)=>s+num(x[k]),0);
+    const productionValue=sum('productionValue'),ebitda=sum('ebitda');
+    return {
+      configured:true,
+      salesRevenue:sum('salesRevenue'),
+      inventoryChange:sum('inventoryChange'),
+      otherOperatingRevenue:sum('otherOperatingRevenue'),
+      productionValue,
+      opex:sum('opex'),
+      ebitda,
+      ebit:sum('ebit'),
+      marginProduction:productionValue?ebitda/productionValue*100:0
+    };
+  }
+
+  function installCorrectedEngine(){
+    const c=clarity();
+    if(!c||c.__v11920Corrected)return false;
+    originals={derived:c.derived.bind(c),groupDerived:c.groupDerived.bind(c)};
+    c.derived=(company,p)=>correctedDerived(company,p);
+    c.groupDerived=p=>correctedGroup(p);
+    c.__v11920Corrected=true;
+    c.financeCorrectionVersion=VERSION;
+    return true;
+  }
+
+  function sourceWarning(company,p){
+    const s=snap(company,p);
+    if(!s||s.mode!=='cumulative')return '';
+    const prev=prevCumulative(company,p);
+    const r=record(company,p)||{};
+    const gr=groupRange(p);
+    const mb=monthBounds(p);
+    const asksMonthly=gr.start===mb.start&&gr.end===mb.end;
+    if(asksMonthly&&!prev){
+      return `${company==='smartpack'?'Smart Pack':'Multiplast'}: il bilancio è progressivo e non esiste un progressivo precedente. Per isolare il solo mese ${p}, importa anche il mese precedente.`;
+    }
+    if(prev){
+      return `${company==='smartpack'?'Smart Pack':'Multiplast'}: progressivo confrontato con ${prev.period}; i flussi economici sono calcolati per differenza.`;
+    }
+    return `${company==='smartpack'?'Smart Pack':'Multiplast'}: primo progressivo disponibile; i flussi coprono l'intervallo dall'inizio esercizio.`;
+  }
+
+  function companyRow(company,p){
+    const r=record(company,p);if(!r)return '';
+    const mi=manualInventory(company,p);
+    const name=company==='smartpack'?'Smart Pack':'Multiplast';
+    const delta=mi.change;
+    return `
+      <div class="v11920-inventory-row" data-company="${company}">
+        <div class="v11920-company"><b>${name}</b><span>Rimanenze di produzione</span></div>
+        <label><span>Iniziali</span><input type="number" step="0.01" data-v11920-opening="${company}" value="${mi.enabled?mi.opening:''}" placeholder="0,00"></label>
+        <label><span>Finali</span><input type="number" step="0.01" data-v11920-closing="${company}" value="${mi.enabled?mi.closing:''}" placeholder="0,00"></label>
+        <div class="v11920-delta"><span>Variazione</span><b data-v11920-delta="${company}">${money(delta)}</b></div>
+        <label class="v11920-switch"><input type="checkbox" data-v11920-enabled="${company}" ${mi.enabled?'checked':''}><span>Usa valori manuali</span></label>
+      </div>`;
+  }
+
+  function panelHTML(p){
+    const gr=groupRange(p);
+    const warnings=['smartpack','multiplast'].map(c=>sourceWarning(c,p)).filter(Boolean);
+    return `
+      <section class="v11920-panel" data-v11920-panel>
+        <div class="v11920-head">
+          <div>
+            <span class="eyebrow">PERIODO E RIMANENZE</span>
+            <h3>Imposta l'intervallo di analisi</h3>
+            <p>Le date descrivono il periodo analizzato. Le rimanenze manuali, quando attive, sostituiscono la variazione letta dal bilancio.</p>
+          </div>
+          <button type="button" class="btn" data-v11920-month>Mese intero</button>
+        </div>
+        <div class="v11920-range">
+          <label><span>Da</span><input type="date" data-v11920-start value="${esc(gr.start)}"></label>
+          <label><span>A</span><input type="date" data-v11920-end value="${esc(gr.end)}"></label>
+          <div class="v11920-range-label"><span>Periodo visualizzato</span><b data-v11920-range-label>${esc(gr.start||'—')} → ${esc(gr.end||'—')}</b></div>
+        </div>
+        <div class="v11920-inventory">
+          ${companyRow('smartpack',p)}
+          ${companyRow('multiplast',p)}
+        </div>
+        ${warnings.length?`<div class="v11920-warning">${warnings.map(x=>`<div>⚠ ${esc(x)}</div>`).join('')}</div>`:''}
+        <div class="v11920-actions">
+          <span>Formula rimanenze manuali: <b>Finali − Iniziali</b>. La variazione entra nel Valore della produzione.</span>
+          <button type="button" class="btn primary" data-v11920-save>Salva e ricalcola</button>
+        </div>
+      </section>`;
+  }
+
+  async function savePanel(p){
+    const st=$('[data-v11920-start]')?.value||'';
+    const en=$('[data-v11920-end]')?.value||'';
+    if(st&&en&&st>en){alert('La data iniziale non può essere successiva alla data finale.');return}
+    const s=S();if(!s)return;
+    for(const company of ['smartpack','multiplast']){
+      const r=record(company,p);if(!r)continue;
+      r.analysisStart=st;
+      r.analysisEnd=en;
+      r.inventoryManualEnabled=!!$(`[data-v11920-enabled="${company}"]`)?.checked;
+      r.inventoryOpeningManual=num($(`[data-v11920-opening="${company}"]`)?.value);
+      r.inventoryClosingManual=num($(`[data-v11920-closing="${company}"]`)?.value);
+      r.inventoryManualUpdatedAt=new Date().toISOString();
+    }
+    try{if(typeof save==='function')save()}catch(_){}
+    try{await window.SPFinanceCloudV1179?.save?.(p)}catch(_){}
+    updateFinanceDOM();
+    decoratePanel(true);
+    try{window.SPFinanceClarityV1199?.decorate?.()}catch(_){}
+  }
+
+  function bindPanel(panel,p){
+    const updateDelta=c=>{
+      const a=num($(`[data-v11920-opening="${c}"]`,panel)?.value);
+      const b=num($(`[data-v11920-closing="${c}"]`,panel)?.value);
+      const out=$(`[data-v11920-delta="${c}"]`,panel);if(out)out.textContent=money(b-a);
+    };
+    for(const c of ['smartpack','multiplast']){
+      $(`[data-v11920-opening="${c}"]`,panel)?.addEventListener('input',()=>updateDelta(c));
+      $(`[data-v11920-closing="${c}"]`,panel)?.addEventListener('input',()=>updateDelta(c));
+    }
+    const relabel=()=>{
+      const a=$('[data-v11920-start]',panel)?.value||'—';
+      const b=$('[data-v11920-end]',panel)?.value||'—';
+      const out=$('[data-v11920-range-label]',panel);if(out)out.textContent=`${a} → ${b}`;
+    };
+    $('[data-v11920-start]',panel)?.addEventListener('change',relabel);
+    $('[data-v11920-end]',panel)?.addEventListener('change',relabel);
+    $('[data-v11920-month]',panel)?.addEventListener('click',()=>{
+      const mb=monthBounds(p);
+      const a=$('[data-v11920-start]',panel),b=$('[data-v11920-end]',panel);
+      if(a)a.value=mb.start;if(b)b.value=mb.end;relabel();
+    });
+    $('[data-v11920-save]',panel)?.addEventListener('click',()=>savePanel(p));
+  }
+
+  function quadratureHTML(d){
+    const ok=Math.abs((num(d.productionValue)-num(d.opex))-num(d.ebitda))<0.02;
+    return `
+      <section class="v11920-quadrature ${ok?'ok':'bad'}" data-v11920-quadrature>
+        <div><span>Valore della produzione</span><b>${money(d.productionValue)}</b></div>
+        <i>−</i>
+        <div><span>Costi operativi</span><b>${money(d.opex)}</b></div>
+        <i>=</i>
+        <div><span>EBITDA</span><b class="${d.ebitda<0?'neg':''}">${money(d.ebitda)}</b></div>
+        <strong>${ok?'Quadratura corretta':'Verificare quadratura'}</strong>
+      </section>`;
+  }
+
+  function updateFinanceDOM(){
+    const view=$('#adminFinanceV1170View');
+    if(!view?.classList.contains('active')||!installCorrectedEngine()) {
+      if(!view?.classList.contains('active'))return;
+    }
+    const p=period();if(!p)return;
+    const g=correctedGroup(p);if(!g?.configured)return;
+
+    const cards=$$('.v1170-fin-group>div',view);
+    if(cards[1]){const b=cards[1].querySelector('b');if(b)b.textContent=money(g.opex)}
+    if(cards[2]){const b=cards[2].querySelector('b');if(b){b.textContent=money(g.ebitda);b.classList.toggle('loss',g.ebitda<0)}}
+    if(cards[3]){const b=cards[3].querySelector('b');if(b){b.textContent=money(g.ebit);b.classList.toggle('loss',g.ebit<0)}}
+    if(cards[4]){const b=cards[4].querySelector('b');if(b)b.textContent=pct(g.marginProduction)}
+
+    const prod=view.querySelector('.v1199-group-production');
+    if(prod){
+      const b=prod.querySelector('b');if(b)b.textContent=money(g.productionValue);
+      const small=prod.querySelector('small');
+      if(small)small.textContent=`Ricavi vendite + variazione rimanenze + altri ricavi operativi · Dettagli →`;
+    }
+
+    const boxes=$$('.v1170-fin-company',view);
+    boxes.forEach(box=>{
+      const title=String(box.querySelector('.v1170-fin-company-head span')?.textContent||'').toUpperCase();
+      const company=title.includes('MULTIPLAST')?'multiplast':'smartpack';
+      const d=correctedDerived(company,p);if(!d?.configured)return;
+      const mini=$$('.v1170-fin-mini>div',box);
+      if(mini[1]){const b=mini[1].querySelector('b');if(b){b.textContent=money(d.ebitda);b.classList.toggle('loss',d.ebitda<0)}}
+      if(mini[2]){const b=mini[2].querySelector('b');if(b){b.textContent=money(d.ebit);b.classList.toggle('loss',d.ebit<0)}}
+      if(mini[3]){const b=mini[3].querySelector('b');if(b)b.textContent=pct(d.marginProduction)}
+      const strip=box.querySelector('.v1199-production-strip');
+      if(strip){
+        const b=strip.querySelector('b');if(b)b.textContent=money(d.productionValue);
+        const small=strip.querySelector('small');
+        if(small)small.textContent=`70 + variazione rimanenze ${d.inventoryChangeSource==='manual'?'manuale':'SPRING'} + 73 · vedi composizione →`;
+      }
+    });
+
+    let q=view.querySelector('[data-v11920-quadrature]');
+    const anchor=view.querySelector('.v1199-group-production')||view.querySelector('.v1170-fin-group');
+    if(anchor){
+      const tmp=document.createElement('div');tmp.innerHTML=quadratureHTML(g);
+      if(q)q.replaceWith(tmp.firstElementChild);
+      else anchor.insertAdjacentElement('afterend',tmp.firstElementChild);
+    }
+
+    const hero=view.querySelector('.v1170-fin-hero');
+    const gr=groupRange(p);
+    if(hero){
+      let badge=hero.querySelector('.v11920-period-badge');
+      if(!badge){badge=document.createElement('div');badge.className='v11920-period-badge';hero.querySelector('div')?.appendChild(badge)}
+      if(badge)badge.innerHTML=`<span>Periodo analisi</span><b>${esc(gr.start||'—')} → ${esc(gr.end||'—')}</b>`;
+    }
+  }
+
+  function decoratePanel(force=false){
+    const view=$('#adminFinanceV1170View');
+    if(!view?.classList.contains('active'))return;
+    const p=period();if(!p)return;
+    let old=view.querySelector('[data-v11920-panel]');
+    if(old&&!force)return;
+    const tmp=document.createElement('div');tmp.innerHTML=panelHTML(p);
+    const panel=tmp.firstElementChild;
+    if(old)old.replaceWith(panel);
+    else{
+      const source=view.querySelector('.v1173-source-banner');
+      const hero=view.querySelector('.v1170-fin-hero');
+      (source||hero)?.insertAdjacentElement('afterend',panel);
+    }
+    bindPanel(panel,p);
+    updateFinanceDOM();
+  }
+
+  function injectStyles(){
+    if($('#v11920FinanceStyles'))return;
+    const st=document.createElement('style');st.id='v11920FinanceStyles';
+    st.textContent=`
+      .v11920-panel{margin:10px 0 12px;padding:14px;border:1px solid #d8e5e9;border-radius:15px;background:#fff;box-shadow:0 5px 16px rgba(23,57,74,.035)}
+      .v11920-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+      .v11920-head h3{margin:3px 0 3px;font-size:14px}.v11920-head p{margin:0;color:#6a7e87;font-size:9.5px;line-height:1.45}
+      .v11920-range{display:grid;grid-template-columns:180px 180px 1fr;gap:9px;margin-top:11px;padding:10px;border-radius:12px;background:#f6fafb;border:1px solid #e2ebee}
+      .v11920-range label span,.v11920-inventory-row label>span,.v11920-delta span,.v11920-range-label span{display:block;color:#71858e;font-size:8px;font-weight:850;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+      .v11920-range input,.v11920-inventory-row input[type=number]{width:100%;min-height:35px;border:1px solid #d4e1e5;border-radius:9px;padding:7px 9px;background:#fff;font-size:10px;color:#17303c}
+      .v11920-range-label{display:flex;flex-direction:column;justify-content:center;padding:0 8px}.v11920-range-label b{font-size:11px;color:#17394a}
+      .v11920-inventory{display:grid;gap:7px;margin-top:9px}
+      .v11920-inventory-row{display:grid;grid-template-columns:170px 150px 150px 150px 155px;gap:9px;align-items:end;padding:10px;border:1px solid #e1e9ec;border-radius:12px;background:#fff}
+      .v11920-company{align-self:center}.v11920-company b{display:block;font-size:11px;color:#17394a}.v11920-company span{display:block;font-size:8.5px;color:#758992;margin-top:2px}
+      .v11920-delta{padding:7px 9px;border-radius:9px;background:#f4f8f9}.v11920-delta b{font-size:11px;color:#17394a}
+      .v11920-switch{display:flex!important;gap:7px;align-items:center!important;align-self:center;padding-top:12px}.v11920-switch input{width:auto!important;min-height:auto!important}.v11920-switch span{margin:0!important;text-transform:none!important;font-size:9px!important;color:#425c68!important}
+      .v11920-warning{margin-top:9px;padding:9px 10px;border:1px solid #ead5a9;background:#fff8e8;color:#74531d;border-radius:10px;font-size:9px;line-height:1.5}
+      .v11920-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:9px}.v11920-actions>span{font-size:8.5px;color:#687c85}
+      .v11920-quadrature{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto;gap:10px;align-items:center;margin:9px 0 12px;padding:10px 12px;border:1px solid #dce7ea;border-radius:12px;background:#f8fbfc}
+      .v11920-quadrature>div span{display:block;font-size:8px;color:#71858e;text-transform:uppercase;font-weight:850}.v11920-quadrature>div b{display:block;margin-top:3px;font-size:12px;color:#17303c}.v11920-quadrature>div b.neg{color:#ab3740}.v11920-quadrature>i{font-style:normal;font-size:14px;color:#82949c}.v11920-quadrature>strong{font-size:8.5px;padding:6px 8px;border-radius:999px;background:#eaf7f1;color:#247057;white-space:nowrap}.v11920-quadrature.bad>strong{background:#fff0f1;color:#a13a42}
+      .v11920-period-badge{display:inline-flex;gap:7px;align-items:center;margin-top:8px;padding:6px 8px;border:1px solid #dbe7ea;border-radius:999px;background:#f7fafb;font-size:8.5px}.v11920-period-badge span{color:#758992}.v11920-period-badge b{color:#17394a}
+      @media(max-width:1050px){.v11920-inventory-row{grid-template-columns:1fr 1fr 1fr}.v11920-company{grid-column:1/-1}.v11920-switch{grid-column:1/-1}.v11920-range{grid-template-columns:1fr 1fr}.v11920-range-label{grid-column:1/-1}}
+      @media(max-width:650px){.v11920-head,.v11920-actions{display:block}.v11920-head .btn,.v11920-actions .btn{margin-top:8px;width:100%}.v11920-range,.v11920-inventory-row{grid-template-columns:1fr}.v11920-range-label,.v11920-company,.v11920-switch{grid-column:auto}.v11920-quadrature{grid-template-columns:1fr}.v11920-quadrature>i{display:none}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function boot(){
+    injectStyles();
+    const tryInstall=()=>{
+      installCorrectedEngine();
+      decoratePanel();
+      updateFinanceDOM();
+    };
+    [100,300,700,1400,2600].forEach(ms=>setTimeout(tryInstall,ms));
+    setInterval(()=>{
+      const v=$('#adminFinanceV1170View');
+      if(v?.classList.contains('active'))tryInstall();
+    },900);
+    document.addEventListener('change',e=>{
+      if(e.target?.id==='financePeriodV1170')setTimeout(()=>{decoratePanel(true);updateFinanceDOM()},80);
+    },true);
+  }
+
+  window.SPFinancePeriodV11920={
+    version:VERSION,
+    correctedDerived,
+    correctedGroup,
+    refresh:()=>{decoratePanel(true);updateFinanceDOM()}
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
+
