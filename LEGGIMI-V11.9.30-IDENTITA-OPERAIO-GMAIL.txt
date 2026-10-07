@@ -1,0 +1,7 @@
+SP-MP STAGING V11.9.30
+
+- Identità operaio bloccata al display_name del USER/PIN autenticato.
+- I campi Operatore in produzione non sono più modificabili per worker/mpworker.
+- Badge visibile nella schermata Produzione con l’operatore attivo.
+- Diagnostica Gmail migliorata: prova a leggere il corpo errore della Edge Function e distingue Secrets OAuth, redirect URI, autenticazione o funzione mancante.
+- Nessuna modifica a Coda Roberto, copertura materiali, preparazione spedizione, IML, tracciabilità o Finance.
