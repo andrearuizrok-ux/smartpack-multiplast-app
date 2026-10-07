@@ -1129,7 +1129,7 @@
 
   function S(){try{return state}catch(_){return window.state||null}}
   function role111(){try{return currentRole||''}catch(_){return window.currentRole||''}}
-  function canManage111(){return ['admin','director'].includes(role111())}
+  function canManage111(){return role111()==='admin'}
   function persist111(){try{save()}catch(_){try{localStorage.setItem('industrial_os_v2_state',JSON.stringify(S()))}catch(__){}}}
   function ensureState111(){
     const st=S(); if(!st)return;
@@ -1230,7 +1230,7 @@
   function bell111(){
     const top=document.querySelector('.topbar');if(!top)return;let b=$1('sp111Bell');
     if(!b){b=document.createElement('button');b.id='sp111Bell';b.type='button';b.className='sp111-bell';b.title='Scadenze e compliance';b.innerHTML='🔔<b>0</b>';const profile=document.querySelector('.profile');(profile||top.lastElementChild)?.insertAdjacentElement('beforebegin',b);b.onclick=()=>{try{navTo('compliance')}catch(_){}}}
-    const n=alerts111().filter(x=>x.s.days<=30).length;b.querySelector('b').textContent=String(n);b.querySelector('b').style.display=n?'grid':'none';b.classList.toggle('show',currentRole==='admin');
+    const n=alerts111().filter(x=>x.s.days<=30).length;b.querySelector('b').textContent=String(n);b.querySelector('b').style.display=n?'grid':'none';b.classList.toggle('show',canManage111());
   }
 
   function ensureDialogs111(){

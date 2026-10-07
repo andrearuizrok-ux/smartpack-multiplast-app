@@ -6136,3 +6136,300 @@
   window.SPNomyraFinanceLiveV11923={version:VERSION,load,render,disconnect:async()=>{const c=await getClient();await c.auth.signOut();cache.loaded=false;render();}};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+
+/* ========================================================================
+   NOMYRA / Smart Pack · Multiplast — V11.9.24 ROBERTO OPERATIONS CENTER
+   Additive module. Does NOT replace or alter:
+   - Coda Roberto
+   - Magazzino interno
+   - Ordini IML
+   - Giacenze IML
+   - Tracciabilità
+   ======================================================================== */
+(()=>{
+  'use strict';
+  if(window.SPRobertoOpsV11924)return;
+  const VERSION='V11.9.24.2';
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const n=v=>Number.isFinite(Number(v))?Number(v):0;
+  const fmt=v=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:0}).format(n(v));
+  const ROLE_KEYS=['poi_office_role_v113','poi_office_role_v115','industrialos_role_session','nomyra_group_role_v92'];
+  const LOAD_KEY='spmp_v11924_truck_loads';
+  const DISMISSED_ADMIN=['scadenze','compliance'];
+  const PROTECTED=['coda roberto','magazzino interno','ordini iml','giacenze iml','tracciabil'];
+
+  function role(){
+    try{if(typeof currentRole!=='undefined'&&currentRole)return String(currentRole).toLowerCase()}catch(_){}
+    for(const k of ROLE_KEYS){const v=sessionStorage.getItem(k)||localStorage.getItem(k);if(v)return String(v).toLowerCase()}
+    return ''
+  }
+  function isRoberto(){return role()==='manager'}
+  function visible(el){if(!el)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0}
+  function clean(t){return String(t||'').replace(/\s+/g,' ').trim()}
+  function text(el){return clean(el?.innerText||el?.textContent||'')}
+
+  function findAction(label){
+    const q=label.toLowerCase();
+    const nodes=$$('button,a,[role="button"],[onclick]');
+    // HOTFIX V11.9.24.1: never resolve an action to one of this module's own
+    // buttons, otherwise clickExisting() recursively clicks itself.
+    return nodes.find(el=>
+      visible(el) &&
+      !el.closest('[data-v11924-center]') &&
+      !el.closest('#v11924TruckModal') &&
+      text(el).toLowerCase().includes(q)
+    );
+  }
+  function clickExisting(labels){
+    for(const l of labels){const el=findAction(l);if(el){el.click();return true}}
+    return false;
+  }
+
+  function hideAdminOnly(){
+    if(!isRoberto())return;
+    $$('nav a,nav button,aside a,aside button,[class*="menu"] a,[class*="menu"] button,[class*="nav"] a,[class*="nav"] button').forEach(el=>{
+      const t=text(el).toLowerCase();
+      if(PROTECTED.some(x=>t.includes(x)))return;
+      if(DISMISSED_ADMIN.some(x=>t===x||t.startsWith(x+' ')||t.includes(' '+x))){el.dataset.v11924AdminHidden='1';el.style.setProperty('display','none','important');el.setAttribute('aria-hidden','true')}
+    });
+  }
+
+  function getState(){try{return window.state||state||null}catch(_){return window.state||null}}
+  function harvestArrays(obj,depth=0,path='root',seen=new WeakSet(),out=[]){
+    if(!obj||typeof obj!=='object'||depth>5)return out;
+    if(seen.has(obj))return out;seen.add(obj);
+    if(Array.isArray(obj)){
+      if(obj.length&&obj.some(x=>x&&typeof x==='object'))out.push({path,arr:obj});
+      obj.slice(0,120).forEach((v,i)=>{if(v&&typeof v==='object')harvestArrays(v,depth+1,`${path}[${i}]`,seen,out)});
+      return out;
+    }
+    Object.entries(obj).slice(0,180).forEach(([k,v])=>{if(v&&typeof v==='object')harvestArrays(v,depth+1,`${path}.${k}`,seen,out)});
+    return out;
+  }
+  const pick=(o,names)=>{for(const k of names){if(o&&o[k]!=null&&o[k]!=='')return o[k]}return null};
+  function normalizeOrder(o){
+    if(!o||typeof o!=='object')return null;
+    const client=pick(o,['cliente','client','customer','ragioneSociale','customerName','clientName']);
+    const product=pick(o,['prodotto','product','articolo','article','item','descrizione','description','sku','codice']);
+    const ordered=pick(o,['quantita','qty','quantity','ordinato','orderedQty','quantityOrdered','qtaOrdine','qta']);
+    const produced=pick(o,['prodottoQty','produced','producedQty','quantitaProdotta','qtaProdotta','madeQty','completedQty']);
+    const loaded=pick(o,['caricato','loaded','loadedQty','quantitaCaricata','qtaCaricata','shippedQty']);
+    const status=pick(o,['stato','status','state']);
+    const id=pick(o,['id','orderId','numero','number','ordine','orderNumber','codiceOrdine']);
+    if(client==null&&product==null&&ordered==null&&produced==null)return null;
+    const q=n(ordered),p=n(produced),l=n(loaded);
+    if(!q&&!p&&!client&&!product)return null;
+    return {id:String(id||''),client:String(client||'Cliente'),product:String(product||'Articolo'),ordered:q,produced:p,loaded:l,status:String(status||''),raw:o};
+  }
+  function liveOrders(){
+    const s=getState();if(!s)return [];
+    const candidates=harvestArrays(s).filter(x=>/order|ordin|coda|production|produzion|commess|delivery|consegn/i.test(x.path));
+    const list=[];
+    for(const c of candidates){for(const o of c.arr){const x=normalizeOrder(o);if(x)list.push(x)}}
+    const uniq=new Map();
+    list.forEach(o=>{const k=[o.id,o.client,o.product,o.ordered].join('|');const old=uniq.get(k);if(!old||o.produced>old.produced)uniq.set(k,o)});
+    return [...uniq.values()].slice(0,12);
+  }
+
+  function productionSummary(){
+    const os=liveOrders();
+    const open=os.filter(o=>!o.ordered||o.produced<o.ordered);
+    const ready=os.filter(o=>o.produced>o.loaded);
+    const totalOrdered=os.reduce((a,o)=>a+o.ordered,0),totalProduced=os.reduce((a,o)=>a+o.produced,0);
+    return {os,open,ready,totalOrdered,totalProduced};
+  }
+
+  function materialCoverage(){
+    const s=getState();
+    if(!s)return {label:'Da verificare',tone:'warn',detail:'Apri Magazzino interno per verificare disponibilità e fabbisogni.'};
+    let stocks=[];
+    for(const c of harvestArrays(s).filter(x=>/stock|magazz|material|materia|giacenz/i.test(x.path))){
+      for(const x of c.arr){
+        if(!x||typeof x!=='object')continue;
+        const qty=n(pick(x,['qty','quantity','giacenza','stock','disponibile','available','kg','quantita']));
+        const min=n(pick(x,['min','minimum','scortaMinima','minStock','safetyStock']));
+        const name=pick(x,['name','nome','materiale','material','description','descrizione','articolo']);
+        if(name!=null&&qty>=0)stocks.push({name:String(name),qty,min});
+      }
+    }
+    if(!stocks.length)return {label:'Da verificare',tone:'warn',detail:'Apri Magazzino interno: la copertura viene letta dalle giacenze registrate.'};
+    const critical=stocks.filter(x=>x.min>0&&x.qty<=x.min);
+    if(critical.length)return {label:`${critical.length} materiale${critical.length>1?'i':''} critico${critical.length>1?'i':''}`,tone:'risk',detail:`Controllare: ${critical.slice(0,3).map(x=>x.name).join(', ')}.`};
+    return {label:'Materiali disponibili',tone:'ok',detail:`${stocks.length} materiali letti dal magazzino. Nessuna giacenza sotto la scorta minima rilevata.`};
+  }
+
+  function loads(){try{return JSON.parse(localStorage.getItem(LOAD_KEY)||'[]')}catch(_){return []}}
+  function saveLoads(x){localStorage.setItem(LOAD_KEY,JSON.stringify(x));window.dispatchEvent(new CustomEvent('spmp:truckloads:changed',{detail:x}))}
+  function newLoad(){
+    ensureTruckModal();
+    const modal=$('#v11924TruckModal');
+    const os=liveOrders();
+    $('[data-v11924-truck-items]',modal).innerHTML=os.length?os.map((o,i)=>{
+      const available=Math.max(0,o.produced-o.loaded);
+      return `<div class="v11924-truck-row"><label><input type="checkbox" data-v11924-item-check="${i}" ${available>0?'checked':''}> <b>${esc(o.product)}</b><span>${esc(o.client)}</span></label><div><small>Prodotto</small><b>${fmt(o.produced)}</b></div><div><small>Già caricato</small><b>${fmt(o.loaded)}</b></div><label><small>Da caricare</small><input type="number" min="0" max="${available}" value="${available}" data-v11924-item-qty="${i}"></label></div>`;
+    }).join(''):`<div class="v11924-truck-empty">Non riesco ancora a leggere automaticamente righe ordine disponibili. Puoi comunque creare il caricamento indicando cliente, destinazione e note; quando gli ordini live sono disponibili verranno proposti qui.</div>`;
+    modal.dataset.orders=JSON.stringify(os.map(o=>({id:o.id,client:o.client,product:o.product,produced:o.produced,loaded:o.loaded,ordered:o.ordered})));
+    modal.classList.add('open');
+  }
+  function ensureTruckModal(){
+    if($('#v11924TruckModal'))return;
+    document.body.insertAdjacentHTML('beforeend',`<div class="v11924-modal" id="v11924TruckModal"><div class="v11924-modal-card"><button class="v11924-x" data-v11924-truck-close>×</button><span class="v11924-kicker">LOGISTICA PRODUZIONE</span><h2>Crea caricamento camion</h2><p>Seleziona solo quantità già prodotte e disponibili. Il caricamento resta collegato allo stato operativo dell'ordine.</p><div class="v11924-truck-fields"><label>Cliente<input data-v11924-truck-client placeholder="Cliente"></label><label>Data carico<input type="date" data-v11924-truck-date></label><label>Destinazione<input data-v11924-truck-destination placeholder="Destinazione"></label><label>Targa / vettore<input data-v11924-truck-vehicle placeholder="Facoltativo"></label></div><div class="v11924-truck-items" data-v11924-truck-items></div><label class="v11924-notes">Note<textarea data-v11924-truck-notes rows="3" placeholder="Indicazioni per il carico"></textarea></label><div class="v11924-modal-actions"><button class="v11924-secondary" data-v11924-truck-close>Annulla</button><button class="v11924-primary" data-v11924-truck-save>Salva caricamento</button></div></div></div>`);
+    $$('[data-v11924-truck-close]').forEach(b=>b.onclick=()=>$('#v11924TruckModal')?.classList.remove('open'));
+    $('[data-v11924-truck-save]').onclick=()=>{
+      const m=$('#v11924TruckModal'),os=JSON.parse(m.dataset.orders||'[]');
+      const items=[];
+      os.forEach((o,i)=>{const check=$(`[data-v11924-item-check="${i}"]`,m);if(!check?.checked)return;const qty=Math.max(0,n($(`[data-v11924-item-qty="${i}"]`,m)?.value));if(qty)items.push({...o,qty})});
+      const item={id:`TRK-${Date.now()}`,createdAt:new Date().toISOString(),client:$('[data-v11924-truck-client]',m).value.trim(),date:$('[data-v11924-truck-date]',m).value,destination:$('[data-v11924-truck-destination]',m).value.trim(),vehicle:$('[data-v11924-truck-vehicle]',m).value.trim(),notes:$('[data-v11924-truck-notes]',m).value.trim(),items,status:'PREPARAZIONE'};
+      const xs=loads();xs.unshift(item);saveLoads(xs);m.classList.remove('open');render(true);
+    };
+    const date=$('[data-v11924-truck-date]');if(date)date.value=new Date().toISOString().slice(0,10);
+  }
+
+  function openProductionSheet(){
+    if(clickExisting(['crea foglio produzione','foglio produzione','nuovo foglio produzione']))return;
+    const q=findAction('coda roberto');if(q){q.click();setTimeout(()=>clickExisting(['foglio produzione','crea foglio']),250);return}
+    alert('Apri Coda Roberto e seleziona l’ordine da mandare in produzione.');
+  }
+  function openQueue(){clickExisting(['coda roberto'])}
+  function openWarehouse(){clickExisting(['magazzino interno'])}
+
+  function ordersHTML(os){
+    if(!os.length)return `<div class="v11924-empty"><b>Ordini live</b><span>I dati restano nella Coda Roberto. Appena la produzione registra quantità sull’ordine, questa vista le riepiloga automaticamente.</span><button data-v11924-open-queue>Apri Coda Roberto</button></div>`;
+    return `<div class="v11924-orders-head"><span>Ordine / articolo</span><span>Ordinato</span><span>Prodotto</span><span>Da produrre</span><span>Pronto carico</span><span>Avanzamento</span></div>${os.slice(0,7).map(o=>{const rem=Math.max(0,o.ordered-o.produced),ready=Math.max(0,o.produced-o.loaded),pc=o.ordered?Math.min(100,Math.round(o.produced/o.ordered*100)):0;return `<div class="v11924-order-row"><div><b>${esc(o.product)}</b><small>${esc(o.client)}${o.id?' · '+esc(o.id):''}</small></div><strong>${fmt(o.ordered)}</strong><strong>${fmt(o.produced)}</strong><strong class="${rem?'warn':'ok'}">${fmt(rem)}</strong><strong>${fmt(ready)}</strong><div class="v11924-progress"><i style="width:${pc}%"></i><span>${pc}%</span></div></div>`}).join('')}`;
+  }
+
+  function dashboardHTML(){
+    const sm=productionSummary(),cov=materialCoverage(),ld=loads();
+    const open=sm.open.length,ready=sm.ready.length;
+    return `<section class="v11924-center" data-v11924-center>
+      <div class="v11924-hero">
+        <div><span class="v11924-kicker">MULTIPLAST · RESPONSABILE PRODUZIONE</span><h1>Centro operativo Roberto</h1><p>Ordini, produzione, materiali e carichi in una sola schermata. I moduli esistenti restano disponibili sotto.</p></div>
+        <div class="v11924-hero-actions"><button class="v11924-primary" data-v11924-production-sheet>+ Crea foglio produzione</button><button class="v11924-dark" data-v11924-new-truck>+ Caricamento camion</button></div>
+      </div>
+      <div class="v11924-kpis">
+        <article><span>ORDINI DA COMPLETARE</span><b>${open}</b><small>Aggiornati dalla produzione registrata</small></article>
+        <article><span>PRONTI / PARZIALI AL CARICO</span><b>${ready}</b><small>Prodotto disponibile non ancora caricato</small></article>
+        <article class="${cov.tone}"><span>COPERTURA MATERIALI</span><b>${esc(cov.label)}</b><small>${esc(cov.detail)}</small><button data-v11924-open-warehouse>Apri Magazzino interno</button></article>
+        <article><span>CARICAMENTI APERTI</span><b>${ld.filter(x=>x.status!=='CHIUSO').length}</b><small>Preparazioni camion registrate</small></article>
+      </div>
+      <div class="v11924-live">
+        <div class="v11924-section-title"><div><span>ORDINI LIVE</span><h2>Situazione ordini e produzione</h2><p>Ordinato → prodotto → residuo → disponibile al carico.</p></div><button data-v11924-open-queue>Apri Coda Roberto</button></div>
+        <div class="v11924-orders">${ordersHTML(sm.os)}</div>
+      </div>
+      <div class="v11924-shortcuts">
+        <div><span>ACCESSI RAPIDI</span><b>Le funzioni che Roberto usa ogni giorno</b></div>
+        <button data-v11924-open-monitor>Monitor produzione</button>
+        <button data-v11924-shortcut="coda roberto">Coda Roberto</button>
+        <button data-v11924-shortcut="magazzino interno">Magazzino interno</button>
+        <button data-v11924-shortcut="ordini iml">Ordini IML</button>
+        <button data-v11924-shortcut="giacenze iml">Giacenze IML</button>
+        <button data-v11924-shortcut="tracciabil">Tracciabilità</button>
+      </div>
+    </section>`;
+  }
+
+  function findHost(){
+    const candidates=['main','.main-content','.content','#app .content','#app main','.app-content','.dashboard-content'];
+    for(const s of candidates){const el=$(s);if(el&&visible(el)&&!el.closest('#poi113CompanyGate'))return el}
+    const active=$$('.view.active,.page.active,[class*="view"].active').find(el=>visible(el)&&!el.closest('#poi113CompanyGate'));
+    return active||null;
+  }
+  function isAdminOnlyScreen(host){
+    if(!host)return false;
+    const t=(text($('#pageTitle'))+' '+text(host).slice(0,1500)).toLowerCase();
+    return /scadenze\s*&?\s*compliance|visite mediche|formazione.*certificazioni/.test(t);
+  }
+  function openMonitor(){
+    // Mantiene il Monitor produzione esistente: non crea una seconda copia.
+    return clickExisting(['monitor produzione','analisi produzione','controllo produzione']);
+  }
+  function ensureRobertoLanding(){
+    if(!isRoberto())return;
+    hideAdminOnly();
+    const host=findHost();
+    if(isAdminOnlyScreen(host)){
+      // Se una vecchia sessione ha lasciato Roberto in una pagina amministrativa,
+      // riportalo al monitor produttivo anziché mostrare Compliance.
+      if(openMonitor())return;
+    }
+    render(false);
+  }
+  function render(force=false){
+    hideAdminOnly();
+    if(!isRoberto()){$$('[data-v11924-center]').forEach(x=>x.remove());return}
+    const host=findHost();if(!host)return;
+    // Per Roberto il Centro operativo è il primo blocco dell'area di lavoro.
+    // Non dipende più dalle parole presenti nella pagina corrente.
+    const old=$('[data-v11924-center]',host);
+    if(old&&!force)return;
+    const box=document.createElement('div');box.innerHTML=dashboardHTML();const node=box.firstElementChild;
+    if(old)old.replaceWith(node);else host.prepend(node);
+    $('[data-v11924-production-sheet]',node).onclick=openProductionSheet;
+    $('[data-v11924-new-truck]',node).onclick=newLoad;
+    $('[data-v11924-open-monitor]',node).onclick=openMonitor;
+    $$('[data-v11924-open-queue]',node).forEach(b=>b.onclick=openQueue);
+    $('[data-v11924-open-warehouse]',node).onclick=openWarehouse;
+    $$('[data-v11924-shortcut]',node).forEach(b=>b.onclick=()=>clickExisting([b.dataset.v11924Shortcut]));
+  }
+
+  function styles(){if($('#v11924Styles'))return;const st=document.createElement('style');st.id='v11924Styles';st.textContent=`
+    .v11924-center{display:grid;gap:14px;margin:0 0 22px;font-family:inherit;color:#132f3b}
+    .v11924-hero{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:20px 22px;border:1px solid #d7e4e8;border-radius:20px;background:linear-gradient(135deg,#f7fbfc,#fff);box-shadow:0 7px 24px rgba(20,53,68,.05)}
+    .v11924-kicker{display:block;font-size:9px;font-weight:950;letter-spacing:.09em;color:#1475cf}.v11924-hero h1{margin:4px 0 4px;font-size:26px;line-height:1.15}.v11924-hero p{margin:0;color:#617984;font-size:12px;line-height:1.45}.v11924-hero-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.v11924-hero button,.v11924-section-title button,.v11924-shortcuts button,.v11924-empty button,.v11924-kpis button{min-height:44px;border-radius:12px;padding:10px 15px;font-size:12px;font-weight:900;cursor:pointer}.v11924-primary{border:0;background:#0b76d1;color:#fff}.v11924-dark{border:0;background:#17394a;color:#fff}
+    .v11924-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.v11924-kpis article{min-height:126px;padding:16px;border:1px solid #dbe7ea;border-radius:16px;background:#fff}.v11924-kpis article>span{display:block;font-size:9px;font-weight:950;letter-spacing:.05em;color:#6d838d}.v11924-kpis article>b{display:block;margin-top:7px;font-size:27px}.v11924-kpis article>small{display:block;margin-top:6px;font-size:10px;line-height:1.4;color:#71858e}.v11924-kpis article.ok{border-color:#abdac8;background:#f7fcfa}.v11924-kpis article.warn{border-color:#ead69f;background:#fffaf0}.v11924-kpis article.risk{border-color:#e7b2b5;background:#fff7f7}.v11924-kpis article button{margin-top:8px;min-height:30px;padding:5px 8px;border:0;background:transparent;color:#0b76d1;font-size:10px}
+    .v11924-live{border:1px solid #dbe7ea;border-radius:18px;background:#fff;overflow:hidden}.v11924-section-title{padding:16px 18px;display:flex;justify-content:space-between;gap:18px;align-items:center;border-bottom:1px solid #e6edef}.v11924-section-title span{font-size:9px;font-weight:950;letter-spacing:.07em;color:#1475cf}.v11924-section-title h2{margin:3px 0;font-size:19px}.v11924-section-title p{margin:0;color:#71858e;font-size:10px}.v11924-section-title button{border:1px solid #d2e0e5;background:#fff;color:#17394a;min-height:38px}
+    .v11924-orders-head,.v11924-order-row{display:grid;grid-template-columns:minmax(220px,1.5fr) .65fr .65fr .65fr .75fr 1fr;gap:12px;align-items:center;padding:10px 18px}.v11924-orders-head{background:#f5f8f9;font-size:9px;font-weight:950;color:#6a8089}.v11924-order-row{border-top:1px solid #edf2f3;font-size:11px}.v11924-order-row>div:first-child b{display:block;font-size:11px}.v11924-order-row>div:first-child small{display:block;margin-top:3px;color:#758991;font-size:9px}.v11924-order-row strong{font-size:12px}.v11924-order-row strong.warn{color:#b96f17}.v11924-order-row strong.ok{color:#24725a}.v11924-progress{height:24px;background:#eef3f5;border-radius:999px;position:relative;overflow:hidden}.v11924-progress i{display:block;height:100%;background:#77bba4}.v11924-progress span{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:950}.v11924-empty{padding:20px;display:flex;align-items:center;gap:15px}.v11924-empty b{font-size:13px}.v11924-empty span{flex:1;font-size:10px;color:#71858e}.v11924-empty button{border:1px solid #d2e0e5;background:#fff;color:#17394a}
+    .v11924-shortcuts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 15px;border:1px solid #dbe7ea;border-radius:16px;background:#f9fbfc}.v11924-shortcuts>div{margin-right:auto}.v11924-shortcuts>div span{display:block;font-size:8px;font-weight:950;color:#1475cf}.v11924-shortcuts>div b{display:block;margin-top:2px;font-size:11px}.v11924-shortcuts button{min-height:36px;border:1px solid #d4e1e5;background:#fff;color:#17394a;padding:7px 10px;font-size:10px}
+    .v11924-modal{position:fixed;inset:0;z-index:999999;background:rgba(13,30,38,.58);display:none;align-items:center;justify-content:center;padding:18px}.v11924-modal.open{display:flex}.v11924-modal-card{position:relative;width:min(1050px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:22px;box-shadow:0 26px 80px rgba(0,0,0,.26)}.v11924-modal-card h2{font-size:24px;margin:4px 0}.v11924-modal-card>p{margin:0 0 14px;color:#687e87;font-size:11px}.v11924-x{position:absolute;right:15px;top:11px;border:0;background:transparent;font-size:26px;cursor:pointer}.v11924-truck-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.v11924-truck-fields label,.v11924-notes{font-size:9px;font-weight:900;color:#627985}.v11924-truck-fields input,.v11924-notes textarea,.v11924-truck-row input[type=number]{display:block;width:100%;margin-top:5px;border:1px solid #d4e1e5;border-radius:9px;padding:9px;font:inherit}.v11924-truck-items{margin-top:14px;border:1px solid #dde8eb;border-radius:12px;overflow:hidden}.v11924-truck-row{display:grid;grid-template-columns:1.7fr .5fr .55fr .65fr;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid #edf2f3}.v11924-truck-row:first-child{border-top:0}.v11924-truck-row label:first-child{display:grid;grid-template-columns:auto 1fr;gap:0 8px;align-items:center}.v11924-truck-row label:first-child input{grid-row:1/3}.v11924-truck-row label:first-child span{font-size:9px;color:#71858e}.v11924-truck-row small{display:block;font-size:8px;color:#71858e}.v11924-truck-empty{padding:18px;color:#71858e;font-size:10px}.v11924-notes{display:block;margin-top:12px}.v11924-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:14px}.v11924-modal-actions button{min-height:42px;padding:9px 15px;border-radius:10px;font-weight:900;cursor:pointer}.v11924-secondary{background:#fff;border:1px solid #d4e1e5;color:#17394a}
+    @media(max-width:1050px){.v11924-kpis{grid-template-columns:1fr 1fr}.v11924-orders-head{display:none}.v11924-order-row{grid-template-columns:1.5fr repeat(4,.7fr);}.v11924-order-row .v11924-progress{grid-column:1/-1}.v11924-truck-fields{grid-template-columns:1fr 1fr}}
+    @media(max-width:720px){.v11924-hero{display:block}.v11924-hero-actions{margin-top:13px;justify-content:stretch}.v11924-hero-actions button{flex:1}.v11924-kpis{grid-template-columns:1fr}.v11924-order-row{grid-template-columns:1fr 1fr}.v11924-order-row>div:first-child{grid-column:1/-1}.v11924-section-title{align-items:flex-start}.v11924-truck-fields,.v11924-truck-row{grid-template-columns:1fr}.v11924-shortcuts{align-items:stretch}.v11924-shortcuts>div{width:100%}.v11924-shortcuts button{flex:1}}
+  `;document.head.appendChild(st)}
+
+  function boot(){
+    styles();
+    ensureTruckModal();
+    // Aggancia l'ingresso nell'area Responsabile Produzione Multiplast.
+    // La dashboard Roberto viene attivata ad ogni ingresso, anche se la sessione
+    // precedente era rimasta su una pagina amministrativa.
+    try{
+      if(window.POIV113?.enterOfficeRole && !window.POIV113.enterOfficeRole.__v119242Wrapped){
+        const original=window.POIV113.enterOfficeRole.bind(window.POIV113);
+        const wrapped=function(r){
+          const out=original(r);
+          if(String(r).toLowerCase()==='manager'){
+            [120,420,900,1600].forEach(ms=>setTimeout(ensureRobertoLanding,ms));
+          }
+          return out;
+        };
+        wrapped.__v119242Wrapped=true;
+        window.POIV113.enterOfficeRole=wrapped;
+        if(window.POIV112)window.POIV112.enterOfficeRole=wrapped;
+      }
+    }catch(e){console.warn('[V11.9.24.2] hook ingresso Roberto',e)}
+    let timer;
+    const tick=()=>{clearTimeout(timer);timer=setTimeout(ensureRobertoLanding,180)};
+    // HOTFIX V11.9.24.1: observe only structural DOM changes. Watching style/class
+    // attributes created a feedback loop with our own rendering/hide operations.
+    const mo=new MutationObserver(tick);
+    mo.observe(document.documentElement,{subtree:true,childList:true});
+    document.addEventListener('click',()=>setTimeout(ensureRobertoLanding,120),true);
+    window.addEventListener('spmp:truckloads:changed',()=>render(true));
+    [250,700,1400,2600].forEach(ms=>setTimeout(ensureRobertoLanding,ms));
+    // Lightweight refresh only; do not continuously rebuild the whole dashboard.
+    setInterval(()=>{
+      if(!isRoberto())return;
+      const center=$('[data-v11924-center]');
+      if(!center){render(false);return;}
+      try{
+        const sm=productionSummary();
+        const orders=$('.v11924-orders',center);
+        if(orders)orders.innerHTML=ordersHTML(sm.os);
+        $$('[data-v11924-open-queue]',center).forEach(b=>b.onclick=openQueue);
+      }catch(e){console.warn('[V11.9.24.2] refresh Roberto',e)}
+    },20000);
+  }
+  window.SPRobertoOpsV11924={version:VERSION,render,newTruckLoad:newLoad,orders:liveOrders,loads};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
