@@ -1,0 +1,7 @@
+SP-MP MAIN V11.9.53 — MISCELE CONSOLIDATE
+
+- Rimossi dal caricamento i vecchi worker-mixtures-v11.9.49.js e worker-mixture-actions-fix-v11.9.52.js.
+- Nuovo unico modulo worker-mixtures-core-v11.9.53.js.
+- API disponibile immediatamente, senza dipendenza da inizializzazioni precedenti.
+- Nuova miscela, modifica, elimina e assegna ordine gestiti dallo stesso modulo.
+- Compatibilità mantenuta tramite alias window.SPWorkerMixtures11949.
