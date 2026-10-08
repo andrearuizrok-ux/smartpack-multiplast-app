@@ -4953,7 +4953,7 @@
       sales:prefixTotal(company,['70'],p),
       closing:prefixTotal(company,['71'],p),
       otherRevenue:prefixTotal(company,['73'],p),
-      opening:prefixTotal(company,['75'],p),
+      opening:prefixTotal(company,['72'],p),
       materialsTotal:num(r.materials),
       personnel:num(r.personnel),
       energy:num(r.energy),
@@ -4970,9 +4970,9 @@
     const a=automaticParts(company,p);
     const m=manualInv(company,p);
 
-    // 72 + 75 sono stati aggregati insieme in materials.
+    // 72 (rimanenze iniziali) + 75 (acquisti) sono aggregati in materials.
     // Per sostituire correttamente le rimanenze iniziali manuali:
-    // togliamo il 75 automatico e aggiungiamo il valore manuale.
+    // togliamo il 72 automatico e aggiungiamo il valore manuale.
     const purchasesExOpening=a.materialsTotal-a.opening;
     const opening=m.enabled?m.opening:a.opening;
     const closing=m.enabled?m.closing:a.closing;

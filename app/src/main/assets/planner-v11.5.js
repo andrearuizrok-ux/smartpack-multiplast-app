@@ -5607,6 +5607,9 @@
   }
 
   function aggregate(snapshot,prev,mappings){
+    /* V11.9.46 — riclassificazione canonica SPRING.
+       Le principali voci di Conto Economico sono determinate dai codici conto,
+       non da mapping manuali che possono duplicare o spostare importi. */
     const values={
       revenue:0,materials:0,personnel:0,energy:0,transport:0,otherOpex:0,depreciation:0,
       extraordinaryIncome:0,financialCharges:0,taxes:0,
@@ -5614,22 +5617,44 @@
     };
     const prevMap=snapshotAccountMap(prev);
     const mode=snapshot.mode;
+    const pref=(a,p)=>{const c=String(a?.code||'').trim();return c===p||c.startsWith(p+'.')};
+    const flow=a=>{
+      let v=Number.isFinite(Number(a?.signedAmount))?Number(a.signedAmount):amountForCategory(a,'materials');
+      if(mode==='cumulative'&&prev){
+        const pa=prevMap.get(keyOf(a));
+        if(pa){
+          const old=Number.isFinite(Number(pa?.signedAmount))?Number(pa.signedAmount):amountForCategory(pa,'materials');
+          v-=old;
+        }
+      }
+      return v;
+    };
 
+    // P&L canonico: una riga può entrare in una sola voce.
+    for(const a of snapshot.accounts){
+      const d=String(a?.description||'').toLowerCase();
+      const v=flow(a);
+      if(pref(a,'70')) values.revenue+=v;
+      else if(pref(a,'72')||pref(a,'75')) values.materials+=v;
+      else if(pref(a,'81')) values.personnel+=v;
+      else if(pref(a,'90')) values.depreciation+=v;
+      else if(pref(a,'87')) values.extraordinaryIncome+=v;
+      else if(pref(a,'86')) values.financialCharges+=v;
+      else if(pref(a,'93')) values.taxes+=v;
+      else if(pref(a,'76')){
+        if(pref(a,'76.03')||pref(a,'76.05')||/trasport|spedizion/.test(d)) values.transport+=v;
+        else if(/energia elettrica|acqua potabile|\\bgas\\b|metano/.test(d)) values.energy+=v;
+        else values.otherOpex+=v;
+      }
+      else if(pref(a,'77')||pref(a,'78')||pref(a,'79')||pref(a,'80')||pref(a,'83')) values.otherOpex+=v;
+    }
+
+    // Stato patrimoniale: mantiene mapping/fallback esistente.
     for(const a of snapshot.accounts){
       const cat=mappings[keyOf(a)]||a.category||'';
-      if(!cat)continue;
+      if(!STOCK.has(cat))continue;
       const curr=amountForCategory(a,cat);
-      if(FLOW.has(cat)){
-        let value=curr;
-        if(mode==='cumulative' && prev){
-          const pa=prevMap.get(keyOf(a));
-          const old=pa?amountForCategory(pa,cat):0;
-          value=curr-old;
-        }
-        values[cat]+=value;
-      }else if(STOCK.has(cat)){
-        values[cat]+=curr;
-      }
+      values[cat]+=curr;
     }
     return values;
   }
