@@ -1,0 +1,20 @@
+SP-MP MAIN V11.9.54 — FIX DEFINITIVO CLICK MISCELE
+
+Causa trovata:
+La dashboard V11.9.51 usa pulsanti con:
+- data-wd52-new-mix
+- data-wd52-edit
+- data-wd52-remove
+- data-wd52-assign
+
+Il listener che li gestiva era nel vecchio file V11.9.52, poi rimosso durante il consolidamento.
+
+Correzione:
+Il modulo consolidato worker-mixtures-core-v11.9.54.js gestisce direttamente tutti i click.
+Non dipende più da worker-mixture-actions-fix-v11.9.52.js.
+
+Funzioni gestite direttamente:
+- Nuova miscela
+- Modifica
+- Elimina
+- Seleziona/Cambia miscela
