@@ -1,0 +1,22 @@
+SP-MP MAIN V11.9.42 — ECONOMICO-FINANZIARIO NATIVO + STORICO VERSIONATO
+
+Correzioni:
+- Disabilitato admin-management-analysis-v11.9.40 che interferiva con la pagina Finance nativa.
+- Riattivato il motore Finance SPRING nativo della piattaforma.
+- Le importazioni SPRING non sovrascrivono più fisicamente la versione precedente:
+  restano versionate nello storico.
+- L'ultima versione di un periodo è quella usata nei calcoli.
+- Storico bilanci con:
+  * file
+  * azienda
+  * periodo
+  * tipo (annuale/progressivo/mese)
+  * data importazione
+  * numero conti
+  * stato attivo/storico
+  * pulsante Elimina
+- Se si elimina la versione attiva, il sistema rimuove i dati derivati del periodo e
+  ricostruisce automaticamente dai bilanci ancora presenti. Se esiste una versione
+  precedente dello stesso periodo, torna a essere quella attiva.
+- NOMYRA Finance è soltanto un link di approfondimento:
+  https://nomyra-finance.pages.dev/
