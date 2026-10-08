@@ -1,0 +1,22 @@
+SP-MP MAIN V11.9.46 — FIX CONTABILE DIRETTO
+
+Base: V11.9.44 (pagina Finance funzionante).
+Nessun nuovo renderer o overlay aggiunto.
+
+Correzioni nel motore esistente:
+- Rimanenze iniziali: conto 72 (prima veniva letto erroneamente il 75).
+- Materiali/costi acquisto: 72 + 75.
+- Personale: 81.
+- Servizi: 76, con energia e trasporti separati senza duplicazioni.
+- Altri costi operativi: residuo 76 + 77 + 78 + 79 + 80 + 83.
+- Ammortamenti: 90.
+- Proventi straordinari: 87.
+- Oneri finanziari: 86.
+- Imposte: 93.
+
+Test Multiplast 2025 atteso:
+Valore produzione 2.042.350,58
+Costi operativi 1.743.606,82
+EBITDA 298.743,76
+EBIT -19.237,63
+Utile 28.256,41

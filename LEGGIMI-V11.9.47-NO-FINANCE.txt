@@ -1,0 +1,16 @@
+SP-MP MAIN V11.9.47 — AMMINISTRAZIONE SENZA FINANCE
+
+Temporaneamente rimosso dall'area Amministrazione:
+- voce menu Economico-finanziario
+- analisi bilanci
+- KPI economici
+- EBITDA / EBIT / utile
+- storico bilanci
+- pulsanti Importa Bilancio SPRING
+- riferimenti NOMYRA Finance
+- blocchi economici nella Panoramica
+
+Restano invariati tutti gli altri moduli Amministrazione.
+
+Il codice Finance resta nel progetto ma non viene mostrato né utilizzato dall'utente,
+così potrà essere sistemato successivamente senza bloccare la consegna.
