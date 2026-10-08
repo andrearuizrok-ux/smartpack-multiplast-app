@@ -1,0 +1,7 @@
+SP-MP MAIN V11.9.41 — FIX RESPONSABILE PRODUZIONE MULTIPLAST
+
+Correzione mirata:
+- Il blocco "Centro operativo Roberto" non viene più renderizzato in Multiplast.
+- La dashboard Responsabile Produzione Multiplast mostra soltanto i moduli e i dati Multiplast già esistenti.
+- Il Centro operativo Roberto resta limitato esclusivamente a Gestione Smart Pack.
+- Nessuna logica di produzione Multiplast, fogli turno, prodotti finiti, materie prime, miscele, tracciabilità o analisi produttiva è stata modificata.

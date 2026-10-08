@@ -6149,7 +6149,7 @@
 (()=>{
   'use strict';
   if(window.SPRobertoOpsV11924)return;
-  const VERSION='V11.9.24.2';
+  const VERSION='V11.9.24';
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6160,12 +6160,21 @@
   const DISMISSED_ADMIN=['scadenze','compliance'];
   const PROTECTED=['coda roberto','magazzino interno','ordini iml','giacenze iml','tracciabil'];
 
-  function role(){
-    try{if(typeof currentRole!=='undefined'&&currentRole)return String(currentRole).toLowerCase()}catch(_){}
-    for(const k of ROLE_KEYS){const v=sessionStorage.getItem(k)||localStorage.getItem(k);if(v)return String(v).toLowerCase()}
-    return ''
+  function role(){for(const k of ROLE_KEYS){const v=sessionStorage.getItem(k)||localStorage.getItem(k);if(v)return String(v).toLowerCase()}return ''}
+  function currentOpsCompany(){
+    for(const k of ['poi_v113_company','nomyra_group_company_v92','poi_v1180_company','v11920-company','v11921-auto-company']){
+      const v=sessionStorage.getItem(k)||localStorage.getItem(k);
+      if(v&&/smartpack|multiplast/i.test(String(v)))return String(v).toLowerCase();
+    }
+    const brand=(document.querySelector('#sideName,.side-name,[data-company-name],aside')?.textContent||'').toLowerCase();
+    if(brand.includes('multiplast'))return 'multiplast';
+    if(brand.includes('smart pack')||brand.includes('smartpack'))return 'smartpack';
+    return '';
   }
-  function isRoberto(){return role()==='manager'}
+  function isRoberto(){
+    const c=currentOpsCompany();
+    return role()==='manager' && c==='smartpack';
+  }
   function visible(el){if(!el)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0}
   function clean(t){return String(t||'').replace(/\s+/g,' ').trim()}
   function text(el){return clean(el?.innerText||el?.textContent||'')}
@@ -6173,14 +6182,7 @@
   function findAction(label){
     const q=label.toLowerCase();
     const nodes=$$('button,a,[role="button"],[onclick]');
-    // HOTFIX V11.9.24.1: never resolve an action to one of this module's own
-    // buttons, otherwise clickExisting() recursively clicks itself.
-    return nodes.find(el=>
-      visible(el) &&
-      !el.closest('[data-v11924-center]') &&
-      !el.closest('#v11924TruckModal') &&
-      text(el).toLowerCase().includes(q)
-    );
+    return nodes.find(el=>visible(el)&&text(el).toLowerCase().includes(q));
   }
   function clickExisting(labels){
     for(const l of labels){const el=findAction(l);if(el){el.click();return true}}
@@ -6192,7 +6194,7 @@
     $$('nav a,nav button,aside a,aside button,[class*="menu"] a,[class*="menu"] button,[class*="nav"] a,[class*="nav"] button').forEach(el=>{
       const t=text(el).toLowerCase();
       if(PROTECTED.some(x=>t.includes(x)))return;
-      if(DISMISSED_ADMIN.some(x=>t===x||t.startsWith(x+' ')||t.includes(' '+x))){el.dataset.v11924AdminHidden='1';el.style.setProperty('display','none','important');el.setAttribute('aria-hidden','true')}
+      if(DISMISSED_ADMIN.some(x=>t===x||t.startsWith(x+' ')||t.includes(' '+x))){el.dataset.v11924AdminHidden='1';el.style.display='none'}
     });
   }
 
@@ -6320,7 +6322,6 @@
       </div>
       <div class="v11924-shortcuts">
         <div><span>ACCESSI RAPIDI</span><b>Le funzioni che Roberto usa ogni giorno</b></div>
-        <button data-v11924-open-monitor>Monitor produzione</button>
         <button data-v11924-shortcut="coda roberto">Coda Roberto</button>
         <button data-v11924-shortcut="magazzino interno">Magazzino interno</button>
         <button data-v11924-shortcut="ordini iml">Ordini IML</button>
@@ -6336,39 +6337,26 @@
     const active=$$('.view.active,.page.active,[class*="view"].active').find(el=>visible(el)&&!el.closest('#poi113CompanyGate'));
     return active||null;
   }
-  function isAdminOnlyScreen(host){
+  function isOperationalScreen(host){
     if(!host)return false;
-    const t=(text($('#pageTitle'))+' '+text(host).slice(0,1500)).toLowerCase();
-    return /scadenze\s*&?\s*compliance|visite mediche|formazione.*certificazioni/.test(t);
-  }
-  function openMonitor(){
-    // Mantiene il Monitor produzione esistente: non crea una seconda copia.
-    return clickExisting(['monitor produzione','analisi produzione','controllo produzione']);
-  }
-  function ensureRobertoLanding(){
-    if(!isRoberto())return;
-    hideAdminOnly();
-    const host=findHost();
-    if(isAdminOnlyScreen(host)){
-      // Se una vecchia sessione ha lasciato Roberto in una pagina amministrativa,
-      // riportalo al monitor produttivo anziché mostrare Compliance.
-      if(openMonitor())return;
-    }
-    render(false);
+    const t=text(host).toLowerCase();
+    if(/accesso operativo|area uffici|accedi alla piattaforma/.test(t))return false;
+    return /pressa|produzione|dashboard|coda roberto|pianificazione|multiplast/.test(t);
   }
   function render(force=false){
     hideAdminOnly();
+    if(currentOpsCompany()==='multiplast'){
+      $$('[data-v11924-center]').forEach(x=>x.remove());
+      return;
+    }
     if(!isRoberto()){$$('[data-v11924-center]').forEach(x=>x.remove());return}
-    const host=findHost();if(!host)return;
-    // Per Roberto il Centro operativo è il primo blocco dell'area di lavoro.
-    // Non dipende più dalle parole presenti nella pagina corrente.
+    const host=findHost();if(!isOperationalScreen(host))return;
     const old=$('[data-v11924-center]',host);
     if(old&&!force)return;
     const box=document.createElement('div');box.innerHTML=dashboardHTML();const node=box.firstElementChild;
     if(old)old.replaceWith(node);else host.prepend(node);
     $('[data-v11924-production-sheet]',node).onclick=openProductionSheet;
     $('[data-v11924-new-truck]',node).onclick=newLoad;
-    $('[data-v11924-open-monitor]',node).onclick=openMonitor;
     $$('[data-v11924-open-queue]',node).forEach(b=>b.onclick=openQueue);
     $('[data-v11924-open-warehouse]',node).onclick=openWarehouse;
     $$('[data-v11924-shortcut]',node).forEach(b=>b.onclick=()=>clickExisting([b.dataset.v11924Shortcut]));
@@ -6387,49 +6375,7 @@
     @media(max-width:720px){.v11924-hero{display:block}.v11924-hero-actions{margin-top:13px;justify-content:stretch}.v11924-hero-actions button{flex:1}.v11924-kpis{grid-template-columns:1fr}.v11924-order-row{grid-template-columns:1fr 1fr}.v11924-order-row>div:first-child{grid-column:1/-1}.v11924-section-title{align-items:flex-start}.v11924-truck-fields,.v11924-truck-row{grid-template-columns:1fr}.v11924-shortcuts{align-items:stretch}.v11924-shortcuts>div{width:100%}.v11924-shortcuts button{flex:1}}
   `;document.head.appendChild(st)}
 
-  function boot(){
-    styles();
-    ensureTruckModal();
-    // Aggancia l'ingresso nell'area Responsabile Produzione Multiplast.
-    // La dashboard Roberto viene attivata ad ogni ingresso, anche se la sessione
-    // precedente era rimasta su una pagina amministrativa.
-    try{
-      if(window.POIV113?.enterOfficeRole && !window.POIV113.enterOfficeRole.__v119242Wrapped){
-        const original=window.POIV113.enterOfficeRole.bind(window.POIV113);
-        const wrapped=function(r){
-          const out=original(r);
-          if(String(r).toLowerCase()==='manager'){
-            [120,420,900,1600].forEach(ms=>setTimeout(ensureRobertoLanding,ms));
-          }
-          return out;
-        };
-        wrapped.__v119242Wrapped=true;
-        window.POIV113.enterOfficeRole=wrapped;
-        if(window.POIV112)window.POIV112.enterOfficeRole=wrapped;
-      }
-    }catch(e){console.warn('[V11.9.24.2] hook ingresso Roberto',e)}
-    let timer;
-    const tick=()=>{clearTimeout(timer);timer=setTimeout(ensureRobertoLanding,180)};
-    // HOTFIX V11.9.24.1: observe only structural DOM changes. Watching style/class
-    // attributes created a feedback loop with our own rendering/hide operations.
-    const mo=new MutationObserver(tick);
-    mo.observe(document.documentElement,{subtree:true,childList:true});
-    document.addEventListener('click',()=>setTimeout(ensureRobertoLanding,120),true);
-    window.addEventListener('spmp:truckloads:changed',()=>render(true));
-    [250,700,1400,2600].forEach(ms=>setTimeout(ensureRobertoLanding,ms));
-    // Lightweight refresh only; do not continuously rebuild the whole dashboard.
-    setInterval(()=>{
-      if(!isRoberto())return;
-      const center=$('[data-v11924-center]');
-      if(!center){render(false);return;}
-      try{
-        const sm=productionSummary();
-        const orders=$('.v11924-orders',center);
-        if(orders)orders.innerHTML=ordersHTML(sm.os);
-        $$('[data-v11924-open-queue]',center).forEach(b=>b.onclick=openQueue);
-      }catch(e){console.warn('[V11.9.24.2] refresh Roberto',e)}
-    },20000);
-  }
+  function boot(){styles();ensureTruckModal();let timer;const tick=()=>{clearTimeout(timer);timer=setTimeout(()=>render(false),120)};const mo=new MutationObserver(tick);mo.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style']});document.addEventListener('click',()=>setTimeout(()=>render(false),80),true);window.addEventListener('spmp:truckloads:changed',()=>render(true));[300,900,1800,3500].forEach(ms=>setTimeout(()=>render(false),ms));setInterval(()=>{if(isRoberto())render(true)},15000)}
   window.SPRobertoOpsV11924={version:VERSION,render,newTruckLoad:newLoad,orders:liveOrders,loads};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
