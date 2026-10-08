@@ -3034,6 +3034,11 @@ window.SPProductionV104={gross:gross104,net:net104,pct:pct104,saveProgress:saveP
 })();
 </script>
 <script src="smartpack-v11.js"></script>
+<script>
+/* V11.9.43: disable obsolete embedded Finance live connector.
+   SP-MP uses native SPRING analysis; NOMYRA Finance is only a deep-link. */
+window.SPNomyraFinanceLiveV11923={disabled:true};
+</script>
 <script src="access-v11.5.js"></script>
 <script src="planner-v11.5.js"></script>
 <script src="smartpack-management-v11.9.28.js"></script>
@@ -3044,4 +3049,5 @@ window.SPProductionV104={gross:gross104,net:net104,pct:pct104,saveProgress:saveP
 <script src="roberto-operational-readability-v11.9.35.js"></script>
 <script src="client-initialization-finance-dashboard-v11.9.36.js"></script>
 <script src="finance-history-v11.9.42.js"></script>
+<script src="finance-native-controller-v11.9.43.js"></script>
 </body></html>

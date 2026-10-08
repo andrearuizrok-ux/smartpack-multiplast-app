@@ -36,14 +36,11 @@ function openFinance(){
   try{if(typeof navTo==='function')navTo('finance')}catch(_){}
 }
 function patchAdminDashboard(){
-  const view=$('#adminOverviewV1170View');if(!view||!view.classList.contains('active'))return;
-  // Rimuove l'intero blocco economico legacy per impedire la ricomparsa di bilanci locali.
-  const old=$('.v1182-economic-panel',view);if(old){const tmp=document.createElement('div');tmp.innerHTML=financePanelHTML();old.replaceWith(tmp.firstElementChild)}
-  // Anche il confronto aziende conteneva EBIT/Ricavi locali: lo rendiamo neutro.
-  const compare=$('.v1182-company-compare',view);
-  if(compare){compare.innerHTML=`<button data-v11936-openfinance><span>SMART PACK</span><b>NOMYRA Finance</b><small>Dati economici disponibili solo dalla fonte Finance ufficiale.</small></button><button data-v11936-openfinance><span>MULTIPLAST</span><b>NOMYRA Finance</b><small>Apri Finance per consultare i dati autorizzati.</small></button>`}
-  $$('[data-v11936-openfinance]',view).forEach(b=>b.onclick=openFinance);
+  // V11.9.43: dashboard economica gestita dai moduli SPRING nativi.
+  // Questa patch resta attiva soltanto per la funzione di inizializzazione/azzeramento cliente.
+  return;
 }
+
 
 const CLEAR_ARRAYS=[
  'orders','production','lidProduction','imlMovements','materialIn','materialOut','mixes','audit','imlPurchaseOrders','productionSheets',
