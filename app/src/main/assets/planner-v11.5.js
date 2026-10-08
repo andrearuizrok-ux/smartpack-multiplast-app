@@ -5876,10 +5876,14 @@
       }))
     };
 
-    // Sostituisce una precedente importazione dello stesso periodo/azienda.
-    state.financeSpringV1173.snapshots=state.financeSpringV1173.snapshots.filter(x=>!(x.company===company&&x.period===period));
+    // V11.9.42: mantiene tutte le versioni caricate.
+    // Il motore usa sempre l'ultima versione del periodo, ma lo storico resta disponibile
+    // e una versione precedente può tornare attiva se l'ultima viene eliminata.
     state.financeSpringV1173.snapshots.push(snapshot);
-    state.financeSpringV1173.snapshots.sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+    state.financeSpringV1173.snapshots.sort((a,b)=>
+      String(a.period).localeCompare(String(b.period)) ||
+      String(a.importedAt||a.id||'').localeCompare(String(b.importedAt||b.id||''))
+    );
 
     const result=applySnapshotToFinance(snapshot);
     state.financeSpringV1173.imports.unshift({
