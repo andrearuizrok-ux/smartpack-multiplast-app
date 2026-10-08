@@ -1,0 +1,10 @@
+SP-MP MAIN V11.9.50 — MAGAZZINO COLLEGATO A PRODUZIONE E MISCELE
+
+- Consumo = pezzi netti prodotti × peso g/pezzo / 1000.
+- Ripartizione del consumo secondo le percentuali della miscela associata al run.
+- Scarico automatico FIFO dai lotti di materia prima.
+- Nessun doppio scarico: viene riconciliato il cumulativo già contabilizzato.
+- Se il netto prodotto viene corretto verso il basso, il sistema genera movimenti di rettifica e ripristina i lotti.
+- Se manca miscela, peso unitario, composizione 100% o stock sufficiente: nessun movimento inventato; compare “Consumo da verificare”.
+- Nuova sezione Materie prime con consumi ultimi 30 giorni, problemi aperti, ultimi scarichi e regole di calcolo.
+- Movimenti tracciati con ordine, run, miscela, materiale, lotto, operatore e data/ora.

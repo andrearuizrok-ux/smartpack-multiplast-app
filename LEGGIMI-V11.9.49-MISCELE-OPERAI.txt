@@ -1,0 +1,16 @@
+SP-MP MAIN V11.9.49 — MISCELE NEL MODULO OPERAI
+
+- Nuova sezione "Miscele di lavoro" nel Monitor produzione degli operai.
+- Le materie prime delle miscele possono essere selezionate solo dal magazzino materie prime esistente.
+- Ogni miscela richiede componenti e percentuali con totale = 100%.
+- Mostra la disponibilità kg per ogni componente e la quantità potenziale di miscela producibile.
+- Ogni ordine/run in coda o in produzione mostra la miscela associata.
+- L'avvio di una produzione senza miscela apre obbligatoriamente la selezione miscela.
+- La miscela viene registrata su:
+  * productionRun
+  * ordine
+  * foglio produzione
+  * righe foglio
+  * productionEvents / tracciabilità
+- Operatore e data/ora dell'assegnazione vengono registrati automaticamente.
+- La selezione miscela NON scarica subito il magazzino: il consumo dovrà essere legato alla quantità realmente prodotta.
