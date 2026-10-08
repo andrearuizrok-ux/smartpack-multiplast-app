@@ -1,0 +1,35 @@
+SP-MP MAIN V11.9.56 — CONSEGNA CLIENTE PULITA
+
+AL PRIMO AVVIO VIENE ESEGUITA UNA SOLA PULIZIA OPERATIVA.
+
+MANTENUTI:
+- anagrafiche clienti
+- anagrafiche fornitori
+- listini e configurazioni commerciali
+- prodotti
+- presse / stampi
+- utenti e accessi
+- configurazione azienda
+- catalogo IML (codici/descrizioni)
+
+AZZERATI:
+- ordini e registro operativo
+- produzione / run / eventi / fogli
+- Coda Roberto / planner operativo
+- carichi / spedizioni / DDT operativi
+- magazzino prodotti finiti
+- lotti e movimenti materie prime
+- miscele create durante i test
+- tracciabilità operativa / audit demo
+- bozze ordini email demo
+- ordini IML e movimenti IML
+- comunicazioni demo
+- scadenze/compliance demo
+- vecchi dati Finance locali
+
+IML:
+Il catalogo IML viene mantenuto, ma le quantità fisiche/prenotate/in arrivo vengono azzerate.
+Il cliente può quindi inserire la giacenza reale aggiornata senza ricreare i codici IML.
+
+La pulizia viene marcata nello stato condiviso con deliveryInitializedV11956=true,
+quindi NON viene ripetuta dopo che il cliente inizia a inserire dati reali.
