@@ -111,7 +111,7 @@ function mixtureCards(){
     return `<div class="wd51-empty">
       <b>Nessuna miscela registrata</b>
       <span>Crea la prima miscela utilizzando le materie prime già presenti in magazzino.</span>
-      <button class="btn primary" onclick="SPWorkerMixtures11949?.newMix?.()">+ Nuova miscela</button>
+      <button class="btn primary" data-wd52-new-mix>+ Nuova miscela</button>
     </div>`;
   }
   return state.smartPackMixturesV11949.map(m=>`
@@ -128,8 +128,8 @@ function mixtureCards(){
         </div>`).join('')}
       </div>
       <div class="wd51-card-actions">
-        <button class="btn" onclick="SPWorkerMixtures11949?.edit?.('${E(m.id)}')">Modifica</button>
-        <button class="btn danger" onclick="SPWorkerMixtures11949?.remove?.('${E(m.id)}')">Elimina</button>
+        <button class="btn" data-wd52-edit="${E(m.id)}">Modifica</button>
+        <button class="btn danger" data-wd52-remove="${E(m.id)}">Elimina</button>
       </div>
     </article>`).join('');
 }
@@ -149,7 +149,7 @@ function assignmentRows(){
         <b>${m?E(m.name):'Da selezionare'}</b>
         <small>${m?`${mixtureAvailable(m).toLocaleString('it-IT',{maximumFractionDigits:1})} kg potenzialmente disponibili`:'Selezionala prima di avviare la produzione'}</small>
       </div>
-      <button class="btn ${m?'':'primary'}" onclick="SPWorkerMixtures11949?.assign?.('${E(r.id)}')">${m?'Cambia':'Seleziona miscela'}</button>
+      <button class="btn ${m?'':'primary'}" data-wd52-assign="${E(r.id)}">${m?'Cambia':'Seleziona miscela'}</button>
     </article>`;
   }).join('');
 }
@@ -164,7 +164,7 @@ function renderMixtures(){
         <h2>Miscele</h2>
         <p>Crea e gestisci le composizioni utilizzate in reparto. Ogni componente è collegato al magazzino materie prime.</p>
       </div>
-      <button class="btn primary wd51-main-btn" onclick="SPWorkerMixtures11949?.newMix?.()">+ Nuova miscela</button>
+      <button class="btn primary wd51-main-btn" data-wd52-new-mix>+ Nuova miscela</button>
     </section>
 
     <div class="wd51-two-col">
