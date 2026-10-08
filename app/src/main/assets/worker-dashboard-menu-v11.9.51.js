@@ -348,6 +348,6 @@ function boot(){
   [150,500,1200,2400].forEach(ms=>setTimeout(tick,ms));
   setInterval(tick,2500);
 }
-window.SPWorkerDashboardMenu11951={version:'V11.9.51',render:renderCustom,renderDashboard:renderWorkerDashboard,renderMixtures};
+window.SPWorkerDashboardMenu11951={version:'V11.9.51',render:renderCustom,renderDashboard:renderWorkerDashboard,renderMixtures:renderMixtures};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
