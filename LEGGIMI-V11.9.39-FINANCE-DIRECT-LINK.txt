@@ -1,0 +1,13 @@
+SP-MP MAIN V11.9.39 — FINANCE DIRECT LINK
+
+Correzione urgente:
+- Il pulsante Finance non usa più popup/login intermedi SP-MP.
+- 'Apri NOMYRA Finance' apre direttamente il portale ufficiale:
+  https://nomyra-finance.pages.dev/
+- Il link si apre in una nuova scheda per non perdere la sessione SP-MP.
+- Nessuna altra logica della piattaforma è stata modificata.
+
+Nota:
+Questo fix rende affidabile l'accesso al portale Finance.
+La sincronizzazione automatica dei dati dentro SP-MP richiede una API/backend condivisa
+e viene mantenuta separata dal semplice collegamento al portale.

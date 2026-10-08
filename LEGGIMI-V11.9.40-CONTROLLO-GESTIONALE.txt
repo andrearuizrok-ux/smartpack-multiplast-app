@@ -1,0 +1,19 @@
+SP-MP MAIN V11.9.40 — CONTROLLO GESTIONALE AMMINISTRAZIONE
+
+Nuova logica:
+- SP-MP analizza localmente il Bilancio SPRING importato.
+- Il bilancio viene confrontato con ordini e produzione corrente.
+- KPI gestionali: ricavi, costi, EBITDA, margine, ordini aperti, avanzamento produzione.
+- Indicatori per pezzo prodotto: ricavo, costo operativo, EBITDA.
+- Obiettivi modificabili e salvabili per periodo:
+  * ricavi target
+  * EBITDA margin target
+  * completamento ordini target
+  * nota obiettivo
+- Lettura operativa automatica degli scostamenti.
+- Dashboard Amministrazione con sintesi economia + produzione.
+- NOMYRA Finance non viene più collegato/sincronizzato.
+- È presente solo il pulsante: 'Approfondisci su NOMYRA Finance', che apre:
+  https://nomyra-finance.pages.dev/
+
+Il vecchio Finance hard override V11.9.39 non viene più caricato.
