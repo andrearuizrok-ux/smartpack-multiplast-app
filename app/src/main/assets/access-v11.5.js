@@ -6161,7 +6161,20 @@
   const PROTECTED=['coda roberto','magazzino interno','ordini iml','giacenze iml','tracciabil'];
 
   function role(){for(const k of ROLE_KEYS){const v=sessionStorage.getItem(k)||localStorage.getItem(k);if(v)return String(v).toLowerCase()}return ''}
-  function isRoberto(){return role()==='manager'}
+  function currentOpsCompany(){
+    for(const k of ['poi_v113_company','nomyra_group_company_v92','poi_v1180_company','v11920-company','v11921-auto-company']){
+      const v=sessionStorage.getItem(k)||localStorage.getItem(k);
+      if(v&&/smartpack|multiplast/i.test(String(v)))return String(v).toLowerCase();
+    }
+    const brand=(document.querySelector('#sideName,.side-name,[data-company-name],aside')?.textContent||'').toLowerCase();
+    if(brand.includes('multiplast'))return 'multiplast';
+    if(brand.includes('smart pack')||brand.includes('smartpack'))return 'smartpack';
+    return '';
+  }
+  function isRoberto(){
+    const c=currentOpsCompany();
+    return role()==='manager' && c==='smartpack';
+  }
   function visible(el){if(!el)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0}
   function clean(t){return String(t||'').replace(/\s+/g,' ').trim()}
   function text(el){return clean(el?.innerText||el?.textContent||'')}
@@ -6332,6 +6345,10 @@
   }
   function render(force=false){
     hideAdminOnly();
+    if(currentOpsCompany()==='multiplast'){
+      $$('[data-v11924-center]').forEach(x=>x.remove());
+      return;
+    }
     if(!isRoberto()){$$('[data-v11924-center]').forEach(x=>x.remove());return}
     const host=findHost();if(!isOperationalScreen(host))return;
     const old=$('[data-v11924-center]',host);
