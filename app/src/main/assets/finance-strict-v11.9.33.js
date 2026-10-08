@@ -49,7 +49,7 @@ async function getClient(){
   if(client)return client;
   const mod=await import('https://esm.sh/@supabase/supabase-js@2');
   client=mod.createClient(FIN_URL,FIN_KEY,{auth:{
-    storageKey:'spmp-nomyra-finance-strict-v11933',
+    storageKey:'spmp-nomyra-finance-v11923',
     persistSession:true,
     autoRefreshToken:true,
     detectSessionInUrl:false
