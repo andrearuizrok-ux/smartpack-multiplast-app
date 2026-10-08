@@ -1,0 +1,78 @@
+name: Build SmartPack Multiplast APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses > /dev/null || true
+          "$SDK_MANAGER" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Verify V11.5 planning package
+        shell: bash
+        run: |
+          test -f app/src/main/assets/index.html
+          test -f app/src/main/assets/smartpack-v11.js
+          test -f app/src/main/assets/access-v11.5.js
+          test -f app/src/main/assets/planner-v11.5.js
+          test -f app/src/main/assets/service-worker.js
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/java/com/smartpackmultiplast/operations/MainActivity.java
+          grep -q 'PIATTAFORMA-GRUPPO-V11.5' app/src/main/assets/index.html
+          grep -q 'PIATTAFORMA-GRUPPO-V11.5' app/src/main/assets/access-v11.5.js
+          grep -q 'PIATTAFORMA-GRUPPO-V11.5' app/src/main/assets/planner-v11.5.js
+          grep -q 'planner-v11.5.js' app/src/main/assets/index.html
+          grep -q 'versionCode = 115' app/build.gradle.kts
+          grep -q 'versionName = "11.5"' app/build.gradle.kts
+
+      - name: Verify JavaScript syntax
+        run: |
+          node --check app/src/main/assets/smartpack-v11.js
+          node --check app/src/main/assets/access-v11.5.js
+          node --check app/src/main/assets/planner-v11.5.js
+          node --check app/src/main/assets/service-worker.js
+
+      - name: Build Android APK
+        run: gradle :app:assembleDebug
+
+      - name: Rename APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk              app/build/outputs/apk/debug/SmartPack-Multiplast-V11.5.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartPack-Multiplast-V11.5-APK
+          path: app/build/outputs/apk/debug/SmartPack-Multiplast-V11.5.apk
+          if-no-files-found: error
+          retention-days: 14
