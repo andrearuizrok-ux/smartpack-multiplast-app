@@ -1,0 +1,28 @@
+SP-MP MAIN V11.9.55 — MISCELE DEFINITIVE
+
+LOGICA DEFINITIVA
+1. L'operaio crea la miscela scegliendo SOLO materie prime con stock disponibile.
+2. Inserisce quantità reali in kg per ogni componente.
+3. Il sistema calcola automaticamente le percentuali.
+4. Viene generato un codice progressivo univoco: MIX-0001, MIX-0002, ...
+5. La miscela salva:
+   - codice
+   - nome
+   - componenti
+   - kg per componente
+   - percentuale calcolata
+   - kg totali del batch
+   - operatore
+   - data/ora
+6. Quando viene selezionata su un ordine, codice + nome + composizione vengono salvati su:
+   - production run
+   - ordine
+   - foglio produzione
+   - righe del foglio
+   - tracciabilità / eventi
+7. Il consumo reale usa la percentuale derivata dai kg della miscela e scarica le materie prime
+   sulla quantità effettivamente prodotta.
+
+PULIZIA
+Sono stati eliminati dalla build i vecchi moduli Miscele V11.9.49, V11.9.52,
+V11.9.53 e V11.9.54 per evitare conflitti futuri.
