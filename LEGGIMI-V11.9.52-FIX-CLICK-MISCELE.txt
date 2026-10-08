@@ -1,0 +1,11 @@
+SP-MP MAIN V11.9.52 — FIX PULSANTI MISCELE
+
+Correzione:
+- "+ Nuova miscela" non usa più onclick inline.
+- Listener JavaScript delegato e robusto.
+- Stessa correzione applicata a:
+  * Nuova miscela
+  * Modifica miscela
+  * Elimina miscela
+  * Seleziona/Cambia miscela
+- Se il modulo non è ancora inizializzato, il sistema attende il caricamento e riprova.
