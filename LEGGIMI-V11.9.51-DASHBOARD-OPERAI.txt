@@ -1,0 +1,30 @@
+SP-MP MAIN V11.9.51 — DASHBOARD E MENU OPERAI
+
+Menu Reparto Produzione:
+1. Panoramica
+2. Produzione
+3. Miscele
+
+Panoramica:
+- operatore attivo
+- produzioni attive
+- miscele ancora da selezionare
+- materiali da verificare
+- comunicazioni da leggere
+- lista breve del lavoro corrente
+- accessi rapidi a Produzione e Miscele
+
+Produzione:
+- mantiene il Monitor produzione e le comunicazioni
+- il blocco di gestione Miscele non viene più mostrato dentro questa pagina
+
+Miscele:
+- pagina autonoma
+- elenco miscele e composizione
+- disponibilità materie prime
+- ordini attivi e miscela associata
+- creazione/modifica/eliminazione miscela
+- selezione miscela per ordine
+
+Tutte le logiche di V11.9.49 e V11.9.50 restano incluse:
+miscela → ordine → produzione → consumo reale → magazzino → tracciabilità.
