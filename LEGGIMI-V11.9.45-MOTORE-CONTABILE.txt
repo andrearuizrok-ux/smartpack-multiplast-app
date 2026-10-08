@@ -1,0 +1,31 @@
+SP-MP MAIN V11.9.45 — MOTORE CONTABILE CANONICO SPRING
+
+Nuova riclassificazione per codici conto:
+VALORE PRODUZIONE
+- 70 Ricavi vendite
+- 71 Rimanenze finali / costruzioni interne
+- 73 Altri ricavi e proventi
+
+COSTI OPERATIVI
+- 72 Rimanenze iniziali
+- 75 Acquisti beni
+- 76 Servizi
+- 77 Gestione veicoli
+- 78 Lavoro non dipendente
+- 79 Spese amministrative/commerciali
+- 80 Godimento beni di terzi
+- 81 Personale
+- 83 Oneri diversi di gestione
+
+DOPO EBITDA
+- 90 Ammortamenti
+- 87 Proventi straordinari
+- 86 Oneri finanziari
+- 93 Imposte
+
+Formule:
+EBITDA = Valore produzione - Costi operativi
+EBIT = EBITDA - Ammortamenti
+Risultato esercizio = EBIT + Proventi straordinari - Oneri finanziari - Imposte
+
+Il risultato ricostruito viene confrontato con il risultato ufficiale SPRING se presente.
