@@ -47,8 +47,7 @@ const CLEAR_ARRAYS=[
  'deliveryRecords','productionRuns','productionEvents','loadingSheetsV106','loadingSheetsV1167','finishedGoodsLots','finishedGoodsMovements',
  'rawMaterialLots','rawMaterialMovements','warehouseAllocations','warehousePreparationEvents','truckLoads','plannerHistoryV115',
  'scheduledMoldChangesV11931','emailOrderDraftsV115','emailIMLConfirmationsV1163','supplierPayments','deletedOrders','machineDowntime',
- 'complianceRecords','directorMessages','importHistoryV116','imlUsageEvents','clientDirectory','clients','supplierDirectory','customerPrices',
- 'supplierPrices','clientPriceListAssignments','priceLists','priceListItems'
+ 'complianceRecords','directorMessages','importHistoryV116','imlUsageEvents'
 ];
 const OPTIONAL_CONFIG=['products','productDirectory','machines','molds'];
 function clearKey(k){if(Array.isArray(state?.[k]))state[k]=[];else if(state&&Object.prototype.hasOwnProperty.call(state,k)){const v=state[k];state[k]=Array.isArray(v)?[]:(v&&typeof v==='object'?{}:null)}}
@@ -69,8 +68,8 @@ function performReset(clearConfig){
 function ensureResetDialog(){
   if($('#v11936ResetDialog'))return;
   document.body.insertAdjacentHTML('beforeend',`<dialog id="v11936ResetDialog" class="v11936-reset"><form id="v11936ResetForm">
-    <div class="modal-head"><div><span class="eyebrow">AVVIO REALE CLIENTE</span><h3>Inizializza dati azienda</h3><p>Elimina i dati demo/operativi e prepara Smart Pack per l'utilizzo reale. Utenti, accessi, Gmail, NOMYRA Finance e anagrafica azienda vengono mantenuti.</p></div><button type="button" class="close" data-v11936-close>×</button></div>
-    <div class="modal-body"><div class="v11936-danger"><b>Verranno azzerati</b><span>Ordini, produzione, fogli, magazzino, materie prime, IML, clienti/fornitori, spedizioni, tracciabilità operativa, scadenze e vecchi dati Finance locali.</span></div>
+    <div class="modal-head"><div><span class="eyebrow">AVVIO REALE CLIENTE</span><h3>Inizializza dati azienda</h3><p>Elimina i dati demo/operativi e prepara Smart Pack per l'utilizzo reale. Utenti, accessi, anagrafica azienda, clienti e fornitori vengono mantenuti.</p></div><button type="button" class="close" data-v11936-close>×</button></div>
+    <div class="modal-body"><div class="v11936-danger"><b>Verranno azzerati</b><span>Ordini, produzione, fogli, magazzino operativo, materie prime, giacenze IML, spedizioni, tracciabilità operativa e scadenze. Clienti e fornitori vengono mantenuti.</span></div>
       <fieldset><legend>Azzera anche configurazione prodotti/presse?</legend><label><input type="radio" name="clearConfig" value="no" checked> <span><b>No</b><small>Mantieni prodotti, presse, stampi e relativa configurazione.</small></span></label><label><input type="radio" name="clearConfig" value="yes"> <span><b>Sì</b><small>Riparti da zero anche con prodotti, presse e stampi.</small></span></label></fieldset>
       <label class="v11936-confirm"><input type="checkbox" name="confirm" required> Confermo di voler azzerare i dati operativi attuali.</label>
     </div><div class="modal-actions"><button type="button" class="btn" data-v11936-close>Annulla</button><button type="submit" class="btn danger">Azzera e inizializza</button></div>
