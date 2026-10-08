@@ -1,0 +1,12 @@
+SP-MP MAIN V11.9.44 — CONSEGNA CLIENTE / FINANCE PULITO
+
+Pulizia eseguita al primo avvio:
+- elimina record Finance 2026-06
+- elimina record Finance 2026-12
+- elimina qualunque altro record/import/snapshot con periodo 2026-*
+- mantiene i periodi precedenti, incluso 2025-12
+- imposta il periodo finanziario iniziale su 2025-12
+- rimuove vecchi snapshot locali dei tentativi NOMYRA Finance
+- ricostruisce l'analisi dai bilanci rimasti
+
+Questa build è pensata per la consegna al cliente senza dati finanziari 2026.
