@@ -1,0 +1,10 @@
+SP-MP MAIN V11.9.38 — FINANCE LOGIN FIX
+
+Correzione:
+- Il pulsante 'Collega Finance' non dipende più dal vecchio popup nf23Login.
+- Nuovo popup Finance indipendente e visibile.
+- Login diretto al Supabase di NOMYRA Finance.
+- Account Smart Pack bloccato a info@smartpack.srl.
+- La sessione viene salvata nella stessa chiave usata dalla piattaforma.
+- Gestito anche il refresh token della sessione.
+- Dopo login, Finance viene caricato e la Dashboard Amministrazione viene aggiornata.
