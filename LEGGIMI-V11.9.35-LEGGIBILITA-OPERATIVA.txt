@@ -1,0 +1,21 @@
+SP-MP STAGING V11.9.35 — LEGGIBILITÀ OPERATIVA ROBERTO
+
+Questa versione non modifica logiche o dati.
+Migliora la leggibilità delle schermate operative usate da Roberto:
+
+- Registro ordini
+- Coda Roberto
+- Monitor produzione
+- Fogli produzione
+- Preparazione spedizione
+- Materie prime
+- Magazzino interno
+
+Interventi:
+- testo principale 15–16 px
+- informazioni secondarie 12–13 px
+- righe tabella più alte
+- badge stato più grandi
+- pulsanti azione più comodi
+- filtri e campi più leggibili
+- più spaziatura tra elementi

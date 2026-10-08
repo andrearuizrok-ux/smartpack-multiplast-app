@@ -1,0 +1,10 @@
+SP-MP STAGING V11.9.29 — COPERTURA MATERIALE BASATA SULLA CODA ROBERTO
+
+- La copertura materiale NON dipende più da Presse e stampi.
+- Dashboard Gestione Smart Pack: KPI Copertura materiale della coda + alert approvvigionamento.
+- Coda Roberto: copertura progressiva ordine per ordine secondo la priorità reale.
+- Se Roberto cambia l'ordine della coda, la copertura si ricalcola.
+- Stati: COPERTO / PARZIALE / NON COPERTO / DA CONFIGURARE.
+- Materie prime: configurazione peso reale g/pezzo per famiglia prodotto, materiale base, masterbatch e percentuale master.
+- Nessuna stima di consumo viene inventata se i pesi non sono configurati.
+- Presse e stampi resta dedicato a tempi, stampi e organizzazione della produzione.

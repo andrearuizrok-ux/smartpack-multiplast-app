@@ -1,0 +1,16 @@
+SP-MP STAGING V11.9.34 — LEGGIBILITÀ ROBERTO
+
+Questa versione NON modifica logiche, dati, workflow o moduli.
+Aumenta esclusivamente leggibilità e facilità d'uso nell'area Gestione Smart Pack / Roberto.
+
+- Menu laterale più grande
+- Titoli più grandi
+- Testi descrittivi più leggibili
+- Pulsanti più alti e facili da cliccare
+- Campi form più grandi
+- Tabelle con righe più alte
+- Badge/stati più leggibili
+- KPI principali più grandi
+- Finestre operative più leggibili
+
+L'area Amministrazione non viene ingrandita da questa patch.

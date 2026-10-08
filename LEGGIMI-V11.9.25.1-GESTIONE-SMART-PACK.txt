@@ -1,0 +1,17 @@
+SP-MP STAGING V11.9.25.1 — GESTIONE SMART PACK
+
+Questa NON crea un’area Roberto separata.
+Modifica direttamente il ruolo esistente director = Gestione Smart Pack.
+
+Gestione Smart Pack contiene:
+- Dashboard operativa ordini / produzione / copertura materiali
+- Crea foglio produzione
+- Caricamento camion
+- Monitor produzione
+- Coda Roberto
+- Magazzino interno
+- Ordini IML
+- Giacenze IML
+- Tracciabilità
+
+Scadenze & Compliance resta solo in Amministrazione.

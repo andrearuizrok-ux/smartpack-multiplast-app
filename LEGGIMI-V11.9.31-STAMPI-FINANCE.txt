@@ -1,0 +1,7 @@
+SP-MP STAGING V11.9.31
+
+- Assistente cambio stampo forzato prima della configurazione presse.
+- Pulsante Programma cambio stampo per ogni pressa.
+- Registrando un cambio stampo, le produzioni compatibili con lo stampo installato vengono portate in testa alla coda della pressa.
+- La copertura materiale non viene mostrata nella pagina presse.
+- Economico-finanziario: visibile esclusivamente NOMYRA Finance; i vecchi calcoli locali SP-MP sono nascosti e non sono più presentati come dati ufficiali.
