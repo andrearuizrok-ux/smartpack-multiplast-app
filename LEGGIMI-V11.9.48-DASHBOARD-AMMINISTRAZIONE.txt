@@ -1,0 +1,10 @@
+SP-MP MAIN V11.9.48 — DASHBOARD AMMINISTRAZIONE MIGLIORATA
+
+Modifiche:
+- rimossa l'area finanziaria ma mantenuta una dashboard amministrativa completa
+- nuova hero chiara con priorità attive
+- nuove 4 card KPI operative
+- pannello “Cosa controllare per primo”
+- pannello “Azioni rapide” con collegamento ai moduli amministrativi
+- pannello “Flusso consigliato”
+- sottotitolo pagina corretto, senza riferimenti economici
