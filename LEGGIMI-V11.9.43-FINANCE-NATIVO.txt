@@ -1,0 +1,16 @@
+SP-MP MAIN V11.9.43 — FIX DEFINITIVO MODULO ECONOMICO-FINANZIARIO
+
+Causa trovata:
+Il vecchio modulo embedded SPNomyraFinanceLiveV11923 dentro access-v11.5.js
+nascondeva il centro analisi SPRING nativo e mostrava/lasciava viste vuote.
+
+Correzioni:
+- SPNomyraFinanceLiveV11923 viene disabilitato PRIMA del caricamento di access-v11.5.js.
+- Riattivata la pagina Economico-finanziario nativa SPRING.
+- Il vecchio blocco Dashboard 'Finance non collegato' V11.9.36 non viene più renderizzato.
+- La funzione V11.9.36 per 'Inizializza / azzera dati cliente' resta attiva.
+- Storico versionato V11.9.42 resta attivo.
+- Possibilità di eliminare bilanci errati e ricostruire dai file rimasti.
+- NOMYRA Finance resta solo come link:
+  https://nomyra-finance.pages.dev/
+- Nessuna sincronizzazione/login Finance dentro SP-MP.
