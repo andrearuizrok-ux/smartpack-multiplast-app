@@ -1,0 +1,9 @@
+SP-MP MAIN V11.9.37 — FINANCE HARD OVERRIDE
+
+- Disabilitato il renderer Finance Strict V11.9.33 che entrava in conflitto con il connettore Finance già presente.
+- La pagina Economico-finanziario nasconde in modo definitivo tutti i blocchi finanziari locali SP-MP.
+- Fonte unica: NOMYRA Finance.
+- Account Smart Pack richiesto: info@smartpack.srl.
+- Lettura via sessione Supabase già salvata dal connettore Finance.
+- La dashboard Amministrazione non mostra più bilanci locali: mostra solo snapshot NOMYRA Finance o 'Finance non collegato'.
+- I dati restano fissi nello snapshot finché non si preme 'Aggiorna da Finance'.
